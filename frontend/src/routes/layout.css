@@ -1,90 +1,90 @@
 @import 'tailwindcss';
 
 :root {
-	--color-bg: #f8fafc;
-	--color-fg: #0f172a;
-	--color-border: #e2e8f0;
-	--color-border-soft: #e2e8f0;
-	--color-bg-head: #f1f5f9;
-	--color-bg-alt: #f8fafc;
-	--color-bg-hover: #e2e8f0;
+        --color-bg: #f8fafc;
+        --color-fg: #0f172a;
+        --color-border: #e2e8f0;
+        --color-border-soft: #e2e8f0;
+        --color-bg-head: #f1f5f9;
+        --color-bg-alt: #f8fafc;
+        --color-bg-hover: #e2e8f0;
 }
 
 html,
 body {
-	background: var(--color-bg);
-	color: var(--color-fg);
-	font-family:
-		ui-sans-serif,
-		system-ui,
-		-apple-system,
-		'Segoe UI',
-		Roboto,
-		Helvetica,
-		Arial,
-		sans-serif;
-	font-feature-settings: 'tnum' 1;
+        background: var(--color-bg);
+        color: var(--color-fg);
+        font-family:
+                'Segoe UI',
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                Roboto,
+                Helvetica,
+                Arial,
+                sans-serif;
+        font-feature-settings: 'tnum' 1;
 }
 
 /* Table baseline */
 .grid-table {
-	@apply w-full border-collapse text-[13px];
+        @apply w-full border-collapse text-[13px];
 }
 .grid-table th,
 .grid-table td {
-	@apply border border-slate-200 px-2 py-1.5 align-middle;
+        @apply border border-slate-200 px-2 py-1.5 align-middle;
 }
 .grid-table th {
-	@apply bg-slate-100 font-semibold text-left text-slate-700 text-[11px] uppercase tracking-wide;
+        @apply bg-slate-100 font-semibold text-left text-slate-700 text-[11px] uppercase tracking-wide;
 }
 .grid-table td.num,
 .grid-table th.num {
-	@apply text-right tabular-nums;
+        @apply text-right tabular-nums;
 }
 .grid-table tbody tr:hover td {
-	@apply bg-slate-50;
+        @apply bg-slate-50;
 }
 .grid-table tr.row-total td {
-	@apply bg-slate-200 font-semibold text-slate-900;
+        @apply bg-slate-200 font-semibold text-slate-900;
 }
 
 .inline-link {
-	@apply underline underline-offset-2 text-indigo-600 hover:text-indigo-800 hover:no-underline;
+        @apply underline underline-offset-2 text-indigo-600 hover:text-indigo-800 hover:no-underline;
 }
 
 /* Commercial tracking table */
 .ct-wrap {
-	@apply overflow-x-auto rounded-sm;
+        @apply overflow-x-auto rounded-sm;
 }
 .ct-table {
-	@apply w-full border-collapse text-[12px] whitespace-nowrap;
+        @apply w-full border-collapse text-[12px] whitespace-nowrap;
 }
 .ct-head {
-	@apply bg-slate-100 border border-slate-200 px-2 py-1.5 font-semibold text-left text-slate-700 text-[11px] uppercase tracking-wide;
+        @apply bg-slate-100 border border-slate-200 px-2 py-1.5 font-semibold text-left text-slate-700 text-[11px] uppercase tracking-wide;
 }
 .ct-cell {
-	@apply border border-slate-200 px-2 py-1.5 align-middle text-slate-800;
+        @apply border border-slate-200 px-2 py-1.5 align-middle text-slate-800;
 }
 .ct-row:hover .ct-cell {
-	@apply bg-slate-50;
+        @apply bg-slate-50;
 }
 .ct-sticky-l1 {
-	@apply sticky left-0 z-10 bg-white shadow-[1px_0_0_#e2e8f0];
+        @apply sticky left-0 z-10 bg-white shadow-[1px_0_0_#e2e8f0];
 }
 .ct-sticky-l2 {
-	@apply sticky left-[100px] z-10 bg-white shadow-[1px_0_0_#e2e8f0];
+        @apply sticky left-[100px] z-10 bg-white shadow-[1px_0_0_#e2e8f0];
 }
 .ct-sticky-r {
-	@apply sticky right-0 z-10 bg-white shadow-[-1px_0_0_#e2e8f0];
+        @apply sticky right-0 z-10 bg-white shadow-[-1px_0_0_#e2e8f0];
 }
 .ct-row:hover .ct-sticky-l1,
 .ct-row:hover .ct-sticky-l2,
 .ct-row:hover .ct-sticky-r {
-	@apply bg-slate-50;
+        @apply bg-slate-50;
 }
 
 /* simple focus */
 :focus-visible {
-	outline: 2px solid #6366f1;
-	outline-offset: 1px;
+        outline: 2px solid #6366f1;
+        outline-offset: 1px;
 }
