@@ -1,0 +1,63 @@
+@import 'tailwindcss';
+
+/* B&W Excel-like theme. No colors. No emoji. */
+
+:root {
+	--color-bg: #ffffff;
+	--color-fg: #000000;
+	--color-border: #000000;
+	--color-border-soft: #cccccc;
+	--color-bg-head: #f3f3f3;
+	--color-bg-alt: #fafafa;
+	--color-bg-hover: #eeeeee;
+	--color-bg-focus: #000000;
+	--color-fg-inv: #ffffff;
+}
+
+html,
+body {
+	background: var(--color-bg);
+	color: var(--color-fg);
+	font-family:
+		ui-sans-serif,
+		system-ui,
+		-apple-system,
+		'Segoe UI',
+		Roboto,
+		Helvetica,
+		Arial,
+		sans-serif;
+	font-feature-settings: 'tnum' 1;
+}
+
+/* Excel-like table baseline */
+.grid-table {
+	@apply w-full border-collapse text-[13px];
+}
+.grid-table th,
+.grid-table td {
+	@apply border border-neutral-800 px-2 py-1 align-middle;
+}
+.grid-table th {
+	@apply bg-neutral-100 font-medium text-left;
+}
+.grid-table td.num,
+.grid-table th.num {
+	@apply text-right tabular-nums;
+}
+.grid-table tr:hover td {
+	@apply bg-neutral-100;
+}
+.grid-table tr.row-total td {
+	@apply bg-neutral-200 font-semibold;
+}
+
+.inline-link {
+	@apply underline underline-offset-2 hover:no-underline;
+}
+
+/* simple focus */
+:focus-visible {
+	outline: 2px solid black;
+	outline-offset: 1px;
+}
