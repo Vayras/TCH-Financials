@@ -6,60 +6,48 @@
 	let { children } = $props();
 
 	const nav = [
-		{ href: '/', label: 'Current Overview', color: 'hover:bg-slate-700' },
-		{ href: '/commercial', label: 'Commercial Tracking', color: 'hover:bg-indigo-700' },
-		{ href: '/creators', label: 'Creator Pipeline', color: 'hover:bg-violet-700' },
-		{ href: '/contracting', label: 'Contracting & Compliance', color: 'hover:bg-teal-700' },
-		{ href: '/exclusives', label: 'Exclusives (Quarterly)', color: 'hover:bg-amber-700' },
-		{ href: '/employees', label: 'Employee-Talent', color: 'hover:bg-blue-700' },
-		{ href: '/dropoffs', label: 'Drop-offs', color: 'hover:bg-rose-700' }
+		{ href: '/', label: 'Overview', color: 'hover:text-white', border: 'border-b-2 border-slate-300' },
+		{ href: '/commercial', label: 'Commercial', color: 'hover:text-indigo-300', border: 'border-b-2 border-indigo-400' },
+		{ href: '/creators', label: 'Creators', color: 'hover:text-violet-300', border: 'border-b-2 border-violet-400' },
+		{ href: '/contracting', label: 'Contracting', color: 'hover:text-teal-300', border: 'border-b-2 border-teal-400' },
+		{ href: '/exclusives', label: 'Exclusives', color: 'hover:text-amber-300', border: 'border-b-2 border-amber-400' },
+		{ href: '/employees', label: 'Employees', color: 'hover:text-blue-300', border: 'border-b-2 border-blue-400' },
+		{ href: '/dropoffs', label: 'Drop-offs', color: 'hover:text-rose-300', border: 'border-b-2 border-rose-400' }
 	];
-
-	const activeColors: Record<string, string> = {
-		'/': 'bg-slate-700 text-white',
-		'/commercial': 'bg-indigo-600 text-white',
-		'/creators': 'bg-violet-600 text-white',
-		'/contracting': 'bg-teal-600 text-white',
-		'/exclusives': 'bg-amber-600 text-white',
-		'/employees': 'bg-blue-600 text-white',
-		'/dropoffs': 'bg-rose-600 text-white'
-	};
 
 	function isActive(href: string) {
 		if (href === '/') return page.url.pathname === '/';
 		return page.url.pathname.startsWith(href);
 	}
-
-	function activeColor(href: string) {
-		return activeColors[href] ?? 'bg-slate-800 text-white';
-	}
 </script>
 
 <svelte:head>
-	<title>TCH Financials</title>
+	<title>TCH Financials — MIS</title>
 </svelte:head>
 
 <div class="min-h-screen bg-slate-50 text-slate-900">
-	<header class="bg-slate-900 text-white shadow-md">
-		<div class="mx-auto max-w-[1400px] px-4 py-3 flex items-baseline gap-3">
-			<a href="/" class="text-[16px] font-bold uppercase tracking-wider text-white">TCH Financials</a>
-			<span class="text-[10px] uppercase tracking-widest text-slate-400 font-medium">MIS</span>
+	<header class="bg-[#0f1623] shadow-lg">
+		<div class="mx-auto max-w-[1400px] px-4 flex items-stretch">
+			<nav class="flex items-stretch gap-0 flex-1 flex-wrap">
+				{#each nav as item (item.href)}
+					{@const active = isActive(item.href)}
+					<a
+						href={item.href}
+						class={cn(
+							'relative flex items-center px-4 py-3.5 text-[12px] uppercase tracking-widest font-semibold transition-all duration-150',
+							active
+								? `text-white ${item.border}`
+								: `text-slate-400 border-b-2 border-transparent ${item.color}`
+						)}
+					>
+						{item.label}
+					</a>
+				{/each}
+			</nav>
+			<div class="flex items-center pl-6 border-l border-slate-700/50 ml-2">
+				<span class="text-[10px] font-bold tracking-[0.2em] uppercase text-slate-500">MIS</span>
+			</div>
 		</div>
-		<nav class="mx-auto max-w-[1400px] px-4 flex flex-wrap gap-0">
-			{#each nav as item (item.href)}
-				<a
-					href={item.href}
-					class={cn(
-						'px-3 py-2 text-[11px] uppercase tracking-wide font-medium transition-colors',
-						isActive(item.href)
-							? activeColor(item.href)
-							: `text-slate-300 ${item.color} hover:text-white`
-					)}
-				>
-					{item.label}
-				</a>
-			{/each}
-		</nav>
 	</header>
 
 	<main class="mx-auto max-w-[1400px] px-4 py-5">
