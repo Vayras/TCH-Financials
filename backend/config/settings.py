@@ -2,12 +2,13 @@
 
 from pathlib import Path
 from decouple import config, Csv
+import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY', default='dev-secret')
 DEBUG = config('DEBUG', default=1, cast=int) == 1
-ALLOWED_HOSTS = ['*'] if DEBUG else config('ALLOWED_HOSTS', default='', cast=Csv())
+ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -54,11 +55,11 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME', default='tch_financials'),
-        'USER': config('DB_USER', default='tusharvyas'),
-        'PASSWORD': config('DB_PASSWORD', default=''),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
+        'NAME': os.environ.get('PGDATABASE', config('DB_NAME', default='tch_financials')),
+        'USER': os.environ.get('PGUSER', config('DB_USER', default='runner')),
+        'PASSWORD': os.environ.get('PGPASSWORD', config('DB_PASSWORD', default='')),
+        'HOST': os.environ.get('PGHOST', config('DB_HOST', default='localhost')),
+        'PORT': os.environ.get('PGPORT', config('DB_PORT', default='5432')),
     }
 }
 
@@ -78,9 +79,5 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': None,
 }
 
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:5173,http://127.0.0.1:5173',
-    cast=Csv(),
-)
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
