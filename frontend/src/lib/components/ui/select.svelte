@@ -20,7 +20,7 @@
 
 <select
 	class={cn(
-		'h-8 w-full border border-black bg-white px-2 text-[13px]',
+		'h-8 w-full border border-black bg-white px-2 text-[15px]',
 		'focus:outline focus:outline-2 focus:outline-black',
 		klass
 	)}

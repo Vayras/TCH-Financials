@@ -12,7 +12,7 @@
 
 <textarea
 	class={cn(
-		'min-h-[60px] w-full border border-black bg-white px-2 py-1 text-[13px]',
+		'min-h-[60px] w-full border border-black bg-white px-2 py-1 text-[15px]',
 		'focus:outline focus:outline-2 focus:outline-black',
 		klass
 	)}

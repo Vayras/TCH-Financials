@@ -34,14 +34,14 @@
 	<div class="border-b-2 border-slate-700 -mx-4 px-4 pb-3">
 		<div class="flex items-end justify-between flex-wrap gap-2">
 			<div>
-				<h1 class="text-[18px] font-semibold uppercase tracking-wide text-slate-900">Current Overview</h1>
-				<p class="text-[12px] text-slate-500">Derived live from Commercial Tracking. Add a deal there and these numbers update.</p>
+				<h1 class="text-[20px] font-semibold uppercase tracking-wide text-slate-900">Current Overview</h1>
+				<p class="text-[14px] text-slate-500">Derived live from Commercial Tracking. Add a deal there and these numbers update.</p>
 			</div>
 			<div class="flex items-center gap-2">
-				<label class="text-[11px] uppercase tracking-wide text-slate-600 font-medium" for="fy-select">Fiscal Year</label>
+				<label class="text-[13px] uppercase tracking-wide text-slate-600 font-medium" for="fy-select">Fiscal Year</label>
 				<select
 					id="fy-select"
-					class="h-8 border border-slate-300 bg-white px-2 text-[13px] rounded-sm"
+					class="h-8 border border-slate-300 bg-white px-2 text-[15px] rounded-sm"
 					bind:value={fyStart}
 					onchange={load}
 				>
@@ -57,9 +57,9 @@
 	</div>
 
 	{#if loading}
-		<div class="text-[13px] text-slate-500">Loading…</div>
+		<div class="text-[15px] text-slate-500">Loading…</div>
 	{:else if error}
-		<div class="text-[13px] border border-rose-300 bg-rose-50 text-rose-800 p-2 rounded-sm">Error: {error}</div>
+		<div class="text-[15px] border border-rose-300 bg-rose-50 text-rose-800 p-2 rounded-sm">Error: {error}</div>
 	{:else if data}
 		{@const cols = view === 'month' ? data.months : data.quarters}
 		{@const src = view === 'month'
@@ -129,7 +129,7 @@
 			</table>
 		</div>
 
-		<div class="text-[11px] text-slate-400 uppercase tracking-wide">
+		<div class="text-[13px] text-slate-400 uppercase tracking-wide">
 			Buckets are derived from each creator's relationship (Exclusive / Friend / Dropping / Non TCH).
 			EMW billing is the subset of deals where the billing entity contains "EMW".
 		</div>

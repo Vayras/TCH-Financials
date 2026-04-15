@@ -113,10 +113,10 @@
 	<div class="border-b-2 border-violet-600 -mx-4 px-4 pb-3">
 		<div class="flex items-end justify-between flex-wrap gap-2">
 			<div>
-				<h1 class="text-[18px] font-semibold uppercase tracking-wide text-slate-900">
+				<h1 class="text-[20px] font-semibold uppercase tracking-wide text-slate-900">
 					<span class="text-violet-600">Creator</span> Pipeline
 				</h1>
-				<p class="text-[12px] text-slate-500">Master list of all creators TCH works with.</p>
+				<p class="text-[14px] text-slate-500">Master list of all creators TCH works with.</p>
 			</div>
 			<Button variant="primary" onclick={startAdd}>+ Add Creator</Button>
 		</div>
@@ -124,20 +124,20 @@
 
 	<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
 		<div class="border border-violet-200 bg-violet-50/50 px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-violet-700">Total Creators</div>
-			<div class="text-[16px] font-semibold text-slate-900">{rows.length}</div>
+			<div class="text-[12px] uppercase tracking-wide text-violet-700">Total Creators</div>
+			<div class="text-[18px] font-semibold text-slate-900">{rows.length}</div>
 		</div>
 		<div class="border border-violet-200 bg-violet-50/30 px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-violet-700">Exclusives</div>
-			<div class="text-[16px] font-semibold text-slate-900">{counts.exclusive}</div>
+			<div class="text-[12px] uppercase tracking-wide text-violet-700">Exclusives</div>
+			<div class="text-[18px] font-semibold text-slate-900">{counts.exclusive}</div>
 		</div>
 		<div class="border border-emerald-200 bg-emerald-50/40 px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-emerald-700">Friends</div>
-			<div class="text-[16px] font-semibold text-slate-900">{counts.friend}</div>
+			<div class="text-[12px] uppercase tracking-wide text-emerald-700">Friends</div>
+			<div class="text-[18px] font-semibold text-slate-900">{counts.friend}</div>
 		</div>
 		<div class="border border-orange-200 bg-orange-50/40 px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-orange-700">Dropping</div>
-			<div class="text-[16px] font-semibold text-slate-900">{counts.dropping}</div>
+			<div class="text-[12px] uppercase tracking-wide text-orange-700">Dropping</div>
+			<div class="text-[18px] font-semibold text-slate-900">{counts.dropping}</div>
 		</div>
 	</div>
 
@@ -145,14 +145,14 @@
 		<input
 			type="text"
 			placeholder="Search name, category, ops manager…"
-			class="h-8 flex-1 min-w-[220px] border border-slate-300 px-2 text-[13px] rounded-sm focus:outline focus:outline-2 focus:outline-violet-500 bg-white"
+			class="h-8 flex-1 min-w-[220px] border border-slate-300 px-2 text-[15px] rounded-sm focus:outline focus:outline-2 focus:outline-violet-500 bg-white"
 			bind:value={q}
 		/>
 		{#each REL_FILTERS as f (f)}
 			<button
 				type="button"
 				onclick={() => (relFilter = f)}
-				class="h-8 px-3 text-[11px] uppercase tracking-wide border rounded-sm transition-colors {relFilter === f
+				class="h-8 px-3 text-[13px] uppercase tracking-wide border rounded-sm transition-colors {relFilter === f
 					? 'bg-violet-600 text-white border-violet-600'
 					: 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}"
 			>{f}</button>
@@ -160,9 +160,9 @@
 	</div>
 
 	{#if loading}
-		<div class="text-[13px] text-slate-500">Loading…</div>
+		<div class="text-[15px] text-slate-500">Loading…</div>
 	{:else if error}
-		<div class="text-[13px] border border-rose-300 bg-rose-50 text-rose-800 p-2 rounded-sm">Error: {error}</div>
+		<div class="text-[15px] border border-rose-300 bg-rose-50 text-rose-800 p-2 rounded-sm">Error: {error}</div>
 	{:else}
 		<div class="overflow-x-auto rounded-sm border border-slate-200">
 			<table class="grid-table">
@@ -189,17 +189,17 @@
 							<td class="text-slate-600">{r.category}</td>
 							<td>
 								{#if r.source}
-									<span class="px-1.5 py-0.5 rounded text-[10px] font-medium {r.source === 'EMW' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}">{r.source}</span>
+									<span class="px-1.5 py-0.5 rounded text-[12px] font-medium {r.source === 'EMW' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'}">{r.source}</span>
 								{/if}
 							</td>
 							<td>
 								{#if r.stage}
-									<span class="px-1.5 py-0.5 rounded text-[10px] font-medium {stageBadge(r.stage)}">{r.stage}</span>
+									<span class="px-1.5 py-0.5 rounded text-[12px] font-medium {stageBadge(r.stage)}">{r.stage}</span>
 								{/if}
 							</td>
 							<td>
 								{#if r.relationship}
-									<span class="px-1.5 py-0.5 rounded text-[10px] font-medium {relBadge(r.relationship)}">{r.relationship === 'NonTCH' ? 'Non TCH' : r.relationship}</span>
+									<span class="px-1.5 py-0.5 rounded text-[12px] font-medium {relBadge(r.relationship)}">{r.relationship === 'NonTCH' ? 'Non TCH' : r.relationship}</span>
 								{/if}
 							</td>
 							<td class="text-slate-600">{r.location}</td>
@@ -207,13 +207,13 @@
 							<td class="whitespace-nowrap text-slate-600">{r.doj ?? r.doj_note}</td>
 							<td>
 								{#if r.profile_url}
-									<a class="inline-link text-[12px]" href={r.profile_url} target="_blank" rel="noopener">link ↗</a>
+									<a class="inline-link text-[14px]" href={r.profile_url} target="_blank" rel="noopener">link ↗</a>
 								{/if}
 							</td>
 							<td>
 								<div class="flex gap-1">
-									<button type="button" onclick={() => startEdit(r)} class="h-7 px-2 text-[11px] uppercase tracking-wide border border-violet-300 bg-violet-50 text-violet-800 hover:bg-violet-600 hover:text-white hover:border-violet-600 rounded-sm">Edit</button>
-									<button type="button" onclick={() => remove(r)} class="h-7 px-2 text-[11px] uppercase tracking-wide border border-slate-300 bg-white text-slate-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 rounded-sm">Del</button>
+									<button type="button" onclick={() => startEdit(r)} class="h-7 px-2 text-[13px] uppercase tracking-wide border border-violet-300 bg-violet-50 text-violet-800 hover:bg-violet-600 hover:text-white hover:border-violet-600 rounded-sm">Edit</button>
+									<button type="button" onclick={() => remove(r)} class="h-7 px-2 text-[13px] uppercase tracking-wide border border-slate-300 bg-white text-slate-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 rounded-sm">Del</button>
 								</div>
 							</td>
 						</tr>

@@ -12,7 +12,7 @@
 
 <input
 	class={cn(
-		'h-8 w-full border border-black bg-white px-2 text-[13px] tabular-nums',
+		'h-8 w-full border border-black bg-white px-2 text-[15px] tabular-nums',
 		'focus:outline focus:outline-2 focus:outline-black',
 		klass
 	)}

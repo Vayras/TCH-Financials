@@ -59,14 +59,14 @@
 <section class="space-y-3">
 	<div class="flex items-end justify-between flex-wrap gap-2">
 		<div>
-			<h1 class="text-[18px] font-semibold uppercase tracking-wide">Exclusives — Quarterly Summary</h1>
-			<p class="text-[12px] text-neutral-700">Derived from Commercial Tracking. Each exclusive creator, per quarter.</p>
+			<h1 class="text-[20px] font-semibold uppercase tracking-wide">Exclusives — Quarterly Summary</h1>
+			<p class="text-[14px] text-neutral-700">Derived from Commercial Tracking. Each exclusive creator, per quarter.</p>
 		</div>
 		<div class="flex items-center gap-2">
-			<label class="text-[11px] uppercase tracking-wide" for="fy-select-excl">Fiscal Year</label>
+			<label class="text-[13px] uppercase tracking-wide" for="fy-select-excl">Fiscal Year</label>
 			<select
 				id="fy-select-excl"
-				class="h-8 border border-black bg-white px-2 text-[13px]"
+				class="h-8 border border-black bg-white px-2 text-[15px]"
 				bind:value={fyStart}
 				onchange={load}
 			>
@@ -79,9 +79,9 @@
 	</div>
 
 	{#if loading}
-		<div class="text-[13px] text-neutral-700">Loading…</div>
+		<div class="text-[15px] text-neutral-700">Loading…</div>
 	{:else if error}
-		<div class="text-[13px] border border-black p-2">Error: {error}</div>
+		<div class="text-[15px] border border-black p-2">Error: {error}</div>
 	{:else}
 		<div class="overflow-x-auto">
 			<table class="grid-table">

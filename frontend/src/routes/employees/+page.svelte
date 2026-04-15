@@ -73,10 +73,10 @@
 	<div class="border-b-2 border-blue-600 -mx-4 px-4 pb-3">
 		<div class="flex items-end justify-between flex-wrap gap-2">
 			<div>
-				<h1 class="text-[18px] font-semibold uppercase tracking-wide text-slate-900">
+				<h1 class="text-[20px] font-semibold uppercase tracking-wide text-slate-900">
 					<span class="text-blue-600">Employee-Talent</span> Weekly Reports
 				</h1>
-				<p class="text-[12px] text-slate-500">Weekly performance log per employee.</p>
+				<p class="text-[14px] text-slate-500">Weekly performance log per employee.</p>
 			</div>
 			<Button variant="primary" onclick={startAdd}>+ Add Weekly Report</Button>
 		</div>
@@ -84,20 +84,20 @@
 
 	<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
 		<div class="border border-blue-200 bg-blue-50/50 px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-blue-700">Reports</div>
-			<div class="text-[16px] font-semibold text-slate-900">{rows.length}</div>
+			<div class="text-[12px] uppercase tracking-wide text-blue-700">Reports</div>
+			<div class="text-[18px] font-semibold text-slate-900">{rows.length}</div>
 		</div>
 		<div class="border border-slate-200 bg-white px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-slate-500">Employees</div>
-			<div class="text-[16px] font-semibold text-slate-900">{employees.length}</div>
+			<div class="text-[12px] uppercase tracking-wide text-slate-500">Employees</div>
+			<div class="text-[18px] font-semibold text-slate-900">{employees.length}</div>
 		</div>
 		<div class="border border-emerald-200 bg-emerald-50/40 px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-emerald-700">Total Revenue</div>
-			<div class="text-[14px] font-semibold text-emerald-900">₹ {inr(totals.revenue)}</div>
+			<div class="text-[12px] uppercase tracking-wide text-emerald-700">Total Revenue</div>
+			<div class="text-[16px] font-semibold text-emerald-900">₹ {inr(totals.revenue)}</div>
 		</div>
 		<div class="border border-blue-200 bg-blue-50/30 px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-blue-700">Total Outreach</div>
-			<div class="text-[16px] font-semibold text-slate-900">{totals.outreach}</div>
+			<div class="text-[12px] uppercase tracking-wide text-blue-700">Total Outreach</div>
+			<div class="text-[18px] font-semibold text-slate-900">{totals.outreach}</div>
 		</div>
 	</div>
 
@@ -105,15 +105,15 @@
 		<input
 			type="text"
 			placeholder="Search employee…"
-			class="h-8 w-[240px] border border-slate-300 px-2 text-[13px] rounded-sm focus:outline focus:outline-2 focus:outline-blue-500 bg-white"
+			class="h-8 w-[240px] border border-slate-300 px-2 text-[15px] rounded-sm focus:outline focus:outline-2 focus:outline-blue-500 bg-white"
 			bind:value={q}
 		/>
 	</div>
 
 	{#if loading}
-		<div class="text-[13px] text-slate-500">Loading…</div>
+		<div class="text-[15px] text-slate-500">Loading…</div>
 	{:else if error}
-		<div class="text-[13px] border border-rose-300 bg-rose-50 text-rose-800 p-2 rounded-sm">Error: {error}</div>
+		<div class="text-[15px] border border-rose-300 bg-rose-50 text-rose-800 p-2 rounded-sm">Error: {error}</div>
 	{:else}
 		<div class="overflow-x-auto rounded-sm border border-slate-200">
 			<table class="grid-table">
@@ -142,11 +142,11 @@
 							<td class="num text-emerald-600">{inr(r.profit_locked)}</td>
 							<td class="text-slate-600">{r.barter_confirmations}</td>
 							<td class="num text-blue-600">{r.live_campaigns}</td>
-							<td class="text-slate-600 text-[12px]">{r.action_points}</td>
+							<td class="text-slate-600 text-[14px]">{r.action_points}</td>
 							<td>
 								<div class="flex gap-1">
-									<button type="button" onclick={() => startEdit(r)} class="h-7 px-2 text-[11px] uppercase tracking-wide border border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 rounded-sm">Edit</button>
-									<button type="button" onclick={() => remove(r)} class="h-7 px-2 text-[11px] uppercase tracking-wide border border-slate-300 bg-white text-slate-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 rounded-sm">Del</button>
+									<button type="button" onclick={() => startEdit(r)} class="h-7 px-2 text-[13px] uppercase tracking-wide border border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-600 hover:text-white hover:border-blue-600 rounded-sm">Edit</button>
+									<button type="button" onclick={() => remove(r)} class="h-7 px-2 text-[13px] uppercase tracking-wide border border-slate-300 bg-white text-slate-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 rounded-sm">Del</button>
 								</div>
 							</td>
 						</tr>

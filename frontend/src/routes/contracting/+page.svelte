@@ -70,10 +70,10 @@
 	<div class="border-b-2 border-teal-600 -mx-4 px-4 pb-3">
 		<div class="flex items-end justify-between flex-wrap gap-2">
 			<div>
-				<h1 class="text-[18px] font-semibold uppercase tracking-wide text-slate-900">
+				<h1 class="text-[20px] font-semibold uppercase tracking-wide text-slate-900">
 					<span class="text-teal-600">Contracting</span> &amp; Compliance
 				</h1>
-				<p class="text-[12px] text-slate-500">Agreement and KYC status per creator.</p>
+				<p class="text-[14px] text-slate-500">Agreement and KYC status per creator.</p>
 			</div>
 			<Button variant="primary" onclick={startAdd}>+ Add Entry</Button>
 		</div>
@@ -81,27 +81,27 @@
 
 	<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
 		<div class="border border-teal-200 bg-teal-50/50 px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-teal-700">Total Entries</div>
-			<div class="text-[16px] font-semibold text-slate-900">{rows.length}</div>
+			<div class="text-[12px] uppercase tracking-wide text-teal-700">Total Entries</div>
+			<div class="text-[18px] font-semibold text-slate-900">{rows.length}</div>
 		</div>
 		<div class="border border-emerald-200 bg-emerald-50/40 px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-emerald-700">Fully Complete</div>
-			<div class="text-[16px] font-semibold text-slate-900">{fullyDone}</div>
+			<div class="text-[12px] uppercase tracking-wide text-emerald-700">Fully Complete</div>
+			<div class="text-[18px] font-semibold text-slate-900">{fullyDone}</div>
 		</div>
 		<div class="border border-amber-200 bg-amber-50/40 px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-amber-700">Pending Signature</div>
-			<div class="text-[16px] font-semibold text-slate-900">{pendingSig}</div>
+			<div class="text-[12px] uppercase tracking-wide text-amber-700">Pending Signature</div>
+			<div class="text-[18px] font-semibold text-slate-900">{pendingSig}</div>
 		</div>
 		<div class="border border-slate-200 bg-white px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-slate-500">Completion Rate</div>
-			<div class="text-[16px] font-semibold text-slate-900">{rows.length > 0 ? `${Math.round((fullyDone / rows.length) * 100)}%` : '—'}</div>
+			<div class="text-[12px] uppercase tracking-wide text-slate-500">Completion Rate</div>
+			<div class="text-[18px] font-semibold text-slate-900">{rows.length > 0 ? `${Math.round((fullyDone / rows.length) * 100)}%` : '—'}</div>
 		</div>
 	</div>
 
 	{#if loading}
-		<div class="text-[13px] text-slate-500">Loading…</div>
+		<div class="text-[15px] text-slate-500">Loading…</div>
 	{:else if error}
-		<div class="text-[13px] border border-rose-300 bg-rose-50 text-rose-800 p-2 rounded-sm">Error: {error}</div>
+		<div class="text-[15px] border border-rose-300 bg-rose-50 text-rose-800 p-2 rounded-sm">Error: {error}</div>
 	{:else}
 		<div class="overflow-x-auto rounded-sm border border-slate-200">
 			<table class="grid-table">
@@ -123,16 +123,16 @@
 						<tr>
 							<td class="num text-slate-400">{i + 1}</td>
 							<td class="font-medium text-slate-900">{r.creator_name}</td>
-							<td class="text-center"><span class="px-2 py-0.5 rounded text-[11px] font-medium {yn(r.final_meeting)}">{r.final_meeting || '—'}</span></td>
-							<td class="text-center"><span class="px-2 py-0.5 rounded text-[11px] font-medium {yn(r.agreement_sent)}">{r.agreement_sent || '—'}</span></td>
-							<td class="text-center"><span class="px-2 py-0.5 rounded text-[11px] font-medium {yn(r.agreement_signed)}">{r.agreement_signed || '—'}</span></td>
-							<td class="text-center"><span class="px-2 py-0.5 rounded text-[11px] font-medium {yn(r.bank_verified)}">{r.bank_verified || '—'}</span></td>
+							<td class="text-center"><span class="px-2 py-0.5 rounded text-[13px] font-medium {yn(r.final_meeting)}">{r.final_meeting || '—'}</span></td>
+							<td class="text-center"><span class="px-2 py-0.5 rounded text-[13px] font-medium {yn(r.agreement_sent)}">{r.agreement_sent || '—'}</span></td>
+							<td class="text-center"><span class="px-2 py-0.5 rounded text-[13px] font-medium {yn(r.agreement_signed)}">{r.agreement_signed || '—'}</span></td>
+							<td class="text-center"><span class="px-2 py-0.5 rounded text-[13px] font-medium {yn(r.bank_verified)}">{r.bank_verified || '—'}</span></td>
 							<td class="text-slate-600">{r.time_to_sign}</td>
 							<td class="whitespace-nowrap text-slate-600">{r.renewal_date ?? r.renewal_note}</td>
 							<td>
 								<div class="flex gap-1">
-									<button type="button" onclick={() => startEdit(r)} class="h-7 px-2 text-[11px] uppercase tracking-wide border border-teal-300 bg-teal-50 text-teal-800 hover:bg-teal-600 hover:text-white hover:border-teal-600 rounded-sm">Edit</button>
-									<button type="button" onclick={() => remove(r)} class="h-7 px-2 text-[11px] uppercase tracking-wide border border-slate-300 bg-white text-slate-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 rounded-sm">Del</button>
+									<button type="button" onclick={() => startEdit(r)} class="h-7 px-2 text-[13px] uppercase tracking-wide border border-teal-300 bg-teal-50 text-teal-800 hover:bg-teal-600 hover:text-white hover:border-teal-600 rounded-sm">Edit</button>
+									<button type="button" onclick={() => remove(r)} class="h-7 px-2 text-[13px] uppercase tracking-wide border border-slate-300 bg-white text-slate-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 rounded-sm">Del</button>
 								</div>
 							</td>
 						</tr>

@@ -42,11 +42,11 @@
 		>
 			<div class="flex items-start justify-between border-b border-black pb-2 mb-3">
 				<div>
-					<DialogPrimitive.Title class="text-[15px] font-semibold uppercase tracking-wide">
+					<DialogPrimitive.Title class="text-[17px] font-semibold uppercase tracking-wide">
 						{title}
 					</DialogPrimitive.Title>
 					{#if description}
-						<DialogPrimitive.Description class="text-[12px] text-neutral-700 mt-0.5">
+						<DialogPrimitive.Description class="text-[14px] text-neutral-700 mt-0.5">
 							{description}
 						</DialogPrimitive.Description>
 					{/if}

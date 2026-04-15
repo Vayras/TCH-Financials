@@ -220,10 +220,10 @@
         <div class="border-b-2 border-indigo-600 -mx-4 px-4 pb-3">
                 <div class="flex items-end justify-between flex-wrap gap-2">
                         <div>
-                                <h1 class="text-[18px] font-semibold uppercase tracking-wide text-slate-900">
+                                <h1 class="text-[20px] font-semibold uppercase tracking-wide text-slate-900">
                                         <span class="text-indigo-600">Commercial</span> Tracking
                                 </h1>
-                                <p class="text-[12px] text-slate-600">
+                                <p class="text-[14px] text-slate-600">
                                         Single source of truth for billing. Add a deal here — Current Overview and Quarterly
                                         Exclusives recompute automatically.
                                 </p>
@@ -235,20 +235,20 @@
         <!-- Summary strip -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div class="border border-indigo-200 bg-indigo-50/50 px-3 py-2">
-                        <div class="text-[10px] uppercase tracking-wide text-indigo-700">Deals shown</div>
-                        <div class="text-[16px] font-semibold tabular-nums text-slate-900">{totals.count}</div>
+                        <div class="text-[12px] uppercase tracking-wide text-indigo-700">Deals shown</div>
+                        <div class="text-[18px] font-semibold tabular-nums text-slate-900">{totals.count}</div>
                 </div>
                 <div class="border border-slate-300 bg-white px-3 py-2">
-                        <div class="text-[10px] uppercase tracking-wide text-slate-600">Total Billing</div>
-                        <div class="text-[16px] font-semibold tabular-nums text-slate-900">₹ {inr(totals.total)}</div>
+                        <div class="text-[12px] uppercase tracking-wide text-slate-600">Total Billing</div>
+                        <div class="text-[18px] font-semibold tabular-nums text-slate-900">₹ {inr(totals.total)}</div>
                 </div>
                 <div class="border border-emerald-200 bg-emerald-50/40 px-3 py-2">
-                        <div class="text-[10px] uppercase tracking-wide text-emerald-800">TCH Profit</div>
-                        <div class="text-[16px] font-semibold tabular-nums text-emerald-900">₹ {inr(totals.profit)}</div>
+                        <div class="text-[12px] uppercase tracking-wide text-emerald-800">TCH Profit</div>
+                        <div class="text-[18px] font-semibold tabular-nums text-emerald-900">₹ {inr(totals.profit)}</div>
                 </div>
                 <div class="border border-slate-300 bg-white px-3 py-2">
-                        <div class="text-[10px] uppercase tracking-wide text-slate-600">Profit Ratio</div>
-                        <div class="text-[16px] font-semibold tabular-nums text-slate-900">
+                        <div class="text-[12px] uppercase tracking-wide text-slate-600">Profit Ratio</div>
+                        <div class="text-[18px] font-semibold tabular-nums text-slate-900">
                                 {totals.total > 0 ? `${((totals.profit / totals.total) * 100).toFixed(1)}%` : '—'}
                         </div>
                 </div>
@@ -259,14 +259,14 @@
                 <input
                         type="text"
                         placeholder="Search creator, brand, campaign, RO#, billing entity…"
-                        class="h-8 flex-1 min-w-[260px] border border-slate-400 px-2 text-[13px] focus:outline focus:outline-2 focus:outline-indigo-500"
+                        class="h-8 flex-1 min-w-[260px] border border-slate-400 px-2 text-[15px] focus:outline focus:outline-2 focus:outline-indigo-500"
                         bind:value={q}
                 />
                 {#each ['All', 'Inbound', 'Outbound', 'MarkUp'] as d (d)}
                         <button
                                 type="button"
                                 onclick={() => (dirFilter = d as typeof dirFilter)}
-                                class="h-8 px-3 text-[12px] uppercase tracking-wide border transition-colors {dirFilter === d
+                                class="h-8 px-3 text-[14px] uppercase tracking-wide border transition-colors {dirFilter === d
                                         ? 'bg-indigo-600 text-white border-indigo-600'
                                         : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'}"
                         >
@@ -276,9 +276,9 @@
         </div>
 
         {#if loading}
-                <div class="text-[13px] text-slate-600">Loading…</div>
+                <div class="text-[15px] text-slate-600">Loading…</div>
         {:else if error}
-                <div class="text-[13px] border border-rose-300 bg-rose-50 text-rose-800 p-2">Error: {error}</div>
+                <div class="text-[15px] border border-rose-300 bg-rose-50 text-rose-800 p-2">Error: {error}</div>
         {:else}
                 <div class="ct-wrap border border-slate-300">
                         <table class="ct-table">
@@ -311,7 +311,7 @@
                                                                 {#if r.confirmation_date}
                                                                         <span class="tabular-nums text-slate-900">{r.confirmation_date}</span>
                                                                 {:else}
-                                                                        <span class="text-[10px] uppercase text-amber-700 bg-amber-50 border border-amber-300 px-1">no date</span>
+                                                                        <span class="text-[12px] uppercase text-amber-700 bg-amber-50 border border-amber-300 px-1">no date</span>
                                                                 {/if}
                                                         </td>
                                                         <td class="ct-sticky-l2 ct-cell">
@@ -361,14 +361,14 @@
                                                                         <button
                                                                                 type="button"
                                                                                 onclick={() => startEdit(r)}
-                                                                                class="h-7 px-2 text-[11px] uppercase tracking-wide border border-indigo-300 bg-indigo-50 text-indigo-800 hover:bg-indigo-600 hover:text-white hover:border-indigo-600"
+                                                                                class="h-7 px-2 text-[13px] uppercase tracking-wide border border-indigo-300 bg-indigo-50 text-indigo-800 hover:bg-indigo-600 hover:text-white hover:border-indigo-600"
                                                                         >
                                                                                 Edit
                                                                         </button>
                                                                         <button
                                                                                 type="button"
                                                                                 onclick={() => remove(r)}
-                                                                                class="h-7 px-2 text-[11px] uppercase tracking-wide border border-slate-300 bg-white text-slate-700 hover:bg-rose-600 hover:text-white hover:border-rose-600"
+                                                                                class="h-7 px-2 text-[13px] uppercase tracking-wide border border-slate-300 bg-white text-slate-700 hover:bg-rose-600 hover:text-white hover:border-rose-600"
                                                                         >
                                                                                 Del
                                                                         </button>

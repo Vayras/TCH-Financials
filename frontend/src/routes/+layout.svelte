@@ -34,7 +34,7 @@
 					<a
 						href={item.href}
 						class={cn(
-							'relative flex items-center px-4 py-3.5 text-[12px] uppercase tracking-widest font-semibold transition-all duration-150',
+							'relative flex items-center px-4 py-3.5 text-[14px] uppercase tracking-widest font-semibold transition-all duration-150',
 							active
 								? `text-white ${item.border}`
 								: `text-slate-400 border-b-2 border-transparent ${item.color}`
@@ -45,7 +45,7 @@
 				{/each}
 			</nav>
 			<div class="flex items-center pl-6 border-l border-slate-700/50 ml-2">
-				<span class="text-[10px] font-bold tracking-[0.2em] uppercase text-slate-500">MIS</span>
+				<span class="text-[12px] font-bold tracking-[0.2em] uppercase text-slate-500">MIS</span>
 			</div>
 		</div>
 	</header>
@@ -54,7 +54,7 @@
 		{@render children()}
 	</main>
 
-	<footer class="mx-auto max-w-[1400px] px-4 py-4 border-t border-slate-200 mt-6 text-[11px] text-slate-400 uppercase tracking-wide">
+	<footer class="mx-auto max-w-[1400px] px-4 py-4 border-t border-slate-200 mt-6 text-[13px] text-slate-400 uppercase tracking-wide">
 		Current Overview &amp; Quarterly Exclusives are derived live from Commercial Tracking.
 	</footer>
 </div>

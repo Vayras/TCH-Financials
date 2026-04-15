@@ -1,18 +1,5 @@
 @import 'tailwindcss';
 
-/* Composite font: Segoe UI for text, monospace for digits everywhere */
-@font-face {
-	font-family: 'TCH';
-	src: local('Segoe UI'), local('Helvetica Neue'), local('Arial'), local('sans-serif');
-	unicode-range: U+0000-002F, U+003A-FFFF;
-}
-@font-face {
-	font-family: 'TCH';
-	src: local('Cascadia Code'), local('Cascadia Mono'), local('Consolas'), local('Courier New'), local('monospace');
-	unicode-range: U+0025-0025, U+002B-002E, U+0030-0039, U+20B9;
-	/* % + , - . 0-9 ₹ */
-}
-
 :root {
 	--color-bg: #f8fafc;
 	--color-fg: #0f172a;
@@ -21,29 +8,26 @@
 	--color-bg-head: #f1f5f9;
 	--color-bg-alt: #f8fafc;
 	--color-bg-hover: #e2e8f0;
-	--font-ui: 'TCH', 'Segoe UI', ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
 html,
 body {
 	background: var(--color-bg);
 	color: var(--color-fg);
-	font-family: var(--font-ui);
+	font-family: 'Segoe UI', ui-sans-serif, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
 	font-feature-settings: 'tnum' 1;
 }
 
 /* Table baseline */
 .grid-table {
-	@apply w-full border-collapse text-[13px];
-	font-family: var(--font-ui);
+	@apply w-full border-collapse text-[15px];
 }
 .grid-table th,
 .grid-table td {
 	@apply border border-slate-200 px-2 py-1.5 align-middle;
-	font-family: var(--font-ui);
 }
 .grid-table th {
-	@apply bg-slate-100 font-semibold text-left text-slate-700 text-[11px] uppercase tracking-wide;
+	@apply bg-slate-100 font-semibold text-left text-slate-700 text-[13px] uppercase tracking-wide;
 }
 .grid-table td.num,
 .grid-table th.num {
@@ -65,11 +49,10 @@ body {
 	@apply overflow-x-auto rounded-sm;
 }
 .ct-table {
-	@apply w-full border-collapse text-[12px] whitespace-nowrap;
-	font-family: var(--font-ui);
+	@apply w-full border-collapse text-[14px] whitespace-nowrap;
 }
 .ct-head {
-	@apply bg-slate-100 border border-slate-200 px-2 py-1.5 font-semibold text-left text-slate-700 text-[11px] uppercase tracking-wide;
+	@apply bg-slate-100 border border-slate-200 px-2 py-1.5 font-semibold text-left text-slate-700 text-[13px] uppercase tracking-wide;
 }
 .ct-cell {
 	@apply border border-slate-200 px-2 py-1.5 align-middle text-slate-800;

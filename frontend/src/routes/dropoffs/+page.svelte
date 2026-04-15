@@ -57,10 +57,10 @@
 	<div class="border-b-2 border-rose-600 -mx-4 px-4 pb-3">
 		<div class="flex items-end justify-between flex-wrap gap-2">
 			<div>
-				<h1 class="text-[18px] font-semibold uppercase tracking-wide text-slate-900">
+				<h1 class="text-[20px] font-semibold uppercase tracking-wide text-slate-900">
 					<span class="text-rose-600">Drop-offs</span>
 				</h1>
-				<p class="text-[12px] text-slate-500">Log of creators who left TCH, with reason and learning.</p>
+				<p class="text-[14px] text-slate-500">Log of creators who left TCH, with reason and learning.</p>
 			</div>
 			<Button variant="primary" onclick={startAdd}>+ Add Drop-off</Button>
 		</div>
@@ -68,23 +68,23 @@
 
 	<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
 		<div class="border border-rose-200 bg-rose-50/50 px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-rose-700">Total Drop-offs</div>
-			<div class="text-[16px] font-semibold text-slate-900">{rows.length}</div>
+			<div class="text-[12px] uppercase tracking-wide text-rose-700">Total Drop-offs</div>
+			<div class="text-[18px] font-semibold text-slate-900">{rows.length}</div>
 		</div>
 		<div class="border border-slate-200 bg-white px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-slate-500">With Date</div>
-			<div class="text-[16px] font-semibold text-slate-900">{rows.filter(r => r.drop_off_date).length}</div>
+			<div class="text-[12px] uppercase tracking-wide text-slate-500">With Date</div>
+			<div class="text-[18px] font-semibold text-slate-900">{rows.filter(r => r.drop_off_date).length}</div>
 		</div>
 		<div class="border border-amber-200 bg-amber-50/40 px-3 py-2">
-			<div class="text-[10px] uppercase tracking-wide text-amber-700">Linked to Creator</div>
-			<div class="text-[16px] font-semibold text-slate-900">{rows.filter(r => r.creator).length}</div>
+			<div class="text-[12px] uppercase tracking-wide text-amber-700">Linked to Creator</div>
+			<div class="text-[18px] font-semibold text-slate-900">{rows.filter(r => r.creator).length}</div>
 		</div>
 	</div>
 
 	{#if loading}
-		<div class="text-[13px] text-slate-500">Loading…</div>
+		<div class="text-[15px] text-slate-500">Loading…</div>
 	{:else if error}
-		<div class="text-[13px] border border-rose-300 bg-rose-50 text-rose-800 p-2 rounded-sm">Error: {error}</div>
+		<div class="text-[15px] border border-rose-300 bg-rose-50 text-rose-800 p-2 rounded-sm">Error: {error}</div>
 	{:else}
 		<div class="overflow-x-auto rounded-sm border border-slate-200">
 			<table class="grid-table">
@@ -108,18 +108,18 @@
 								{#if r.drop_off_date}
 									<span class="text-rose-700 font-medium">{r.drop_off_date}</span>
 								{:else}
-									<span class="text-slate-400 text-[11px]">{r.drop_off_date_note || '—'}</span>
+									<span class="text-slate-400 text-[13px]">{r.drop_off_date_note || '—'}</span>
 								{/if}
 							</td>
 							<td class="text-slate-700">{r.reason}</td>
-							<td class="text-slate-600 text-[12px]">{r.learning}</td>
+							<td class="text-slate-600 text-[14px]">{r.learning}</td>
 							<td class="text-slate-500 whitespace-nowrap">
-								<span class="px-1.5 py-0.5 rounded bg-slate-100 text-[11px]">{r.duration}</span>
+								<span class="px-1.5 py-0.5 rounded bg-slate-100 text-[13px]">{r.duration}</span>
 							</td>
 							<td>
 								<div class="flex gap-1">
-									<button type="button" onclick={() => startEdit(r)} class="h-7 px-2 text-[11px] uppercase tracking-wide border border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-600 hover:text-white hover:border-rose-600 rounded-sm">Edit</button>
-									<button type="button" onclick={() => remove(r)} class="h-7 px-2 text-[11px] uppercase tracking-wide border border-slate-300 bg-white text-slate-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 rounded-sm">Del</button>
+									<button type="button" onclick={() => startEdit(r)} class="h-7 px-2 text-[13px] uppercase tracking-wide border border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-600 hover:text-white hover:border-rose-600 rounded-sm">Edit</button>
+									<button type="button" onclick={() => remove(r)} class="h-7 px-2 text-[13px] uppercase tracking-wide border border-slate-300 bg-white text-slate-700 hover:bg-rose-600 hover:text-white hover:border-rose-600 rounded-sm">Del</button>
 								</div>
 							</td>
 						</tr>
