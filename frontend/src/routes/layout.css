@@ -40,6 +40,7 @@ body {
 .grid-table td.num,
 .grid-table th.num {
         @apply text-right tabular-nums;
+        font-family: 'Cascadia Code', 'Cascadia Mono', 'Consolas', 'Courier New', monospace;
 }
 .grid-table tbody tr:hover td {
         @apply bg-slate-50;
