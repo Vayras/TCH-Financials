@@ -66,4 +66,4 @@ htmlcov/
 # ----------------------
 *.log
 *.tmp
-.cache/
+.cache/backups/
