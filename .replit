@@ -72,4 +72,4 @@ exposeLocalhost = true
 [deployment]
 deploymentTarget = "autoscale"
 run = ["bash", "start.sh"]
-build = ["bash", "-c", "cd frontend && npm install && npm run build && cd .. && pip install -r backend/requirements.txt && cd backend && python manage.py migrate && python manage.py import_excel ../data/source.xlsx --wipe && cd .."]
+build = ["bash", "-c", "npm run build && pip install -r backend/requirements.txt && cd backend && python manage.py migrate && python manage.py import_excel ../data/source.xlsx --wipe"]
