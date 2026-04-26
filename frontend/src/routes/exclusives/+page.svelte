@@ -8,6 +8,7 @@
 	let rows = $state<QuarterlyExclusive[]>([]);
 	let loading = $state(true);
 	let error = $state<string | null>(null);
+	let creatorFilter = $state('');
 
 	async function load() {
 		loading = true;
@@ -27,11 +28,19 @@
 		return `FY ${start % 100}-${(start + 1) % 100}`;
 	}
 
-	// Group rows by creator so the table renders like the spreadsheet:
-	// creator row spans 4 quarter rows.
+	let allCreators = $derived.by(() => {
+		const names = [...new Set(rows.map(r => r.creator_name))].sort();
+		return names;
+	});
+
+	let filteredRows = $derived.by(() => {
+		if (!creatorFilter) return rows;
+		return rows.filter(r => r.creator_name === creatorFilter);
+	});
+
 	let grouped = $derived.by(() => {
 		const m = new Map<string, QuarterlyExclusive[]>();
-		for (const r of rows) {
+		for (const r of filteredRows) {
 			if (!m.has(r.creator_name)) m.set(r.creator_name, []);
 			m.get(r.creator_name)!.push(r);
 		}
@@ -42,10 +51,13 @@
 		return creatorRows.find((r) => r.quarter === q) ?? null;
 	}
 
-	function totalFor(creatorRows: QuarterlyExclusive[], field: 'inbound_amount' | 'outbound_amount' | 'inbound_creator_fee' | 'outbound_creator_fee'): string {
-		const sum = creatorRows.reduce((a, r) => a + Number(r[field] || 0), 0);
-		return String(sum);
+	function sumField(creatorRows: QuarterlyExclusive[], field: keyof QuarterlyExclusive): number {
+		return creatorRows.reduce((a, r) => a + Number(r[field] || 0), 0);
 	}
+
+	// Grand totals across all visible creators
+	let grandTotalBilling = $derived(filteredRows.reduce((a, r) => a + Number(r.inbound_amount || 0) + Number(r.outbound_amount || 0), 0));
+	let grandTotalProfit = $derived(filteredRows.reduce((a, r) => a + Number(r.inbound_tch_profit || 0) + Number(r.outbound_tch_profit || 0), 0));
 
 	const QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'];
 	const QLABEL: Record<string, string> = {
@@ -62,8 +74,20 @@
 			<h1 class="text-[20px] font-semibold uppercase tracking-wide">Exclusives — Quarterly Summary</h1>
 			<p class="text-[14px] text-neutral-700">Derived from Commercial Tracking. Each exclusive creator, per quarter.</p>
 		</div>
-		<div class="flex items-center gap-2">
-			<label class="text-[13px] uppercase tracking-wide" for="fy-select-excl">Fiscal Year</label>
+		<div class="flex items-center gap-2 flex-wrap">
+			<label class="text-[13px] uppercase tracking-wide" for="creator-filter">Creator</label>
+			<select
+				id="creator-filter"
+				class="h-8 border border-black bg-white px-2 text-[15px]"
+				bind:value={creatorFilter}
+			>
+				<option value="">All Creators</option>
+				{#each allCreators as name (name)}
+					<option value={name}>{name}</option>
+				{/each}
+			</select>
+
+			<label class="text-[13px] uppercase tracking-wide" for="fy-select-excl">FY</label>
 			<select
 				id="fy-select-excl"
 				class="h-8 border border-black bg-white px-2 text-[15px]"
@@ -78,6 +102,25 @@
 		</div>
 	</div>
 
+	{#if !loading && !error && rows.length > 0}
+		<div class="flex gap-4 flex-wrap">
+			<div class="border border-black px-4 py-2 min-w-[180px]">
+				<div class="text-[11px] uppercase tracking-wide text-neutral-600">Total Billing</div>
+				<div class="text-[20px] font-bold">{inr(String(grandTotalBilling))}</div>
+			</div>
+			<div class="border border-black px-4 py-2 min-w-[180px]">
+				<div class="text-[11px] uppercase tracking-wide text-neutral-600">TCH Profit</div>
+				<div class="text-[20px] font-bold text-violet-700">{inr(String(grandTotalProfit))}</div>
+			</div>
+			{#if creatorFilter}
+				<div class="border border-black px-4 py-2 min-w-[180px]">
+					<div class="text-[11px] uppercase tracking-wide text-neutral-600">Filtered To</div>
+					<div class="text-[16px] font-semibold">{creatorFilter}</div>
+				</div>
+			{/if}
+		</div>
+	{/if}
+
 	{#if loading}
 		<div class="text-[15px] text-neutral-700">Loading…</div>
 	{:else if error}
@@ -89,12 +132,14 @@
 					<tr>
 						<th>Creator</th>
 						<th class="w-[110px] whitespace-nowrap">Quarter</th>
-						<th class="num">Inbound Deals</th>
+						<th class="num">In Deals</th>
 						<th class="num">Inbound Invoiced</th>
-						<th class="num">Inbound Creator Fee</th>
-						<th class="num">Outbound Deals</th>
+						<th class="num">In Creator Fee</th>
+						<th class="num">In TCH Profit</th>
+						<th class="num">Out Deals</th>
 						<th class="num">Outbound Invoiced</th>
-						<th class="num">Outbound Creator Fee</th>
+						<th class="num">Out Creator Fee</th>
+						<th class="num">Out TCH Profit</th>
 						<th>Common Deliverable</th>
 						<th>Top Brands</th>
 						<th>Repeat Brands</th>
@@ -112,9 +157,11 @@
 								<td class="num">{r?.inbound_count ?? 0}</td>
 								<td class="num">{inr(r?.inbound_amount)}</td>
 								<td class="num">{inr(r?.inbound_creator_fee)}</td>
+								<td class="num text-violet-700">{inr(r?.inbound_tch_profit)}</td>
 								<td class="num">{r?.outbound_count ?? 0}</td>
 								<td class="num">{inr(r?.outbound_amount)}</td>
 								<td class="num">{inr(r?.outbound_creator_fee)}</td>
+								<td class="num text-violet-700">{inr(r?.outbound_tch_profit)}</td>
 								<td>{r?.common_deliverable ?? ''}</td>
 								<td>{r?.top_brands?.join(', ') ?? ''}</td>
 								<td>{r?.repeat_brands?.join(', ') ?? ''}</td>
@@ -122,17 +169,19 @@
 						{/each}
 						<tr class="row-total">
 							<td>Total</td>
-							<td class="num">{creatorRows.reduce((a, r) => a + r.inbound_count, 0)}</td>
-							<td class="num">{inr(totalFor(creatorRows, 'inbound_amount'))}</td>
-							<td class="num">{inr(totalFor(creatorRows, 'inbound_creator_fee'))}</td>
-							<td class="num">{creatorRows.reduce((a, r) => a + r.outbound_count, 0)}</td>
-							<td class="num">{inr(totalFor(creatorRows, 'outbound_amount'))}</td>
-							<td class="num">{inr(totalFor(creatorRows, 'outbound_creator_fee'))}</td>
+							<td class="num">{sumField(creatorRows, 'inbound_count')}</td>
+							<td class="num">{inr(String(sumField(creatorRows, 'inbound_amount')))}</td>
+							<td class="num">{inr(String(sumField(creatorRows, 'inbound_creator_fee')))}</td>
+							<td class="num text-violet-700">{inr(String(sumField(creatorRows, 'inbound_tch_profit')))}</td>
+							<td class="num">{sumField(creatorRows, 'outbound_count')}</td>
+							<td class="num">{inr(String(sumField(creatorRows, 'outbound_amount')))}</td>
+							<td class="num">{inr(String(sumField(creatorRows, 'outbound_creator_fee')))}</td>
+							<td class="num text-violet-700">{inr(String(sumField(creatorRows, 'outbound_tch_profit')))}</td>
 							<td colspan="3"></td>
 						</tr>
 					{/each}
 					{#if grouped.length === 0}
-						<tr><td colspan="11" class="text-center text-neutral-700">No exclusive creator deals in this FY.</td></tr>
+						<tr><td colspan="13" class="text-center text-neutral-700">No exclusive creator deals in this FY.</td></tr>
 					{/if}
 				</tbody>
 			</table>

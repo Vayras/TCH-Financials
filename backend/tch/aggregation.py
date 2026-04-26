@@ -203,6 +203,72 @@ def overview(fy_start: int) -> dict:
     }
 
 
+def entity_summary(fy_start: int, entity_filter: str = '') -> dict:
+    """Summarise billing grouped by billing_entity for a fiscal year.
+    If entity_filter is given, restrict to rows whose billing_entity contains that string."""
+    start = date(fy_start, 4, 1)
+    end = date(fy_start + 1, 4, 1)
+
+    deals = (
+        CommercialDeal.objects
+        .select_related('creator')
+        .filter(confirmation_date__gte=start, confirmation_date__lt=end)
+    )
+    if entity_filter:
+        deals = deals.filter(billing_entity__icontains=entity_filter)
+
+    from collections import Counter
+
+    entities: dict[str, dict] = {}
+    for deal in deals:
+        be = (deal.billing_entity or '').strip() or '(No Entity)'
+        if be not in entities:
+            entities[be] = {
+                'entity': be,
+                'deal_count': 0,
+                'total_billing': Decimal('0'),
+                'total_profit': Decimal('0'),
+                'creator_names': [],
+                'brands': [],
+            }
+        e = entities[be]
+        e['deal_count'] += 1
+        e['total_billing'] += deal.total_fee or Decimal('0')
+        e['total_profit'] += deal.agency_fee_inr or Decimal('0')
+        name = deal.creator.name if deal.creator_id else deal.creator_name_raw
+        if name:
+            e['creator_names'].append(name)
+        if deal.brand:
+            e['brands'].append(deal.brand)
+
+    rows = []
+    for data in entities.values():
+        brand_top = [b for b, _ in Counter(data['brands']).most_common(5)]
+        creator_list = sorted(set(data['creator_names']))
+        rows.append({
+            'entity': data['entity'],
+            'deal_count': data['deal_count'],
+            'total_billing': str(data['total_billing']),
+            'total_profit': str(data['total_profit']),
+            'creator_count': len(creator_list),
+            'creators': creator_list,
+            'top_brands': brand_top,
+        })
+
+    rows.sort(key=lambda x: Decimal(x['total_billing']), reverse=True)
+    grand_billing = sum(Decimal(r['total_billing']) for r in rows)
+    grand_profit = sum(Decimal(r['total_profit']) for r in rows)
+
+    return {
+        'fy': fy_label(fy_start),
+        'fy_start': fy_start,
+        'entity_filter': entity_filter,
+        'entities': rows,
+        'grand_total_billing': str(grand_billing),
+        'grand_total_profit': str(grand_profit),
+    }
+
+
 def quarterly_exclusives(fy_start: int) -> list[dict]:
     """Derive the 26-27 Exclusives sheet: per exclusive creator, per quarter,
     inbound/outbound deal counts, invoiced amount, creator fee, top brands, etc."""
@@ -235,9 +301,11 @@ def quarterly_exclusives(fy_start: int) -> list[dict]:
             'inbound_count': 0,
             'inbound_amount': Decimal('0'),
             'inbound_creator_fee': Decimal('0'),
+            'inbound_tch_profit': Decimal('0'),
             'outbound_count': 0,
             'outbound_amount': Decimal('0'),
             'outbound_creator_fee': Decimal('0'),
+            'outbound_tch_profit': Decimal('0'),
             'brands': [],
             'deliverables': [],
             'categories': [],
@@ -246,10 +314,12 @@ def quarterly_exclusives(fy_start: int) -> list[dict]:
             a['inbound_count'] += 1
             a['inbound_amount'] += d.total_fee or Decimal('0')
             a['inbound_creator_fee'] += d.creator_fee or Decimal('0')
+            a['inbound_tch_profit'] += d.agency_fee_inr or Decimal('0')
         else:
             a['outbound_count'] += 1
             a['outbound_amount'] += d.total_fee or Decimal('0')
             a['outbound_creator_fee'] += d.creator_fee or Decimal('0')
+            a['outbound_tch_profit'] += d.agency_fee_inr or Decimal('0')
         if d.brand:
             a['brands'].append(d.brand)
         if d.deliverables:
@@ -268,9 +338,11 @@ def quarterly_exclusives(fy_start: int) -> list[dict]:
             'inbound_count': v['inbound_count'],
             'inbound_amount': str(v['inbound_amount']),
             'inbound_creator_fee': str(v['inbound_creator_fee']),
+            'inbound_tch_profit': str(v['inbound_tch_profit']),
             'outbound_count': v['outbound_count'],
             'outbound_amount': str(v['outbound_amount']),
             'outbound_creator_fee': str(v['outbound_creator_fee']),
+            'outbound_tch_profit': str(v['outbound_tch_profit']),
             'top_brands': [b for b, _ in brand_counts[:5]],
             'repeat_brands': [f"{b} ({c})" for b, c in brand_counts if c > 1],
             'common_deliverable': deliverable_counts[0][0] if deliverable_counts else '',

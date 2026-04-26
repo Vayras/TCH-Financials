@@ -128,10 +128,31 @@ export type QuarterlyExclusive = {
         inbound_count: number;
         inbound_amount: string;
         inbound_creator_fee: string;
+        inbound_tch_profit: string;
         outbound_count: number;
         outbound_amount: string;
         outbound_creator_fee: string;
+        outbound_tch_profit: string;
         top_brands: string[];
         repeat_brands: string[];
         common_deliverable: string;
+};
+
+export type EntityRow = {
+        entity: string;
+        deal_count: number;
+        total_billing: string;
+        total_profit: string;
+        creator_count: number;
+        creators: string[];
+        top_brands: string[];
+};
+
+export type EntitySummary = {
+        fy: string;
+        fy_start: number;
+        entity_filter: string;
+        entities: EntityRow[];
+        grand_total_billing: string;
+        grand_total_profit: string;
 };

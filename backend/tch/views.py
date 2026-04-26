@@ -9,7 +9,7 @@ from .serializers import (
     CreatorSerializer, ContractingComplianceSerializer,
     CommercialDealSerializer, EmployeeWeeklyReportSerializer, DropOffSerializer,
 )
-from .aggregation import overview, quarterly_exclusives, fiscal_year_of
+from .aggregation import overview, quarterly_exclusives, entity_summary, fiscal_year_of
 
 
 class CreatorViewSet(viewsets.ModelViewSet):
@@ -53,3 +53,11 @@ def quarterly_exclusives_view(request):
     fy = request.GET.get('fy')
     fy_start = int(fy) if fy else fiscal_year_of(date.today())
     return Response({'fy_start': fy_start, 'rows': quarterly_exclusives(fy_start)})
+
+
+@api_view(['GET'])
+def entity_summary_view(request):
+    fy = request.GET.get('fy')
+    fy_start = int(fy) if fy else fiscal_year_of(date.today())
+    entity_filter = request.GET.get('entity', '')
+    return Response(entity_summary(fy_start, entity_filter))

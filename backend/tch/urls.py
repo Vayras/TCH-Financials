@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     CreatorViewSet, ContractingComplianceViewSet,
     CommercialDealViewSet, EmployeeWeeklyReportViewSet, DropOffViewSet,
-    overview_view, quarterly_exclusives_view,
+    overview_view, quarterly_exclusives_view, entity_summary_view,
 )
 
 router = DefaultRouter()
@@ -17,5 +17,6 @@ router.register(r'dropoffs', DropOffViewSet)
 urlpatterns = [
     path('overview/', overview_view),
     path('exclusives/quarterly/', quarterly_exclusives_view),
+    path('entity-summary/', entity_summary_view),
     path('', include(router.urls)),
 ]
