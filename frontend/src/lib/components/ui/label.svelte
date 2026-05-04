@@ -10,7 +10,7 @@
 </script>
 
 <label
-	class={cn('block text-[13px] uppercase tracking-wide font-medium text-black mb-1', klass)}
+	class={cn('block text-[12px] font-medium mb-1.5 text-[var(--n-fg-muted)]', klass)}
 	{...rest}
 >
 	{@render children?.()}

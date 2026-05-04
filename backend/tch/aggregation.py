@@ -269,6 +269,170 @@ def entity_summary(fy_start: int, entity_filter: str = '') -> dict:
     }
 
 
+def creator_insights(fy_start: int) -> dict:
+    """Per-creator campaign insights for a fiscal year, across all relationships.
+
+    Returns a list of creator rows, each with lifetime-in-FY metrics:
+      - deal counts (total / inbound / outbound / markup)
+      - billing / profit / creator-fee totals
+      - avg deal size, profit margin
+      - first / last confirmation date, months active
+      - top brands (with frequency), repeat brands, brand_count
+      - common deliverable, deliverable count
+      - monthly billing timeline
+    """
+    from collections import Counter
+
+    start = date(fy_start, 4, 1)
+    end = date(fy_start + 1, 4, 1)
+
+    deals = (
+        CommercialDeal.objects
+        .select_related('creator')
+        .filter(confirmation_date__gte=start, confirmation_date__lt=end)
+    )
+
+    months_meta = []
+    for m in MONTHS_FY_ORDER:
+        y = fy_start if m >= 4 else fy_start + 1
+        months_meta.append({'key': f"{y:04d}-{m:02d}", 'label': MONTH_NAME[m]})
+
+    # key by creator_id when present, else by creator_name_raw fallback
+    agg: dict[tuple, dict] = {}
+    for d in deals:
+        if d.creator_id:
+            key = ('id', d.creator_id)
+            name = d.creator.name
+            relationship = d.creator.relationship or 'Friend'
+            category = d.creator.category or ''
+            ops_manager = d.creator.ops_manager or ''
+        else:
+            raw = (d.creator_name_raw or '').strip() or '(Unnamed)'
+            key = ('raw', raw)
+            name = raw
+            relationship = 'NonTCH'
+            category = ''
+            ops_manager = ''
+
+        a = agg.setdefault(key, {
+            'creator_id': d.creator_id,
+            'creator_name': name,
+            'relationship': relationship,
+            'category': category,
+            'ops_manager': ops_manager,
+            'total_count': 0,
+            'inbound_count': 0,
+            'outbound_count': 0,
+            'markup_count': 0,
+            'total_billing': Decimal('0'),
+            'total_profit': Decimal('0'),
+            'total_creator_fee': Decimal('0'),
+            'first_date': None,
+            'last_date': None,
+            'brands': [],
+            'deliverables': [],
+            'campaigns': [],
+            'billing_entities': [],
+            'by_month': defaultdict(_zero),
+            'paid_count': 0,
+            'over_count': 0,
+        })
+
+        fee = d.total_fee or Decimal('0')
+        profit = d.agency_fee_inr or Decimal('0')
+        cfee = d.creator_fee or Decimal('0')
+
+        a['total_count'] += 1
+        a['total_billing'] += fee
+        a['total_profit'] += profit
+        a['total_creator_fee'] += cfee
+
+        if d.direction == 'Inbound':
+            a['inbound_count'] += 1
+        elif d.direction == 'Outbound':
+            a['outbound_count'] += 1
+        else:
+            a['markup_count'] += 1
+
+        if d.confirmation_date:
+            if a['first_date'] is None or d.confirmation_date < a['first_date']:
+                a['first_date'] = d.confirmation_date
+            if a['last_date'] is None or d.confirmation_date > a['last_date']:
+                a['last_date'] = d.confirmation_date
+            mk = f"{d.confirmation_date.year:04d}-{d.confirmation_date.month:02d}"
+            a['by_month'][mk] += fee
+
+        if d.brand:
+            a['brands'].append(d.brand)
+        if d.deliverables:
+            a['deliverables'].append(d.deliverables)
+        if d.campaign:
+            a['campaigns'].append(d.campaign)
+        if d.billing_entity:
+            a['billing_entities'].append(d.billing_entity)
+        if d.payment_received == 'Y':
+            a['paid_count'] += 1
+        if d.campaign_over == 'Y':
+            a['over_count'] += 1
+
+    results = []
+    for v in agg.values():
+        brand_counts = Counter(v['brands']).most_common()
+        deliverable_counts = Counter(v['deliverables']).most_common()
+        entity_counts = Counter(v['billing_entities']).most_common()
+
+        billing = v['total_billing']
+        avg_deal = (billing / v['total_count']) if v['total_count'] else Decimal('0')
+        margin = (v['total_profit'] / billing) if billing else Decimal('0')
+
+        months_active = len([k for k, val in v['by_month'].items() if val > 0])
+
+        results.append({
+            'creator_id': v['creator_id'],
+            'creator_name': v['creator_name'],
+            'relationship': v['relationship'],
+            'category': v['category'],
+            'ops_manager': v['ops_manager'],
+            'total_count': v['total_count'],
+            'inbound_count': v['inbound_count'],
+            'outbound_count': v['outbound_count'],
+            'markup_count': v['markup_count'],
+            'total_billing': str(billing),
+            'total_profit': str(v['total_profit']),
+            'total_creator_fee': str(v['total_creator_fee']),
+            'avg_deal_size': str(avg_deal.quantize(Decimal('0.01'))),
+            'profit_margin': f"{float(margin):.4f}",
+            'first_date': v['first_date'].isoformat() if v['first_date'] else None,
+            'last_date': v['last_date'].isoformat() if v['last_date'] else None,
+            'months_active': months_active,
+            'brand_count': len({b for b in v['brands']}),
+            'top_brands': [b for b, _ in brand_counts[:5]],
+            'repeat_brands': [f"{b} ({c})" for b, c in brand_counts if c > 1],
+            'common_deliverable': deliverable_counts[0][0] if deliverable_counts else '',
+            'top_billing_entity': entity_counts[0][0] if entity_counts else '',
+            'paid_count': v['paid_count'],
+            'over_count': v['over_count'],
+            'by_month': {k: str(val) for k, val in v['by_month'].items()},
+        })
+
+    results.sort(key=lambda r: Decimal(r['total_billing']), reverse=True)
+
+    grand_billing = sum(Decimal(r['total_billing']) for r in results)
+    grand_profit = sum(Decimal(r['total_profit']) for r in results)
+    grand_deals = sum(r['total_count'] for r in results)
+
+    return {
+        'fy': fy_label(fy_start),
+        'fy_start': fy_start,
+        'months': months_meta,
+        'creators': results,
+        'grand_total_billing': str(grand_billing),
+        'grand_total_profit': str(grand_profit),
+        'grand_total_deals': grand_deals,
+        'creator_count': len(results),
+    }
+
+
 def quarterly_exclusives(fy_start: int) -> list[dict]:
     """Derive the 26-27 Exclusives sheet: per exclusive creator, per quarter,
     inbound/outbound deal counts, invoiced amount, creator fee, top brands, etc."""

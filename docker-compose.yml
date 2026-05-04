@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tch_financials}
+      POSTGRES_USER: ${POSTGRES_USER:-tch}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tch}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_HOST_PORT:-5434}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tch} -d ${POSTGRES_DB:-tch_financials}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret}
+      DEBUG: ${DJANGO_DEBUG:-1}
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-tch_financials}
+      PGUSER: ${POSTGRES_USER:-tch}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-tch}
+      SEED_FILE: /data/source.xlsx
+    volumes:
+      - ./data:/data:ro
+      - backend_state:/app/.state
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: ${VITE_API_BASE:-http://localhost:8000/api}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_HOST_PORT:-5050}:5000"
+
+volumes:
+  pgdata:
+  backend_state:

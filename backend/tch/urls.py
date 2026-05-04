@@ -5,6 +5,7 @@ from .views import (
     CreatorViewSet, ContractingComplianceViewSet,
     CommercialDealViewSet, EmployeeWeeklyReportViewSet, DropOffViewSet,
     overview_view, quarterly_exclusives_view, entity_summary_view,
+    creator_insights_view,
 )
 
 router = DefaultRouter()
@@ -18,5 +19,6 @@ urlpatterns = [
     path('overview/', overview_view),
     path('exclusives/quarterly/', quarterly_exclusives_view),
     path('entity-summary/', entity_summary_view),
+    path('creator-insights/', creator_insights_view),
     path('', include(router.urls)),
 ]

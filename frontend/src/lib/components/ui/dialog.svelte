@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Dialog as DialogPrimitive } from 'bits-ui';
 	import { cn } from '$lib/utils';
+	import Icon from './icon.svelte';
 	import type { Snippet } from 'svelte';
 
 	interface Props {
@@ -31,36 +32,50 @@
 		</DialogPrimitive.Trigger>
 	{/if}
 	<DialogPrimitive.Portal>
-		<DialogPrimitive.Overlay class="fixed inset-0 z-50 bg-black/50" />
+		<DialogPrimitive.Overlay class="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]" />
 		<DialogPrimitive.Content
 			class={cn(
 				'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
-				'w-full max-w-2xl bg-white border border-black p-4 shadow-none',
+				'w-full max-w-2xl rounded-lg p-5',
 				'max-h-[90vh] overflow-y-auto',
 				klass
 			)}
+			style="background: var(--n-bg); border: 1px solid var(--n-border); box-shadow: 0 14px 36px rgba(15, 15, 15, 0.16), 0 2px 6px rgba(15, 15, 15, 0.06);"
 		>
-			<div class="flex items-start justify-between border-b border-black pb-2 mb-3">
+			<div
+				class="flex items-start justify-between pb-3 mb-4"
+				style="border-bottom: 1px solid var(--n-border);"
+			>
 				<div>
-					<DialogPrimitive.Title class="text-[17px] font-semibold uppercase tracking-wide">
+					<DialogPrimitive.Title
+						class="page-title text-[20px] font-semibold"
+						style="color: var(--n-fg);"
+					>
 						{title}
 					</DialogPrimitive.Title>
 					{#if description}
-						<DialogPrimitive.Description class="text-[14px] text-neutral-700 mt-0.5">
+						<DialogPrimitive.Description
+							class="text-[13.5px] mt-1"
+							style="color: var(--n-fg-muted);"
+						>
 							{description}
 						</DialogPrimitive.Description>
 					{/if}
 				</div>
 				<DialogPrimitive.Close
-					class="h-7 w-7 border border-black inline-flex items-center justify-center hover:bg-black hover:text-white"
+					class="h-7 w-7 rounded inline-flex items-center justify-center transition-colors hover:[background:var(--n-bg-hover)]"
+					style="color: var(--n-fg-muted);"
 					aria-label="Close"
 				>
-					×
+					<Icon name="x" size={16} />
 				</DialogPrimitive.Close>
 			</div>
 			{@render children?.()}
 			{#if footer}
-				<div class="mt-4 flex justify-end gap-2 border-t border-black pt-3">
+				<div
+					class="mt-5 flex justify-end gap-2 pt-4"
+					style="border-top: 1px solid var(--n-border);"
+				>
 					{@render footer()}
 				</div>
 			{/if}

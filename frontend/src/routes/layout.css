@@ -1,82 +1,377 @@
 @import 'tailwindcss';
 
 :root {
-	--color-bg: #f8fafc;
-	--color-fg: #0f172a;
-	--color-border: #e2e8f0;
-	--color-border-soft: #e2e8f0;
-	--color-bg-head: #f1f5f9;
-	--color-bg-alt: #f8fafc;
-	--color-bg-hover: #e2e8f0;
+	--n-bg: #ffffff;
+	--n-bg-sidebar: #f7f7f5;
+	--n-bg-soft: #fbfbfa;
+	--n-bg-hover: rgba(55, 53, 47, 0.06);
+	--n-bg-active: rgba(55, 53, 47, 0.1);
+	--n-fg: #37352f;
+	--n-fg-muted: rgba(55, 53, 47, 0.65);
+	--n-fg-subtle: rgba(55, 53, 47, 0.45);
+	--n-border: rgba(55, 53, 47, 0.09);
+	--n-border-strong: rgba(55, 53, 47, 0.16);
+	--n-accent: #2383e2;
+	--n-accent-soft: rgba(35, 131, 226, 0.14);
+
+	--color-bg: var(--n-bg);
+	--color-fg: var(--n-fg);
+	--color-border: var(--n-border);
+	--color-border-soft: var(--n-border);
+	--color-bg-head: var(--n-bg-soft);
+	--color-bg-alt: var(--n-bg-soft);
+	--color-bg-hover: var(--n-bg-hover);
 }
 
 html,
 body {
-	background: var(--color-bg);
-	color: var(--color-fg);
-	font-family: 'Segoe UI', ui-sans-serif, system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+	background: var(--n-bg);
+	color: var(--n-fg);
+	font-family:
+		'Inter',
+		ui-sans-serif,
+		system-ui,
+		-apple-system,
+		'Segoe UI',
+		Roboto,
+		Helvetica,
+		Arial,
+		sans-serif;
 	font-feature-settings: 'tnum' 1;
+	font-variant-ligatures: none;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	letter-spacing: 0;
 }
 
-/* Table baseline */
+.page-title {
+	font-family: 'Source Serif 4', ui-serif, Georgia, 'Times New Roman', serif;
+	letter-spacing: -0.005em;
+	line-height: 1.2;
+	font-feature-settings: normal;
+}
+
+/* ---------- table card + horizontal scroll cue ---------- */
+
+.tbl-card {
+	border: 1px solid var(--n-border);
+	border-radius: 6px;
+	background: var(--n-bg);
+	box-shadow: 0 1px 2px rgba(15, 15, 15, 0.02);
+}
+
+/* Lea Verou's scroll-shadow technique:
+   solid edge covers ride with content (local); shadows ride with viewport (scroll).
+   When content is at start/end the cover hides the shadow; when scrolled, shadow appears. */
+.scroll-x {
+	overflow-x: auto;
+	border-radius: inherit;
+	background:
+		linear-gradient(90deg, var(--n-bg) 28%, rgba(255, 255, 255, 0)) 0 0,
+		linear-gradient(90deg, rgba(255, 255, 255, 0), var(--n-bg) 72%) 100% 0,
+		radial-gradient(farthest-side at 0 50%, rgba(15, 15, 15, 0.18), rgba(15, 15, 15, 0)) 0 0,
+		radial-gradient(farthest-side at 100% 50%, rgba(15, 15, 15, 0.18), rgba(15, 15, 15, 0)) 100% 0;
+	background-repeat: no-repeat;
+	background-size:
+		40px 100%,
+		40px 100%,
+		16px 100%,
+		16px 100%;
+	background-attachment: local, local, scroll, scroll;
+}
+
+.scroll-x::-webkit-scrollbar {
+	height: 10px;
+}
+.scroll-x::-webkit-scrollbar-thumb {
+	background: rgba(55, 53, 47, 0.18);
+	border-radius: 6px;
+	border: 2px solid var(--n-bg);
+}
+.scroll-x::-webkit-scrollbar-thumb:hover {
+	background: rgba(55, 53, 47, 0.32);
+}
+.scroll-x::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+/* ---------- generic data table ---------- */
+
 .grid-table {
-	@apply w-full border-collapse text-[15px];
+	width: 100%;
+	border-collapse: separate;
+	border-spacing: 0;
+	font-size: 14px;
 }
 .grid-table th,
 .grid-table td {
-	@apply border border-slate-200 px-2 py-1.5 align-middle;
+	border: none;
+	border-bottom: 1px solid var(--n-border);
+	padding: 10px 14px;
+	vertical-align: middle;
+	white-space: nowrap;
 }
-.grid-table th {
-	@apply bg-slate-100 font-semibold text-left text-slate-700 text-[13px] uppercase tracking-wide;
+.grid-table thead th {
+	background: var(--n-bg-soft);
+	color: var(--n-fg-muted);
+	font-weight: 500;
+	font-size: 12.5px;
+	text-align: left;
+	text-transform: none;
+	letter-spacing: 0;
+	border-bottom: 1px solid var(--n-border-strong);
+}
+.grid-table tbody tr:last-child td {
+	border-bottom: none;
 }
 .grid-table td.num,
 .grid-table th.num {
-	@apply text-right tabular-nums;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
 }
 .grid-table tbody tr:hover td {
-	@apply bg-slate-50;
+	background: var(--n-bg-hover);
 }
 .grid-table tr.row-total td {
-	@apply bg-slate-200 font-semibold text-slate-900;
+	background: var(--n-bg-soft);
+	color: var(--n-fg);
+	font-weight: 600;
+	border-top: 1px solid var(--n-border-strong);
+}
+
+/* visual separation for the FY-total column */
+.grid-table th:last-child,
+.grid-table td:last-child {
+	border-left: 1px solid var(--n-border);
+}
+
+/* sticky first column (label) — keeps the row label visible while scrolling */
+.grid-table.with-sticky-first thead th:first-child,
+.grid-table.with-sticky-first tbody td:first-child {
+	position: sticky;
+	left: 0;
+	box-shadow: 1px 0 0 var(--n-border);
+}
+.grid-table.with-sticky-first thead th:first-child {
+	background: var(--n-bg-soft);
+	z-index: 3;
+}
+.grid-table.with-sticky-first tbody td:first-child {
+	background: var(--n-bg);
+	z-index: 1;
+}
+.grid-table.with-sticky-first tbody tr:hover td:first-child {
+	background: var(--n-bg-hover);
+}
+.grid-table.with-sticky-first tr.row-total td:first-child {
+	background: var(--n-bg-soft);
 }
 
 .inline-link {
-	@apply underline underline-offset-2 text-indigo-600 hover:text-indigo-800 hover:no-underline;
+	color: var(--n-accent);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+.inline-link:hover {
+	text-decoration: none;
 }
 
-/* Commercial tracking table */
+/* ---------- commercial tracking table (kept API-compatible) ---------- */
+
 .ct-wrap {
-	@apply overflow-x-auto rounded-sm;
+	position: relative;
+	border: 1px solid var(--n-border);
+	border-radius: 6px;
+	background: var(--n-bg);
+	box-shadow: 0 1px 2px rgba(15, 15, 15, 0.02);
+	overflow: auto;
+	max-height: calc(100vh - 320px);
+	min-height: 360px;
+	isolation: isolate;
+	background-image:
+		linear-gradient(90deg, var(--n-bg) 28%, rgba(255, 255, 255, 0)),
+		linear-gradient(90deg, rgba(255, 255, 255, 0), var(--n-bg) 72%),
+		radial-gradient(farthest-side at 0 50%, rgba(15, 15, 15, 0.18), rgba(15, 15, 15, 0)),
+		radial-gradient(farthest-side at 100% 50%, rgba(15, 15, 15, 0.18), rgba(15, 15, 15, 0));
+	background-position: 0 0, 100% 0, 0 0, 100% 0;
+	background-repeat: no-repeat;
+	background-size:
+		40px 100%,
+		40px 100%,
+		16px 100%,
+		16px 100%;
+	background-attachment: local, local, scroll, scroll;
 }
+.ct-wrap::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+.ct-wrap::-webkit-scrollbar-thumb {
+	background: rgba(55, 53, 47, 0.18);
+	border-radius: 6px;
+	border: 2px solid var(--n-bg);
+}
+.ct-wrap::-webkit-scrollbar-thumb:hover {
+	background: rgba(55, 53, 47, 0.32);
+}
+.ct-wrap::-webkit-scrollbar-track {
+	background: transparent;
+}
+
 .ct-table {
-	@apply w-full border-collapse text-[14px] whitespace-nowrap;
+	width: max-content;
+	min-width: 100%;
+	border-collapse: separate;
+	border-spacing: 0;
+	font-size: 13px;
+	white-space: nowrap;
 }
 .ct-head {
-	@apply bg-slate-100 border border-slate-200 px-2 py-1.5 font-semibold text-left text-slate-700 text-[13px] uppercase tracking-wide;
+	position: sticky;
+	top: 0;
+	z-index: 3;
+	background: var(--n-bg-soft);
+	border: none;
+	border-bottom: 1px solid var(--n-border-strong);
+	color: var(--n-fg-muted);
+	padding: 9px 12px;
+	font-weight: 500;
+	font-size: 11.5px;
+	text-align: left;
+	text-transform: none;
+	letter-spacing: 0.02em;
+}
+.ct-head.num {
+	text-align: right;
 }
 .ct-cell {
-	@apply border border-slate-200 px-2 py-1.5 align-middle text-slate-800;
+	border: none;
+	border-bottom: 1px solid var(--n-border);
+	color: var(--n-fg);
+	background-color: #ffffff;
+	padding: 9px 12px;
+	vertical-align: middle;
+}
+.ct-cell.num {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
 }
 .ct-row:hover .ct-cell {
-	@apply bg-slate-50;
+	background-color: #f4f3f0;
 }
 .ct-sticky-l1 {
-	@apply sticky left-0 z-10 bg-white shadow-[1px_0_0_#e2e8f0];
+	position: sticky;
+	left: 0;
+	z-index: 20;
+	background-color: #ffffff;
+	box-shadow: 6px 0 8px -6px rgba(15, 15, 15, 0.12);
 }
 .ct-sticky-l2 {
-	@apply sticky left-[100px] z-10 bg-white shadow-[1px_0_0_#e2e8f0];
+	position: sticky;
+	left: 100px;
+	z-index: 19;
+	background-color: #ffffff;
+	box-shadow: 6px 0 8px -6px rgba(15, 15, 15, 0.12);
 }
 .ct-sticky-r {
-	@apply sticky right-0 z-10 bg-white shadow-[-1px_0_0_#e2e8f0];
+	position: sticky;
+	right: 0;
+	z-index: 20;
+	background-color: #ffffff;
+	box-shadow: -6px 0 8px -6px rgba(15, 15, 15, 0.12);
+}
+thead .ct-sticky-l1,
+thead .ct-sticky-l2,
+thead .ct-sticky-r {
+	z-index: 30;
+	background-color: #fbfbfa;
 }
 .ct-row:hover .ct-sticky-l1,
 .ct-row:hover .ct-sticky-l2,
 .ct-row:hover .ct-sticky-r {
-	@apply bg-slate-50;
+	background-color: #f4f3f0;
 }
 
-/* simple focus */
 :focus-visible {
-	outline: 2px solid #6366f1;
+	outline: 2px solid var(--n-accent);
 	outline-offset: 1px;
+	border-radius: 3px;
+}
+
+/* ---------- sidebar nav ---------- */
+
+.nav-item {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.25rem 0.5rem;
+	font-size: 14px;
+	border-radius: 4px;
+	color: var(--n-fg-muted);
+	transition:
+		background-color 80ms ease,
+		color 80ms ease;
+	min-height: 28px;
+}
+.nav-item:hover {
+	background: var(--n-bg-hover);
+	color: var(--n-fg);
+}
+.nav-item.active {
+	background: var(--n-bg-active);
+	color: var(--n-fg);
+	font-weight: 500;
+}
+.nav-icon {
+	width: 16px;
+	height: 16px;
+	color: var(--n-fg-subtle);
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+.nav-item.active .nav-icon,
+.nav-item:hover .nav-icon {
+	color: var(--n-fg-muted);
+}
+
+/* ---------- segmented toggle ---------- */
+
+.seg-toggle {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px;
+	background: var(--n-bg-soft);
+	border: 1px solid var(--n-border);
+	border-radius: 6px;
+}
+.seg-toggle button {
+	height: 26px;
+	padding: 0 12px;
+	font-size: 13px;
+	border-radius: 4px;
+	color: var(--n-fg-muted);
+	transition:
+		background-color 80ms ease,
+		color 80ms ease;
+}
+.seg-toggle button:hover {
+	color: var(--n-fg);
+}
+.seg-toggle button.active {
+	background: var(--n-bg);
+	color: var(--n-fg);
+	box-shadow: 0 1px 2px rgba(15, 15, 15, 0.06);
+}
+
+/* ---------- caption beneath tables ---------- */
+
+.tbl-caption {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12.5px;
+	color: var(--n-fg-subtle);
+	padding: 8px 14px 0;
 }

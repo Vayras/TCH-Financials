@@ -156,3 +156,42 @@ export type EntitySummary = {
         grand_total_billing: string;
         grand_total_profit: string;
 };
+
+export type CreatorInsight = {
+        creator_id: number | null;
+        creator_name: string;
+        relationship: 'Exclusive' | 'Friend' | 'Dropping' | 'NonTCH';
+        category: string;
+        ops_manager: string;
+        total_count: number;
+        inbound_count: number;
+        outbound_count: number;
+        markup_count: number;
+        total_billing: string;
+        total_profit: string;
+        total_creator_fee: string;
+        avg_deal_size: string;
+        profit_margin: string;
+        first_date: string | null;
+        last_date: string | null;
+        months_active: number;
+        brand_count: number;
+        top_brands: string[];
+        repeat_brands: string[];
+        common_deliverable: string;
+        top_billing_entity: string;
+        paid_count: number;
+        over_count: number;
+        by_month: Record<string, string>;
+};
+
+export type CreatorInsights = {
+        fy: string;
+        fy_start: number;
+        months: { key: string; label: string }[];
+        creators: CreatorInsight[];
+        grand_total_billing: string;
+        grand_total_profit: string;
+        grand_total_deals: number;
+        creator_count: number;
+};

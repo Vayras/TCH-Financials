@@ -12,8 +12,12 @@
 
 <input
 	class={cn(
-		'h-8 w-full border border-black bg-white px-2 text-[15px] tabular-nums',
-		'focus:outline focus:outline-2 focus:outline-black',
+		'h-8 w-full rounded px-2 text-[14px] tabular-nums',
+		'bg-[var(--n-bg-soft)] text-[var(--n-fg)]',
+		'border border-[var(--n-border)] hover:border-[var(--n-border-strong)]',
+		'focus:outline-none focus:border-[var(--n-accent)]',
+		'transition-colors',
+		'placeholder:text-[var(--n-fg-subtle)]',
 		klass
 	)}
 	bind:value

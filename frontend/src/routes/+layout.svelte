@@ -1,61 +1,132 @@
 <script lang="ts">
-        import './layout.css';
-        import { page } from '$app/state';
-        import { cn } from '$lib/utils';
+	import './layout.css';
+	import { page } from '$app/state';
+	import { cn } from '$lib/utils';
+	import Icon from '$lib/components/ui/icon.svelte';
 
-        let { children } = $props();
+	let { children } = $props();
+	let collapsed = $state(false);
 
-        const nav = [
-                { href: '/', label: 'Overview', color: 'hover:text-white', border: 'border-b-2 border-slate-300' },
-                { href: '/commercial', label: 'Commercial', color: 'hover:text-indigo-300', border: 'border-b-2 border-indigo-400' },
-                { href: '/creators', label: 'Creators', color: 'hover:text-violet-300', border: 'border-b-2 border-violet-400' },
-                { href: '/contracting', label: 'Contracting', color: 'hover:text-teal-300', border: 'border-b-2 border-teal-400' },
-                { href: '/exclusives', label: 'Exclusives', color: 'hover:text-amber-300', border: 'border-b-2 border-amber-400' },
-                { href: '/employees', label: 'Employees', color: 'hover:text-blue-300', border: 'border-b-2 border-blue-400' },
-                { href: '/dropoffs', label: 'Drop-offs', color: 'hover:text-rose-300', border: 'border-b-2 border-rose-400' },
-                { href: '/entity-summary', label: 'Entity Summary', color: 'hover:text-emerald-300', border: 'border-b-2 border-emerald-400' }
-        ];
+	const nav = [
+		{ href: '/', label: 'Overview', icon: 'home' },
+		{ href: '/commercial', label: 'Commercial', icon: 'briefcase' },
+		{ href: '/creators', label: 'Creators', icon: 'users' },
+		{ href: '/insights', label: 'Creator Insights', icon: 'sparkle' },
+		{ href: '/contracting', label: 'Contracting', icon: 'file-signature' },
+		{ href: '/exclusives', label: 'Exclusives', icon: 'star' },
+		{ href: '/employees', label: 'Employees', icon: 'user-cog' },
+		{ href: '/dropoffs', label: 'Drop-offs', icon: 'log-out' },
+		{ href: '/entity-summary', label: 'Entity Summary', icon: 'layers' }
+	];
 
-        function isActive(href: string) {
-                if (href === '/') return page.url.pathname === '/';
-                return page.url.pathname.startsWith(href);
-        }
+	function isActive(href: string) {
+		if (href === '/') return page.url.pathname === '/';
+		return page.url.pathname.startsWith(href);
+	}
+
+	function currentLabel() {
+		const m = nav.find((n) => isActive(n.href));
+		return m?.label ?? 'TCH';
+	}
 </script>
 
 <svelte:head>
-        <title>TCH Financials — MIS</title>
+	<title>TCH Financials — MIS</title>
 </svelte:head>
 
-<div class="min-h-screen bg-slate-50 text-slate-900">
-        <header class="bg-[#0f1623] shadow-lg">
-                <div class="mx-auto max-w-[1400px] px-4 flex items-stretch">
-                        <nav class="flex items-stretch gap-0 flex-1 flex-wrap">
-                                {#each nav as item (item.href)}
-                                        {@const active = isActive(item.href)}
-                                        <a
-                                                href={item.href}
-                                                class={cn(
-                                                        'relative flex items-center px-4 py-3.5 text-[14px] uppercase tracking-widest font-semibold transition-all duration-150',
-                                                        active
-                                                                ? `text-white ${item.border}`
-                                                                : `text-slate-400 border-b-2 border-transparent ${item.color}`
-                                                )}
-                                        >
-                                                {item.label}
-                                        </a>
-                                {/each}
-                        </nav>
-                        <div class="flex items-center pl-6 border-l border-slate-700/50 ml-2">
-                                <span class="text-[12px] font-bold tracking-[0.2em] uppercase text-slate-500">MIS</span>
-                        </div>
-                </div>
-        </header>
+<div class="flex min-h-screen" style="background: var(--n-bg);">
+	<aside
+		class="flex flex-col shrink-0 overflow-hidden transition-[width] duration-150 ease-out"
+		style="background: var(--n-bg-sidebar); border-right: 1px solid var(--n-border); width: {collapsed
+			? '52px'
+			: '240px'};"
+	>
+		<div
+			class="flex items-center justify-between px-3 h-11 shrink-0"
+			style="border-bottom: 1px solid var(--n-border);"
+		>
+			{#if !collapsed}
+				<div class="flex items-center gap-2 min-w-0">
+					<div
+						class="h-6 w-6 rounded flex items-center justify-center text-[12px] font-semibold"
+						style="background: var(--n-fg); color: var(--n-bg);"
+					>
+						T
+					</div>
+					<span class="text-[13.5px] font-semibold truncate">TCH Financials</span>
+				</div>
+			{:else}
+				<div
+					class="h-6 w-6 rounded flex items-center justify-center text-[12px] font-semibold"
+					style="background: var(--n-fg); color: var(--n-bg);"
+				>
+					T
+				</div>
+			{/if}
+			<button
+				class="h-6 w-6 inline-flex items-center justify-center rounded transition-colors"
+				style="color: var(--n-fg-subtle);"
+				aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+				onclick={() => (collapsed = !collapsed)}
+				onmouseenter={(e) => (e.currentTarget.style.background = 'var(--n-bg-hover)')}
+				onmouseleave={(e) => (e.currentTarget.style.background = 'transparent')}
+			>
+				<Icon name={collapsed ? 'chevron-right' : 'chevrons-left'} size={14} />
+			</button>
+		</div>
 
-        <main class="mx-auto max-w-[1400px] px-4 py-5">
-                {@render children()}
-        </main>
+		<nav class="flex-1 overflow-y-auto py-2">
+			<div class="px-2 pb-1">
+				{#if !collapsed}
+					<div
+						class="text-[11px] font-medium uppercase tracking-wider px-2 pb-1.5 pt-1"
+						style="color: var(--n-fg-subtle); letter-spacing: 0.06em;"
+					>
+						Workspace
+					</div>
+				{/if}
+				{#each nav as item (item.href)}
+					{@const active = isActive(item.href)}
+					<a
+						href={item.href}
+						class={cn('nav-item', active && 'active', collapsed && 'justify-center')}
+						title={collapsed ? item.label : undefined}
+					>
+						<span class="nav-icon"><Icon name={item.icon} /></span>
+						{#if !collapsed}<span class="truncate">{item.label}</span>{/if}
+					</a>
+				{/each}
+			</div>
+		</nav>
 
-        <footer class="mx-auto max-w-[1400px] px-4 py-4 border-t border-slate-200 mt-6 text-[13px] text-slate-400 uppercase tracking-wide">
-                Current Overview &amp; Quarterly Exclusives are derived live from Commercial Tracking.
-        </footer>
+		<div
+			class="px-3 py-2 text-[11px]"
+			style="color: var(--n-fg-subtle); border-top: 1px solid var(--n-border);"
+		>
+			{#if !collapsed}
+				MIS · derived live
+			{:else}
+				·
+			{/if}
+		</div>
+	</aside>
+
+	<div class="flex-1 min-w-0 flex flex-col">
+		<header
+			class="h-11 flex items-center px-5 gap-2 shrink-0 sticky top-0 z-20"
+			style="background: var(--n-bg); border-bottom: 1px solid var(--n-border);"
+		>
+			<span class="inline-flex items-center" style="color: var(--n-fg-subtle);">
+				<Icon name="home" size={14} />
+			</span>
+			<span class="text-[13px]" style="color: var(--n-fg-subtle);">/</span>
+			<span class="text-[13px] font-medium" style="color: var(--n-fg);">{currentLabel()}</span>
+		</header>
+
+		<main class="flex-1 overflow-x-hidden">
+			<div class="mx-auto w-full max-w-[1280px] px-12 py-12">
+				{@render children()}
+			</div>
+		</main>
+	</div>
 </div>
