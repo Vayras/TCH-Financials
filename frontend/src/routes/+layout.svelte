@@ -36,7 +36,7 @@
 
 <div class="flex min-h-screen" style="background: var(--n-bg);">
 	<aside
-		class="flex flex-col shrink-0 overflow-hidden transition-[width] duration-150 ease-out"
+		class="sticky top-0 self-start h-screen flex flex-col shrink-0 overflow-hidden transition-[width] duration-150 ease-out z-30"
 		style="background: var(--n-bg-sidebar); border-right: 1px solid var(--n-border); width: {collapsed
 			? '52px'
 			: '240px'};"
@@ -57,7 +57,7 @@
 				</div>
 			{:else}
 				<div
-					class="h-6 w-6 rounded flex items-center justify-center text-[12px] font-semibold"
+					class="h-6 w-6 shrink-0 rounded flex items-center justify-center text-[12px] font-semibold leading-none"
 					style="background: var(--n-fg); color: var(--n-bg);"
 				>
 					T

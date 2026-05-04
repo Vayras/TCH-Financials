@@ -66,6 +66,7 @@ body {
 .scroll-x {
 	overflow-x: auto;
 	border-radius: inherit;
+	isolation: isolate;
 	background:
 		linear-gradient(90deg, var(--n-bg) 28%, rgba(255, 255, 255, 0)) 0 0,
 		linear-gradient(90deg, rgba(255, 255, 255, 0), var(--n-bg) 72%) 100% 0,
@@ -150,21 +151,21 @@ body {
 .grid-table.with-sticky-first tbody td:first-child {
 	position: sticky;
 	left: 0;
-	box-shadow: 1px 0 0 var(--n-border);
+	box-shadow: 6px 0 8px -6px rgba(15, 15, 15, 0.12);
 }
 .grid-table.with-sticky-first thead th:first-child {
-	background: var(--n-bg-soft);
-	z-index: 3;
+	background-color: #fbfbfa;
+	z-index: 30;
 }
 .grid-table.with-sticky-first tbody td:first-child {
-	background: var(--n-bg);
-	z-index: 1;
+	background-color: #ffffff;
+	z-index: 20;
 }
 .grid-table.with-sticky-first tbody tr:hover td:first-child {
-	background: var(--n-bg-hover);
+	background-color: #f4f3f0;
 }
 .grid-table.with-sticky-first tr.row-total td:first-child {
-	background: var(--n-bg-soft);
+	background-color: #fbfbfa;
 }
 
 .inline-link {

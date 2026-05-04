@@ -226,8 +226,7 @@
 				{#each filtered as c (c.creator_id ?? c.creator_name)}
 					{@const max = maxMonthly(c)}
 					<article
-						class="rounded-md p-5"
-						style="border: 1px solid var(--n-border); background: var(--n-bg); box-shadow: 0 1px 2px rgba(15,15,15,0.02);"
+						class="rounded-md p-5 border border-[var(--n-border)] bg-[var(--n-bg)] shadow-[0_1px_2px_rgba(15,15,15,0.04)] transition-[border-color,box-shadow] duration-150 hover:border-[#a96b50] hover:shadow-[0_4px_18px_rgba(169,107,80,0.12)]"
 					>
 						<div class="flex items-start justify-between gap-3 flex-wrap">
 							<div class="space-y-1 min-w-0">
@@ -375,26 +374,33 @@
 										{max > 0 ? `peak ₹ ${inr(String(max))}` : 'no monthly data'}
 									</span>
 								</div>
-								<div class="flex items-end gap-1 h-12">
+								<div class="flex items-end gap-1 h-14">
 									{#each data.months as m (m.key)}
 										{@const v = Number(c.by_month[m.key] || 0)}
-										{@const h = max > 0 ? Math.max(2, Math.round((v / max) * 44)) : 2}
-										<div
-											class="flex-1 flex flex-col items-center gap-1"
-											title="{m.label}: ₹ {v ? inr(String(v)) : '0'}"
-										>
+										{@const h = max > 0 ? Math.max(2, Math.round((v / max) * 52) + 2) : 2}
+										<div class="relative flex-1 group cursor-default">
 											<div
-												class="w-full rounded-sm"
-												style="height: {h}px; background: {v > 0
-													? 'var(--n-fg-muted)'
-													: 'var(--n-border)'}; opacity: {v > 0 ? 0.85 : 0.5};"
-											></div>
-											<div
-												class="text-[10px]"
-												style="color: var(--n-fg-subtle);"
+												class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded text-[11px] font-medium whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-md text-white bg-[#8a4a32]"
 											>
-												{m.label[0]}
+												{m.label}: {v > 0 ? `₹ ${inr(String(v))}` : '—'}
 											</div>
+											<div
+												class="w-full rounded-sm transition-[opacity,background-color] duration-150 {v >
+												0
+													? 'opacity-70 bg-[var(--n-fg-muted)] group-hover:opacity-100 group-hover:bg-[#a96b50]'
+													: 'opacity-50 bg-[var(--n-border)] group-hover:opacity-80 group-hover:bg-[#d9c2b3]'}"
+												style="height: {h}px;"
+											></div>
+										</div>
+									{/each}
+								</div>
+								<div class="flex gap-1 mt-1.5">
+									{#each data.months as m (m.key)}
+										<div
+											class="flex-1 text-center text-[10px] tabular-nums"
+											style="color: var(--n-fg-subtle);"
+										>
+											{m.label[0]}
 										</div>
 									{/each}
 								</div>
