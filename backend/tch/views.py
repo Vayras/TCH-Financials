@@ -9,7 +9,7 @@ from .serializers import (
     CreatorSerializer, ContractingComplianceSerializer,
     CommercialDealSerializer, EmployeeWeeklyReportSerializer, DropOffSerializer,
 )
-from .aggregation import overview, quarterly_exclusives, entity_summary, creator_insights, fiscal_year_of
+from .aggregation import overview, quarterly_exclusives, entity_summary, creator_insights, fiscal_year_of, alerts
 
 
 class CreatorViewSet(viewsets.ModelViewSet):
@@ -68,3 +68,8 @@ def creator_insights_view(request):
     fy = request.GET.get('fy')
     fy_start = int(fy) if fy else fiscal_year_of(date.today())
     return Response(creator_insights(fy_start))
+
+
+@api_view(['GET'])
+def alerts_view(request):
+    return Response(alerts())

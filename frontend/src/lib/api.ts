@@ -195,3 +195,32 @@ export type CreatorInsights = {
         grand_total_deals: number;
         creator_count: number;
 };
+
+export type AlertSeverity = 'high' | 'med' | 'low';
+
+export type AlertItem = {
+        kind: string;
+        severity: AlertSeverity;
+        title: string;
+        detail: string;
+        action: string;
+        meta: Record<string, string | number | boolean | null>;
+};
+
+export type AlertsPayload = {
+        generated_at: string;
+        thresholds: {
+                inactive_creator_days: number;
+                invoice_overdue_days: number;
+                payment_overdue_days: number;
+                brand_dormant_days: number;
+                brand_hot_window_days: number;
+                renewal_due_days: number;
+                qoq_drop_pct: number;
+        };
+        urgent: AlertItem[];
+        bd: AlertItem[];
+        health: AlertItem[];
+        seasonal: AlertItem[];
+        counts: { urgent: number; bd: number; health: number; seasonal: number };
+};

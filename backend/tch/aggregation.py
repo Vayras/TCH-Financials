@@ -4,11 +4,11 @@ from the CommercialDeal table — the single source of truth."""
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Iterable
 
-from .models import CommercialDeal
+from .models import CommercialDeal, Creator, ContractingCompliance
 
 
 # Indian fiscal year: April -> March.
@@ -515,3 +515,325 @@ def quarterly_exclusives(fy_start: int) -> list[dict]:
     q_rank = {'Q1': 0, 'Q2': 1, 'Q3': 2, 'Q4': 3}
     results.sort(key=lambda r: (r['creator_name'], q_rank.get(r['quarter'], 9)))
     return results
+
+
+# ---------------------------------------------------------------------------
+# Alerts — formula-derived signals from the same source-of-truth tables.
+# Each alert has: severity, title, detail, action_hint, age_days (optional).
+# ---------------------------------------------------------------------------
+
+# Thresholds (calendar days)
+INACTIVE_CREATOR_DAYS = 45        # Exclusive/Friend with no deal in this many days
+INVOICE_OVERDUE_DAYS = 30         # campaign_over='Y' but invoice_received != 'Y'
+PAYMENT_OVERDUE_DAYS = 30         # invoice_received='Y' but payment_received != 'Y'
+BRAND_DORMANT_DAYS = 90           # brand had deals, none in this window
+BRAND_HOT_WINDOW_DAYS = 60        # 3+ deals to same brand within this window
+RENEWAL_DUE_DAYS = 30             # contracting.renewal_date within this window
+QOQ_DROP_PCT = Decimal('0.20')    # 20% drop quarter-over-quarter
+
+# Hard-coded seasonal calendar (recurring Indian retail / cultural moments).
+# (month, day, label). Years are computed relative to "today".
+SEASONAL_MOMENTS = [
+    (1, 26, 'Republic Day'),
+    (3, 14, 'Holi'),
+    (3, 31, 'FY End'),
+    (8, 15, 'Independence Day'),
+    (10, 2, 'Gandhi Jayanti'),
+    (11, 1, 'Diwali (approx)'),
+    (12, 25, 'Christmas'),
+    (12, 31, 'Year End'),
+]
+
+
+def _days_between(a: date, b: date) -> int:
+    return (b - a).days
+
+
+def _next_occurrence(today: date, month: int, day: int) -> date:
+    """Return the next future occurrence of month/day on/after today."""
+    try:
+        candidate = date(today.year, month, day)
+    except ValueError:
+        candidate = date(today.year, month, 28)
+    if candidate < today:
+        try:
+            candidate = date(today.year + 1, month, day)
+        except ValueError:
+            candidate = date(today.year + 1, month, 28)
+    return candidate
+
+
+def alerts(today: date | None = None) -> dict:
+    """Compute the four alert boards rendered on the Alerts page.
+
+    Sections (each is a list, sorted by severity then age):
+      - urgent           Inactive creators, overdue invoices/payments, renewals due
+      - bd               Dormant brands, hot brands (recurring last 60d)
+      - health           QoQ billing/margin drops per exclusive creator
+      - seasonal         Days until the next of each calendar moment
+
+    Each item shape:
+      {
+        kind, severity ('high'|'med'|'low'),
+        title, detail, action,
+        meta: {...} (optional pointers: creator_id, brand, deal_id, weeks_away)
+      }
+    """
+    today = today or date.today()
+
+    deals_qs = (
+        CommercialDeal.objects
+        .select_related('creator')
+        .all()
+    )
+    # Cache as list — we iterate multiple times.
+    deals = list(deals_qs)
+
+    # ---- Urgent ----
+    urgent: list[dict] = []
+
+    # (a) Inactive Exclusive/Friend creators
+    last_deal_by_creator: dict[int, date] = {}
+    for d in deals:
+        if not d.creator_id or not d.confirmation_date:
+            continue
+        prev = last_deal_by_creator.get(d.creator_id)
+        if prev is None or d.confirmation_date > prev:
+            last_deal_by_creator[d.creator_id] = d.confirmation_date
+
+    active_creators = Creator.objects.filter(relationship__in=['Exclusive', 'Friend'])
+    for c in active_creators:
+        last = last_deal_by_creator.get(c.id)
+        if last is None:
+            # No deal ever — only flag if creator joined more than threshold ago
+            anchor = c.doj or (c.created_at.date() if c.created_at else None)
+            if anchor and _days_between(anchor, today) >= INACTIVE_CREATOR_DAYS:
+                age = _days_between(anchor, today)
+                urgent.append({
+                    'kind': 'inactive_creator',
+                    'severity': 'high' if c.relationship == 'Exclusive' else 'med',
+                    'title': f"{c.name} — No deal yet ({age} days since onboarding)",
+                    'detail': f"{c.relationship}. No commercial deal recorded since onboarding.",
+                    'action': 'Open creator pipeline',
+                    'meta': {'creator_id': c.id, 'age_days': age, 'relationship': c.relationship},
+                })
+            continue
+        age = _days_between(last, today)
+        if age >= INACTIVE_CREATOR_DAYS:
+            urgent.append({
+                'kind': 'inactive_creator',
+                'severity': 'high' if c.relationship == 'Exclusive' else 'med',
+                'title': f"{c.name} — No deal in {age} days",
+                'detail': f"{c.relationship}. Last deal confirmed {last.isoformat()}.",
+                'action': 'Schedule check-in',
+                'meta': {'creator_id': c.id, 'age_days': age, 'relationship': c.relationship},
+            })
+
+    # (b) Invoice overdue — campaign over but invoice not yet received
+    for d in deals:
+        if d.campaign_over == 'Y' and d.invoice_received != 'Y' and d.confirmation_date:
+            age = _days_between(d.confirmation_date, today)
+            if age >= INVOICE_OVERDUE_DAYS:
+                who = d.creator.name if d.creator_id else (d.creator_name_raw or '(no creator)')
+                brand = d.brand or '(no brand)'
+                urgent.append({
+                    'kind': 'invoice_overdue',
+                    'severity': 'high' if age >= 60 else 'med',
+                    'title': f"{brand} × {who} — Invoice not raised, {age} days",
+                    'detail': f"Campaign marked over. Total fee ₹ {d.total_fee}. Billing entity: {d.billing_entity or '—'}.",
+                    'action': 'Raise invoice',
+                    'meta': {'deal_id': d.id, 'age_days': age, 'brand': d.brand},
+                })
+
+    # (c) Payment overdue — invoice raised but payment not received
+    for d in deals:
+        if d.invoice_received == 'Y' and d.payment_received != 'Y':
+            anchor = d.e_invoice_date or d.confirmation_date
+            if not anchor:
+                continue
+            age = _days_between(anchor, today)
+            if age >= PAYMENT_OVERDUE_DAYS:
+                who = d.creator.name if d.creator_id else (d.creator_name_raw or '(no creator)')
+                brand = d.brand or '(no brand)'
+                urgent.append({
+                    'kind': 'payment_overdue',
+                    'severity': 'high' if age >= 60 else 'med',
+                    'title': f"{brand} invoice overdue — {age} days",
+                    'detail': f"{who}. ₹ {d.total_fee} via {d.billing_entity or '—'}. Invoice dated {anchor.isoformat()}.",
+                    'action': 'Escalate to finance',
+                    'meta': {'deal_id': d.id, 'age_days': age, 'brand': d.brand},
+                })
+
+    # (d) Contract renewal due
+    cutoff = today + timedelta(days=RENEWAL_DUE_DAYS)
+    contracts = (
+        ContractingCompliance.objects
+        .select_related('creator')
+        .filter(renewal_date__isnull=False, renewal_date__lte=cutoff)
+    )
+    for cc in contracts:
+        days_to = _days_between(today, cc.renewal_date)
+        urgent.append({
+            'kind': 'renewal_due',
+            'severity': 'high' if days_to <= 14 else 'med',
+            'title': f"{cc.creator.name} — Renewal {'overdue' if days_to < 0 else f'in {days_to} days'}",
+            'detail': f"Renewal date {cc.renewal_date.isoformat()}. {cc.renewal_note or ''}".strip(),
+            'action': 'Draft renewal',
+            'meta': {'creator_id': cc.creator_id, 'days_to': days_to},
+        })
+
+    # ---- BD Opportunities ----
+    bd: list[dict] = []
+    # Per-brand: list of (date, deal) for date-bearing rows
+    brand_dates: dict[str, list[date]] = defaultdict(list)
+    brand_creators: dict[str, set[str]] = defaultdict(set)
+    brand_billing: dict[str, Decimal] = defaultdict(lambda: Decimal('0'))
+    for d in deals:
+        if not d.brand or not d.confirmation_date:
+            continue
+        brand_dates[d.brand].append(d.confirmation_date)
+        name = d.creator.name if d.creator_id else d.creator_name_raw
+        if name:
+            brand_creators[d.brand].add(name)
+        brand_billing[d.brand] += d.total_fee or Decimal('0')
+
+    for brand, dates in brand_dates.items():
+        last = max(dates)
+        age = _days_between(last, today)
+        # Dormant: had at least one deal historically, none in last 90d
+        if age >= BRAND_DORMANT_DAYS:
+            months = round(age / 30)
+            bd.append({
+                'kind': 'brand_dormant',
+                'severity': 'med',
+                'title': f"{brand} — Dormant for {months} months",
+                'detail': f"Last deal {last.isoformat()}. Lifetime billing ₹ {brand_billing[brand]}. {len(brand_creators[brand])} creator(s) worked with this brand.",
+                'action': 'Craft re-engagement pitch',
+                'meta': {'brand': brand, 'age_days': age},
+            })
+        # Hot: 3+ deals in trailing 60d
+        recent = [d for d in dates if _days_between(d, today) <= BRAND_HOT_WINDOW_DAYS]
+        if len(recent) >= 3:
+            bd.append({
+                'kind': 'brand_hot',
+                'severity': 'low',
+                'title': f"{brand} — {len(recent)} active collabs in last {BRAND_HOT_WINDOW_DAYS}d",
+                'detail': f"Creators on this brand: {', '.join(sorted(brand_creators[brand])[:5])}.",
+                'action': 'Pitch more creators',
+                'meta': {'brand': brand, 'recent_count': len(recent)},
+            })
+
+    # ---- Creator Health: QoQ billing / margin drop ----
+    health: list[dict] = []
+    # Determine current and previous FY-quarter relative to today.
+    fy_now = fiscal_year_of(today)
+    cur_q_idx = None
+    for i, (_, months_in_q) in enumerate(QUARTERS):
+        if today.month in months_in_q:
+            cur_q_idx = i
+            break
+    if cur_q_idx is None:
+        cur_q_idx = 0
+    # Build (creator_id, q_key) -> (billing, profit, count)
+    q_agg: dict[tuple[int, str, int], dict] = {}
+
+    def q_for(d: date) -> tuple[str, int]:
+        # Returns (quarter_key, fy_start_year)
+        fy = fiscal_year_of(d)
+        for qk, months_in_q in QUARTERS:
+            if d.month in months_in_q:
+                return (qk, fy)
+        return ('Q1', fy)
+
+    for d in deals:
+        if not d.creator_id or not d.confirmation_date:
+            continue
+        if d.creator.relationship != 'Exclusive':
+            continue
+        qk, fy = q_for(d.confirmation_date)
+        key = (d.creator_id, qk, fy)
+        a = q_agg.setdefault(key, {
+            'billing': Decimal('0'),
+            'profit': Decimal('0'),
+            'count': 0,
+            'name': d.creator.name,
+        })
+        a['billing'] += d.total_fee or Decimal('0')
+        a['profit'] += d.agency_fee_inr or Decimal('0')
+        a['count'] += 1
+
+    cur_qk = QUARTERS[cur_q_idx][0]
+    if cur_q_idx == 0:
+        prev_qk, prev_fy = QUARTERS[3][0], fy_now - 1
+    else:
+        prev_qk, prev_fy = QUARTERS[cur_q_idx - 1][0], fy_now
+
+    # Re-key for compare
+    cur_by_creator = {k[0]: v for k, v in q_agg.items() if k[1] == cur_qk and k[2] == fy_now}
+    prev_by_creator = {k[0]: v for k, v in q_agg.items() if k[1] == prev_qk and k[2] == prev_fy}
+
+    for cid, prev in prev_by_creator.items():
+        cur = cur_by_creator.get(cid)
+        prev_bill = prev['billing']
+        cur_bill = cur['billing'] if cur else Decimal('0')
+        if prev_bill <= 0:
+            continue
+        drop = (prev_bill - cur_bill) / prev_bill
+        if drop >= QOQ_DROP_PCT:
+            drop_pct = int(drop * 100)
+            health.append({
+                'kind': 'billing_drop',
+                'severity': 'high' if drop_pct >= 50 else 'med',
+                'title': f"{prev['name']} — Billing dropped {drop_pct}% QoQ",
+                'detail': f"{prev_qk}: ₹ {prev_bill}. {cur_qk}: ₹ {cur_bill}.",
+                'action': 'Review pipeline',
+                'meta': {'creator_id': cid, 'drop_pct': drop_pct},
+            })
+
+    # ---- Seasonal moments ----
+    seasonal: list[dict] = []
+    for m, d_day, label in SEASONAL_MOMENTS:
+        nxt = _next_occurrence(today, m, d_day)
+        days = _days_between(today, nxt)
+        weeks = round(days / 7)
+        seasonal.append({
+            'kind': 'seasonal',
+            'severity': 'low',
+            'title': f"{label} — {weeks} week{'s' if weeks != 1 else ''} away" if weeks > 0 else f"{label} — today",
+            'detail': f"{nxt.isoformat()} ({days} days).",
+            'action': 'Plan campaign',
+            'meta': {'date': nxt.isoformat(), 'days_away': days, 'weeks_away': weeks},
+        })
+    seasonal.sort(key=lambda x: x['meta']['days_away'])
+
+    # Sort the data-driven boards by severity then age.
+    sev_rank = {'high': 0, 'med': 1, 'low': 2}
+    def sort_key(it: dict) -> tuple:
+        return (sev_rank.get(it['severity'], 9), -(it.get('meta', {}).get('age_days') or 0))
+
+    urgent.sort(key=sort_key)
+    bd.sort(key=sort_key)
+    health.sort(key=sort_key)
+
+    return {
+        'generated_at': today.isoformat(),
+        'thresholds': {
+            'inactive_creator_days': INACTIVE_CREATOR_DAYS,
+            'invoice_overdue_days': INVOICE_OVERDUE_DAYS,
+            'payment_overdue_days': PAYMENT_OVERDUE_DAYS,
+            'brand_dormant_days': BRAND_DORMANT_DAYS,
+            'brand_hot_window_days': BRAND_HOT_WINDOW_DAYS,
+            'renewal_due_days': RENEWAL_DUE_DAYS,
+            'qoq_drop_pct': float(QOQ_DROP_PCT),
+        },
+        'urgent': urgent,
+        'bd': bd,
+        'health': health,
+        'seasonal': seasonal,
+        'counts': {
+            'urgent': len(urgent),
+            'bd': len(bd),
+            'health': len(health),
+            'seasonal': len(seasonal),
+        },
+    }

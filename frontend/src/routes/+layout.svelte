@@ -12,6 +12,7 @@
 		{ href: '/commercial', label: 'Commercial', icon: 'briefcase' },
 		{ href: '/creators', label: 'Creators', icon: 'users' },
 		{ href: '/insights', label: 'Creator Insights', icon: 'sparkle' },
+		{ href: '/alerts', label: 'Alerts', icon: 'bell' },
 		{ href: '/contracting', label: 'Contracting', icon: 'file-signature' },
 		{ href: '/exclusives', label: 'Exclusives', icon: 'star' },
 		{ href: '/employees', label: 'Employees', icon: 'user-cog' },
