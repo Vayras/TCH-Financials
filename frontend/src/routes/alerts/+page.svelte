@@ -106,43 +106,43 @@
 	<div
 		class="flex flex-wrap items-center gap-2 pb-3"
 		style="border-bottom: 1px solid var(--n-border);"
-		>
-			<div class="seg-toggle">
-				{#each FILTERS as f (f)}
-					<button
-						type="button"
-						class:active={activeSection === f}
-						onclick={() => (activeSection = f)}
-					>
-						{f === 'all'
-							? 'All'
+	>
+		<div class="seg-toggle">
+			{#each FILTERS as f (f)}
+				<button
+					type="button"
+					class:active={activeSection === f}
+					onclick={() => (activeSection = f)}
+				>
+					{f === 'all'
+						? 'All'
 						: f === 'bd'
 							? 'BD'
 							: f === 'urgent'
 								? 'Urgent'
 								: f === 'health'
 									? 'Health'
-										: 'Seasonal'}
-						{#if alerts}
-							<span class="ml-1 text-[11px]" style="color: var(--n-fg-subtle);">
-								{f === 'all'
-									? alerts.counts.urgent +
-										alerts.counts.bd +
-										alerts.counts.health +
-										alerts.counts.seasonal
-									: alerts.counts[f]}
-							</span>
-						{/if}
-					</button>
-				{/each}
-			</div>
-			<div class="ml-auto flex items-center gap-2">
-				{#if alerts}
-					<span class="text-[12px]" style="color: var(--n-fg-subtle);">
-						Generated {alerts.generated_at}
-					</span>
-				{/if}
-				<Button variant="ghost" onclick={load}>
+									: 'Seasonal'}
+					{#if alerts}
+						<span class="ml-1 text-[11px]" style="color: var(--n-fg-subtle);">
+							{f === 'all'
+								? alerts.counts.urgent +
+									alerts.counts.bd +
+									alerts.counts.health +
+									alerts.counts.seasonal
+								: alerts.counts[f]}
+						</span>
+					{/if}
+				</button>
+			{/each}
+		</div>
+		<div class="ml-auto flex items-center gap-2">
+			{#if alerts}
+				<span class="text-[12px]" style="color: var(--n-fg-subtle);">
+					Generated {alerts.generated_at}
+				</span>
+			{/if}
+			<Button variant="ghost" onclick={load}>
 				<Icon name="refresh" size={14} /> Refresh
 			</Button>
 		</div>
@@ -159,11 +159,11 @@
 		</div>
 	{:else if pageState.kind === 'ok'}
 		{@const payload = pageState.data}
-			{@const totalCount =
-				payload.counts.urgent + payload.counts.bd + payload.counts.health + payload.counts.seasonal}
+		{@const totalCount =
+			payload.counts.urgent + payload.counts.bd + payload.counts.health + payload.counts.seasonal}
 
-			<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-				{#each ORDER as key (key)}
+		<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+			{#each ORDER as key (key)}
 				{@const meta = SECTION_META[key]}
 				<button
 					type="button"
@@ -183,13 +183,13 @@
 						>
 							<Icon name={meta.icon} size={11} />
 						</span>
-							{meta.title.split('—')[0].trim()}
-						</div>
-						<div class="text-[22px] font-semibold tabular-nums mt-1" style="color: var(--n-fg);">
-							{payload.counts[key]}
-						</div>
-					</button>
-				{/each}
+						{meta.title.split('—')[0].trim()}
+					</div>
+					<div class="text-[22px] font-semibold tabular-nums mt-1" style="color: var(--n-fg);">
+						{payload.counts[key]}
+					</div>
+				</button>
+			{/each}
 		</div>
 
 		{#if totalCount === 0}
@@ -300,15 +300,15 @@
 		<footer
 			class="text-[11.5px] pt-4 leading-relaxed"
 			style="color: var(--n-fg-subtle); border-top: 1px solid var(--n-border);"
-			>
-				<strong style="color: var(--n-fg-muted); font-weight: 500;">Thresholds:</strong>
-				Inactive creator ≥ {payload.thresholds.inactive_creator_days}d ·
-				Invoice overdue ≥ {payload.thresholds.invoice_overdue_days}d ·
-				Payment overdue ≥ {payload.thresholds.payment_overdue_days}d ·
-				Brand dormant ≥ {payload.thresholds.brand_dormant_days}d ·
-				Brand hot ≥ 3 deals/{payload.thresholds.brand_hot_window_days}d ·
-				Renewal ≤ {payload.thresholds.renewal_due_days}d ·
-				QoQ drop ≥ {Math.round(payload.thresholds.qoq_drop_pct * 100)}%.
-			</footer>
-		{/if}
-	</section>
+		>
+			<strong style="color: var(--n-fg-muted); font-weight: 500;">Thresholds:</strong>
+			Inactive creator ≥ {payload.thresholds.inactive_creator_days}d ·
+			Invoice overdue ≥ {payload.thresholds.invoice_overdue_days}d ·
+			Payment overdue ≥ {payload.thresholds.payment_overdue_days}d ·
+			Brand dormant ≥ {payload.thresholds.brand_dormant_days}d ·
+			Brand hot ≥ 3 deals/{payload.thresholds.brand_hot_window_days}d ·
+			Renewal ≤ {payload.thresholds.renewal_due_days}d ·
+			QoQ drop ≥ {Math.round(payload.thresholds.qoq_drop_pct * 100)}%.
+		</footer>
+	{/if}
+</section>
