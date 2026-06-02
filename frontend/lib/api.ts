@@ -21,7 +21,17 @@ export const api = {
 		req<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
 	put: <T,>(path: string, body: unknown) =>
 		req<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
-	del: (path: string) => req<void>(path, { method: 'DELETE' })
+	del: (path: string) => req<void>(path, { method: 'DELETE' }),
+	// Multipart upload — the browser sets the Content-Type (with boundary),
+	// so we must not send our JSON header here.
+	upload: async <T,>(path: string, form: FormData): Promise<T> => {
+		const res = await fetch(`${API_BASE}${path}`, { method: 'POST', body: form });
+		if (!res.ok) {
+			const text = await res.text();
+			throw new Error(`${res.status} ${res.statusText}: ${text}`);
+		}
+		return res.json() as Promise<T>;
+	}
 };
 
 export type Creator = {
@@ -91,6 +101,16 @@ export type Deal = {
 	e_invoice_number: string;
 	payment_received: string;
 	comments: string;
+};
+
+export type CreatorDocument = {
+	id: number;
+	creator: number;
+	creator_name: string;
+	doc_type: string;
+	label: string;
+	file: string;
+	uploaded_at: string;
 };
 
 export type EmployeeReport = {
@@ -224,6 +244,7 @@ export type AlertsPayload = {
 	urgent: AlertItem[];
 	bd: AlertItem[];
 	health: AlertItem[];
+	docs: AlertItem[];
 	seasonal: AlertItem[];
-	counts: { urgent: number; bd: number; health: number; seasonal: number };
+	counts: { urgent: number; bd: number; health: number; docs: number; seasonal: number };
 };
