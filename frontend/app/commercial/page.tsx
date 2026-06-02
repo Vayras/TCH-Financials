@@ -275,10 +275,11 @@ export default function CommercialPage() {
 			if (entityFilter !== 'All' && (r.billing_entity || '').trim() !== entityFilter)
 				return false;
 			const d = basis === 'invoice' ? r.e_invoice_date : r.confirmation_date;
-			// Scope to the site-wide fiscal year. Dated rows outside the selected
-			// FY are hidden; undated rows (not yet invoiced/confirmed) always show
-			// so newly added deals stay visible regardless of the selected FY.
-			if (d && fyStartOf(d) !== fyStart) return false;
+			// Scope strictly to the site-wide fiscal year: a deal only belongs to
+			// the selected FY if its tracking date (conf or invoice) falls inside
+			// it. Rows with no date for the chosen basis are not attributable to a
+			// year and are hidden — switch "Track by" if a deal has only one date.
+			if (!d || fyStartOf(d) !== fyStart) return false;
 			if (subPeriod !== 'All') {
 				if (!d) return false;
 				if (subPeriod.startsWith('Q')) {
