@@ -74,6 +74,35 @@ const EMPTY_FORM: DealForm = {
 	comments: ''
 };
 
+// One extra creator on a multi-creator campaign. The first/primary creator
+// lives in the main form fields; these are the additional split rows.
+type ShareForm = {
+	creator: string;
+	creator_name_raw: string;
+	total_fee: string;
+	agency_fee_inr: string;
+};
+const EMPTY_SHARE: ShareForm = {
+	creator: '',
+	creator_name_raw: '',
+	total_fee: '',
+	agency_fee_inr: ''
+};
+
+// Build a CreatorShare payload row, deriving % and creator fee from totals.
+function buildShare(creator: string, raw: string, total: string, inr: string) {
+	const t = Number(total) || 0;
+	const a = Number(inr) || 0;
+	return {
+		creator: creator ? Number(creator) : null,
+		creator_name_raw: raw || '',
+		total_fee: total || '0',
+		agency_fee_inr: inr || '0',
+		agency_fee_pct: t > 0 ? (a / t).toFixed(4) : '0',
+		creator_fee: (t - a).toFixed(2)
+	};
+}
+
 function relTone(rel?: string) {
 	if (rel === 'Exclusive') return 'exclusive' as const;
 	if (rel === 'Dropping') return 'dropping' as const;
@@ -121,6 +150,7 @@ export default function CommercialPage() {
 	const [entityFilter, setEntityFilter] = React.useState('All');
 	const [basis, setBasis] = React.useState<DateBasis>('confirmation');
 	const [form, setForm] = React.useState<DealForm>(EMPTY_FORM);
+	const [shares, setShares] = React.useState<ShareForm[]>([]);
 
 	const load = React.useCallback(async () => {
 		setLoading(true);
@@ -179,22 +209,33 @@ export default function CommercialPage() {
 			...EMPTY_FORM,
 			confirmation_date: new Date().toISOString().slice(0, 10)
 		});
+		setShares([]);
 		setOpen(true);
 	}
 
 	function startEdit(d: Deal) {
 		setEditing(d);
+		const cs = d.creator_shares ?? [];
+		// When the campaign has splits, the first share fills the primary fields
+		// and the rest become additional rows.
+		const primary = cs[0];
 		setForm({
 			confirmation_date: d.confirmation_date ?? '',
 			e_invoice_date: d.e_invoice_date ?? '',
-			creator: d.creator ? String(d.creator) : '',
-			creator_name_raw: d.creator_name_raw,
+			creator: primary
+				? primary.creator
+					? String(primary.creator)
+					: ''
+				: d.creator
+					? String(d.creator)
+					: '',
+			creator_name_raw: primary ? primary.creator_name_raw : d.creator_name_raw,
 			tch_poc: d.tch_poc ?? '',
 			direction: d.direction,
-			total_fee: d.total_fee,
-			agency_fee_pct: d.agency_fee_pct,
-			agency_fee_inr: d.agency_fee_inr,
-			creator_fee: d.creator_fee,
+			total_fee: primary ? primary.total_fee : d.total_fee,
+			agency_fee_pct: primary ? primary.agency_fee_pct : d.agency_fee_pct,
+			agency_fee_inr: primary ? primary.agency_fee_inr : d.agency_fee_inr,
+			creator_fee: primary ? primary.creator_fee : d.creator_fee,
 			billing_entity: d.billing_entity,
 			brand: d.brand,
 			brand_poc: d.brand_poc ?? '',
@@ -208,19 +249,43 @@ export default function CommercialPage() {
 			payment_received: d.payment_received,
 			comments: d.comments
 		});
+		setShares(
+			cs.slice(1).map((s) => ({
+				creator: s.creator ? String(s.creator) : '',
+				creator_name_raw: s.creator_name_raw,
+				total_fee: s.total_fee,
+				agency_fee_inr: s.agency_fee_inr
+			}))
+		);
 		setOpen(true);
 	}
 
 	async function submit() {
+		// A campaign is "split" when extra creators are added. We then send the
+		// full creator_shares set (primary + additions) and roll the campaign
+		// totals up from the shares. With no extra creators we send an empty
+		// set so any previous split is cleared and the single creator is used.
+		const hasSplit = shares.length > 0;
+		const shareRows = hasSplit
+			? [
+					buildShare(form.creator, form.creator_name_raw, form.total_fee, form.agency_fee_inr),
+					...shares.map((s) =>
+						buildShare(s.creator, s.creator_name_raw, s.total_fee, s.agency_fee_inr)
+					)
+				]
+			: [];
+		const sum = (k: 'total_fee' | 'agency_fee_inr' | 'creator_fee') =>
+			shareRows.reduce((n, s) => n + (Number(s[k]) || 0), 0).toFixed(2);
 		const payload = {
 			...form,
 			creator: form.creator ? Number(form.creator) : null,
 			confirmation_date: form.confirmation_date || null,
 			e_invoice_date: form.e_invoice_date || null,
-			total_fee: form.total_fee || '0',
+			total_fee: hasSplit ? sum('total_fee') : form.total_fee || '0',
 			agency_fee_pct: form.agency_fee_pct || '0',
-			agency_fee_inr: form.agency_fee_inr || '0',
-			creator_fee: form.creator_fee || '0'
+			agency_fee_inr: hasSplit ? sum('agency_fee_inr') : form.agency_fee_inr || '0',
+			creator_fee: hasSplit ? sum('creator_fee') : form.creator_fee || '0',
+			creator_shares: shareRows
 		};
 		try {
 			if (editing) {
@@ -301,6 +366,23 @@ export default function CommercialPage() {
 
 	const set = <K extends keyof DealForm>(k: K, v: DealForm[K]) =>
 		setForm((f) => ({ ...f, [k]: v }));
+
+	const updateShare = (i: number, k: keyof ShareForm, v: string) =>
+		setShares((arr) => arr.map((s, idx) => (idx === i ? { ...s, [k]: v } : s)));
+	const removeShare = (i: number) =>
+		setShares((arr) => arr.filter((_, idx) => idx !== i));
+
+	// Creator options, filtered to exclude exclusives on Mark Up campaigns.
+	const creatorOptions = creators
+		.filter((c) => form.direction !== 'MarkUp' || c.relationship !== 'Exclusive')
+		.map((c) => ({ value: String(c.id), label: `${c.name} · ${c.relationship}` }));
+
+	// Campaign total when splitting (primary share + additional shares).
+	const splitTotal =
+		shares.length > 0
+			? (Number(form.total_fee) || 0) +
+				shares.reduce((n, s) => n + (Number(s.total_fee) || 0), 0)
+			: 0;
 
 	return (
 		<>
@@ -544,14 +626,25 @@ export default function CommercialPage() {
 											</td>
 											<td className="ct-sticky-l2 ct-cell">
 												<div className="font-medium" style={{ color: 'var(--n-fg)' }}>
-													{r.creator_name || '—'}
+													{r.creator_shares && r.creator_shares.length > 0
+														? r.creator_shares
+																.map((s) => s.creator_name || s.creator_name_raw)
+																.filter(Boolean)
+																.join(', ')
+														: r.creator_name || '—'}
 												</div>
-												{r.creator_relationship && (
-													<Tag tone={relTone(r.creator_relationship)} className="mt-0.5">
-														{r.creator_relationship === 'NonTCH'
-															? 'Non TCH'
-															: r.creator_relationship}
+												{r.creator_shares && r.creator_shares.length > 1 ? (
+													<Tag tone="markup" className="mt-0.5">
+														{r.creator_shares.length} creators
 													</Tag>
+												) : (
+													r.creator_relationship && (
+														<Tag tone={relTone(r.creator_relationship)} className="mt-0.5">
+															{r.creator_relationship === 'NonTCH'
+																? 'Non TCH'
+																: r.creator_relationship}
+														</Tag>
+													)
 												)}
 											</td>
 											<td className="ct-cell">
@@ -722,14 +815,7 @@ export default function CommercialPage() {
 						<Select
 							value={form.creator}
 							onChange={(e) => set('creator', e.target.value)}
-							options={creators
-								.filter(
-									(c) => form.direction !== 'MarkUp' || c.relationship !== 'Exclusive'
-								)
-								.map((c) => ({
-									value: String(c.id),
-									label: `${c.name} · ${c.relationship}`
-								}))}
+							options={creatorOptions}
 							placeholder="— none —"
 						/>
 					</div>
@@ -795,6 +881,74 @@ export default function CommercialPage() {
 							onChange={(e) => set('creator_fee', e.target.value)}
 						/>
 					</div>
+
+					<div
+						className="col-span-3 mt-1 pt-3"
+						style={{ borderTop: '1px solid var(--n-border)' }}
+					>
+						<div className="flex items-center justify-between mb-2">
+							<Label>
+								Additional creators (split billing)
+								{shares.length > 0 && (
+									<span className="ml-2 font-normal" style={{ color: 'var(--n-fg-muted)' }}>
+										Campaign total ₹ {inr(splitTotal)} · fields above are the 1st creator&apos;s
+										share
+									</span>
+								)}
+							</Label>
+							<Button
+								variant="outline"
+								onClick={() => setShares((s) => [...s, { ...EMPTY_SHARE }])}
+							>
+								<Icon name="plus" size={13} /> Add creator
+							</Button>
+						</div>
+						{shares.length === 0 ? (
+							<p className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
+								Single creator. Add creators here to split this campaign&apos;s billing across
+								several people — each keeps their own fee, profit, and reporting.
+							</p>
+						) : (
+							<div className="space-y-2">
+								{shares.map((s, i) => (
+									<div key={i} className="grid grid-cols-12 gap-2 items-center">
+										<div className="col-span-6">
+											<Select
+												value={s.creator}
+												onChange={(e) => updateShare(i, 'creator', e.target.value)}
+												options={creatorOptions}
+												placeholder="— pick creator —"
+											/>
+										</div>
+										<div className="col-span-3">
+											<Input
+												type="number"
+												step="0.01"
+												placeholder="Their fee"
+												value={s.total_fee}
+												onChange={(e) => updateShare(i, 'total_fee', e.target.value)}
+											/>
+										</div>
+										<div className="col-span-2">
+											<Input
+												type="number"
+												step="0.01"
+												placeholder="Agency ₹"
+												value={s.agency_fee_inr}
+												onChange={(e) => updateShare(i, 'agency_fee_inr', e.target.value)}
+											/>
+										</div>
+										<div className="col-span-1 flex justify-end">
+											<Button variant="danger" onClick={() => removeShare(i)}>
+												×
+											</Button>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
+
 					<div>
 						<Label>Billing Entity</Label>
 						<Input

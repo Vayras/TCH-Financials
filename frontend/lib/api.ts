@@ -75,6 +75,18 @@ export type Contracting = {
 	renewal_note: string;
 };
 
+export type CreatorShare = {
+	id?: number;
+	creator: number | null;
+	creator_name?: string;
+	creator_relationship?: string;
+	creator_name_raw: string;
+	total_fee: string;
+	agency_fee_pct: string;
+	agency_fee_inr: string;
+	creator_fee: string;
+};
+
 export type Deal = {
 	id: number;
 	confirmation_date: string | null;
@@ -102,6 +114,7 @@ export type Deal = {
 	e_invoice_number: string;
 	payment_received: string;
 	comments: string;
+	creator_shares: CreatorShare[];
 };
 
 export type CreatorDocument = {
