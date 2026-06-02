@@ -1,5 +1,17 @@
 from rest_framework import serializers
-from .models import Creator, ContractingCompliance, CommercialDeal, EmployeeWeeklyReport, DropOff
+from .models import (
+    Creator, ContractingCompliance, CommercialDeal, EmployeeWeeklyReport,
+    DropOff, CreatorDocument,
+)
+
+
+class CreatorDocumentSerializer(serializers.ModelSerializer):
+    creator_name = serializers.CharField(source='creator.name', read_only=True)
+
+    class Meta:
+        model = CreatorDocument
+        fields = ['id', 'creator', 'creator_name', 'doc_type', 'label', 'file', 'uploaded_at']
+        read_only_fields = ['uploaded_at']
 
 
 class CreatorSerializer(serializers.ModelSerializer):

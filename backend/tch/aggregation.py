@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Iterable
 
-from .models import CommercialDeal, Creator, ContractingCompliance
+from .models import CommercialDeal, Creator, ContractingCompliance, CreatorDocument
 
 
 # Indian fiscal year: April -> March.
@@ -842,6 +842,24 @@ def alerts(today: date | None = None) -> dict:
                 'meta': {'creator_id': cid, 'drop_pct': drop_pct},
             })
 
+    # ---- Documents missing ----
+    # Active creators (Exclusive / Friend) with no document on file yet.
+    docs: list[dict] = []
+    creators_with_docs = set(
+        CreatorDocument.objects.values_list('creator_id', flat=True)
+    )
+    for c in Creator.objects.filter(relationship__in=['Exclusive', 'Friend']):
+        if c.id in creators_with_docs:
+            continue
+        docs.append({
+            'kind': 'missing_documents',
+            'severity': 'high' if c.relationship == 'Exclusive' else 'med',
+            'title': f"{c.name} — No documents on file",
+            'detail': f"{c.relationship}. No agreement / KYC document uploaded yet.",
+            'action': 'Upload documents',
+            'meta': {'creator_id': c.id, 'relationship': c.relationship},
+        })
+
     # ---- Seasonal moments ----
     seasonal: list[dict] = []
     for m, d_day, label in SEASONAL_MOMENTS:
@@ -866,6 +884,7 @@ def alerts(today: date | None = None) -> dict:
     urgent.sort(key=sort_key)
     bd.sort(key=sort_key)
     health.sort(key=sort_key)
+    docs.sort(key=lambda it: (sev_rank.get(it['severity'], 9), it['title']))
 
     return {
         'generated_at': today.isoformat(),
@@ -881,11 +900,13 @@ def alerts(today: date | None = None) -> dict:
         'urgent': urgent,
         'bd': bd,
         'health': health,
+        'docs': docs,
         'seasonal': seasonal,
         'counts': {
             'urgent': len(urgent),
             'bd': len(bd),
             'health': len(health),
+            'docs': len(docs),
             'seasonal': len(seasonal),
         },
     }

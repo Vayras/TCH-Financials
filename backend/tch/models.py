@@ -46,6 +46,33 @@ class Creator(models.Model):
         return self.name
 
 
+def creator_document_path(instance, filename: str) -> str:
+    """Store uploads under creator_docs/<creator_id>/<filename>."""
+    return f"creator_docs/{instance.creator_id}/{filename}"
+
+
+class CreatorDocument(models.Model):
+    DOC_TYPES = [
+        ('Agreement', 'Agreement'),
+        ('Bank', 'Bank Details'),
+        ('PAN', 'PAN'),
+        ('GST', 'GST'),
+        ('Other', 'Other'),
+    ]
+
+    creator = models.ForeignKey(Creator, on_delete=models.CASCADE, related_name='documents')
+    doc_type = models.CharField(max_length=20, choices=DOC_TYPES, default='Other')
+    label = models.CharField(max_length=200, blank=True)
+    file = models.FileField(upload_to=creator_document_path)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self) -> str:
+        return f"Document<{self.creator.name}/{self.doc_type}>"
+
+
 class ContractingCompliance(models.Model):
     YN = [('Y', 'Y'), ('N', 'N'), ('', '')]
 

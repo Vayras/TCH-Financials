@@ -2,12 +2,17 @@ from datetime import date
 
 from rest_framework import viewsets, filters
 from rest_framework.decorators import api_view
+from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 
-from .models import Creator, ContractingCompliance, CommercialDeal, EmployeeWeeklyReport, DropOff
+from .models import (
+    Creator, ContractingCompliance, CommercialDeal, EmployeeWeeklyReport,
+    DropOff, CreatorDocument,
+)
 from .serializers import (
     CreatorSerializer, ContractingComplianceSerializer,
     CommercialDealSerializer, EmployeeWeeklyReportSerializer, DropOffSerializer,
+    CreatorDocumentSerializer,
 )
 from .aggregation import overview, quarterly_exclusives, entity_summary, creator_insights, fiscal_year_of, alerts
 
@@ -39,6 +44,19 @@ class EmployeeWeeklyReportViewSet(viewsets.ModelViewSet):
 class DropOffViewSet(viewsets.ModelViewSet):
     queryset = DropOff.objects.select_related('creator').all()
     serializer_class = DropOffSerializer
+
+
+class CreatorDocumentViewSet(viewsets.ModelViewSet):
+    queryset = CreatorDocument.objects.select_related('creator').all()
+    serializer_class = CreatorDocumentSerializer
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        creator = self.request.query_params.get('creator')
+        if creator:
+            qs = qs.filter(creator_id=creator)
+        return qs
 
 
 @api_view(['GET'])
