@@ -30,7 +30,12 @@ class ContractingComplianceViewSet(viewsets.ModelViewSet):
 
 
 class CommercialDealViewSet(viewsets.ModelViewSet):
-    queryset = CommercialDeal.objects.select_related('creator').all()
+    queryset = (
+        CommercialDeal.objects
+        .select_related('creator')
+        .prefetch_related('creator_shares__creator')
+        .all()
+    )
     serializer_class = CommercialDealSerializer
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['creator__name', 'creator_name_raw', 'brand', 'campaign', 'ro_number']

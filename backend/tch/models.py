@@ -151,6 +151,34 @@ class CommercialDeal(models.Model):
         return self.creator.name if self.creator_id else self.creator_name_raw
 
 
+class DealCreatorShare(models.Model):
+    """Per-creator split of a campaign's billing.
+
+    When a campaign has multiple creators, each gets a row here partitioning
+    the campaign's total_fee / profit / creator_fee. A campaign with no shares
+    falls back to its single `creator` (legacy behaviour) in aggregations.
+    """
+
+    deal = models.ForeignKey(
+        CommercialDeal, on_delete=models.CASCADE, related_name='creator_shares'
+    )
+    creator = models.ForeignKey(
+        Creator, on_delete=models.PROTECT, related_name='deal_shares', null=True, blank=True
+    )
+    creator_name_raw = models.CharField(max_length=200, blank=True)
+    total_fee = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    agency_fee_pct = models.DecimalField(max_digits=6, decimal_places=4, default=Decimal('0'))
+    agency_fee_inr = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    creator_fee = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+
+    class Meta:
+        ordering = ['id']
+
+    @property
+    def effective_creator_name(self) -> str:
+        return self.creator.name if self.creator_id else self.creator_name_raw
+
+
 class DropOff(models.Model):
     """Log of creators who left TCH."""
 
