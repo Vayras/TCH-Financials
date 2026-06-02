@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { api, type Creator } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
@@ -344,8 +345,14 @@ export default function CreatorsPage() {
 											<td className="num" style={{ color: 'var(--n-fg-subtle)' }}>
 												{i + 1}
 											</td>
-											<td className="font-medium" style={{ color: 'var(--n-fg)' }}>
-												{r.name}
+											<td className="font-medium">
+												<Link
+													href={`/insights?focus=${encodeURIComponent(r.name)}`}
+													className="inline-link"
+													title={`View ${r.name}'s insights`}
+												>
+													{r.name}
+												</Link>
 											</td>
 											<td style={{ color: 'var(--n-fg-muted)' }}>{r.category}</td>
 											<td>

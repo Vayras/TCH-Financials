@@ -83,6 +83,14 @@ export default function InsightsPage() {
 		load();
 	}, [load]);
 
+	// When arriving from the Creator Pipeline (?focus=<name>), pre-filter the
+	// table to that creator. Read from window so we don't need a Suspense
+	// boundary around useSearchParams at build time.
+	React.useEffect(() => {
+		const focus = new URLSearchParams(window.location.search).get('focus');
+		if (focus) setQ(focus);
+	}, []);
+
 	const filtered = React.useMemo(() => {
 		if (!data) return [];
 		const needle = q.trim().toLowerCase();
