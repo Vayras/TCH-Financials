@@ -20,8 +20,8 @@ const DIRECTION = [
 	{ value: 'MarkUp', label: 'Mark Up' }
 ];
 const YN = [
-	{ value: 'Y', label: 'Y' },
-	{ value: 'N', label: 'N' }
+	{ value: 'Y', label: 'Yes' },
+	{ value: 'N', label: 'No' }
 ];
 
 type DealForm = {
@@ -29,6 +29,7 @@ type DealForm = {
 	e_invoice_date: string;
 	creator: string;
 	creator_name_raw: string;
+	tch_poc: string;
 	direction: string;
 	total_fee: string;
 	agency_fee_pct: string;
@@ -36,6 +37,7 @@ type DealForm = {
 	creator_fee: string;
 	billing_entity: string;
 	brand: string;
+	brand_poc: string;
 	campaign: string;
 	deliverables: string;
 	ro_number: string;
@@ -52,6 +54,7 @@ const EMPTY_FORM: DealForm = {
 	e_invoice_date: '',
 	creator: '',
 	creator_name_raw: '',
+	tch_poc: '',
 	direction: 'Outbound',
 	total_fee: '',
 	agency_fee_pct: '',
@@ -59,6 +62,7 @@ const EMPTY_FORM: DealForm = {
 	creator_fee: '',
 	billing_entity: '',
 	brand: '',
+	brand_poc: '',
 	campaign: '',
 	deliverables: '',
 	ro_number: '',
@@ -154,6 +158,14 @@ export default function CommercialPage() {
 		}
 	}, [form.total_fee, form.agency_fee_pct]);
 
+	// Mark Up deals can't be on exclusive creators — clear a now-hidden pick.
+	React.useEffect(() => {
+		if (form.direction === 'MarkUp' && form.creator) {
+			const c = creators.find((x) => String(x.id) === form.creator);
+			if (c && c.relationship === 'Exclusive') setForm((f) => ({ ...f, creator: '' }));
+		}
+	}, [form.direction, form.creator, creators]);
+
 	function startAdd() {
 		setEditing(null);
 		setForm({
@@ -170,6 +182,7 @@ export default function CommercialPage() {
 			e_invoice_date: d.e_invoice_date ?? '',
 			creator: d.creator ? String(d.creator) : '',
 			creator_name_raw: d.creator_name_raw,
+			tch_poc: d.tch_poc ?? '',
 			direction: d.direction,
 			total_fee: d.total_fee,
 			agency_fee_pct: d.agency_fee_pct,
@@ -177,6 +190,7 @@ export default function CommercialPage() {
 			creator_fee: d.creator_fee,
 			billing_entity: d.billing_entity,
 			brand: d.brand,
+			brand_poc: d.brand_poc ?? '',
 			campaign: d.campaign,
 			deliverables: d.deliverables,
 			ro_number: d.ro_number,
@@ -694,10 +708,14 @@ export default function CommercialPage() {
 						<Select
 							value={form.creator}
 							onChange={(e) => set('creator', e.target.value)}
-							options={creators.map((c) => ({
-								value: String(c.id),
-								label: `${c.name} · ${c.relationship}`
-							}))}
+							options={creators
+								.filter(
+									(c) => form.direction !== 'MarkUp' || c.relationship !== 'Exclusive'
+								)
+								.map((c) => ({
+									value: String(c.id),
+									label: `${c.name} · ${c.relationship}`
+								}))}
 							placeholder="— none —"
 						/>
 					</div>
@@ -708,6 +726,15 @@ export default function CommercialPage() {
 							onChange={(e) => set('creator_name_raw', e.target.value)}
 						/>
 					</div>
+					<div className="col-span-2">
+						<Label>TCH POC (who worked on this)</Label>
+						<Input
+							value={form.tch_poc}
+							onChange={(e) => set('tch_poc', e.target.value)}
+							placeholder="TCH person handling this deal"
+						/>
+					</div>
+					<div />
 
 					<div>
 						<Label>Total Fee (INR)</Label>
@@ -763,6 +790,14 @@ export default function CommercialPage() {
 					<div>
 						<Label>Brand</Label>
 						<Input value={form.brand} onChange={(e) => set('brand', e.target.value)} />
+					</div>
+					<div>
+						<Label>Brand POC</Label>
+						<Input
+							value={form.brand_poc}
+							onChange={(e) => set('brand_poc', e.target.value)}
+							placeholder="Brand-side contact"
+						/>
 					</div>
 					<div>
 						<Label>Campaign</Label>

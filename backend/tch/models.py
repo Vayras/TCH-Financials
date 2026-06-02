@@ -79,6 +79,8 @@ class CommercialDeal(models.Model):
         max_length=200, blank=True,
         help_text="Raw name string for non-TCH / outsiders without a Creator row",
     )
+    tch_poc = models.CharField(max_length=120, blank=True,
+                               help_text="TCH person who worked on this deal")
     agency_commission_agreed = models.CharField(max_length=120, blank=True)
     direction = models.CharField(max_length=16, choices=DIRECTION, default='Outbound')
     total_fee = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
@@ -89,6 +91,8 @@ class CommercialDeal(models.Model):
     creator_fee = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     billing_entity = models.CharField(max_length=120, blank=True)
     brand = models.CharField(max_length=200, blank=True)
+    brand_poc = models.CharField(max_length=200, blank=True,
+                                 help_text="Brand-side point of contact (name / detail)")
     campaign = models.CharField(max_length=255, blank=True)
     deliverables = models.CharField(max_length=255, blank=True)
     ro_number = models.CharField(max_length=80, blank=True)

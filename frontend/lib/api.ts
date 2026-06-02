@@ -72,6 +72,7 @@ export type Deal = {
 	creator_name: string;
 	creator_name_raw: string;
 	creator_relationship: string;
+	tch_poc: string;
 	agency_commission_agreed: string;
 	direction: 'Inbound' | 'Outbound' | 'MarkUp';
 	total_fee: string;
@@ -80,6 +81,7 @@ export type Deal = {
 	creator_fee: string;
 	billing_entity: string;
 	brand: string;
+	brand_poc: string;
 	campaign: string;
 	deliverables: string;
 	ro_number: string;
