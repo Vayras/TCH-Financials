@@ -144,12 +144,6 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 					</div>
 				</nav>
 
-				<div
-					className="px-3 py-2 text-[11px]"
-					style={{ color: 'var(--n-fg-subtle)', borderTop: '1px solid var(--n-border)' }}
-				>
-					{!collapsed ? 'MIS · derived live' : '·'}
-				</div>
 			</aside>
 
 			<div className="flex-1 min-w-0 flex flex-col">

@@ -29,7 +29,6 @@ type DealForm = {
 	e_invoice_date: string;
 	creator: string;
 	creator_name_raw: string;
-	agency_commission_agreed: string;
 	direction: string;
 	total_fee: string;
 	agency_fee_pct: string;
@@ -53,7 +52,6 @@ const EMPTY_FORM: DealForm = {
 	e_invoice_date: '',
 	creator: '',
 	creator_name_raw: '',
-	agency_commission_agreed: '',
 	direction: 'Outbound',
 	total_fee: '',
 	agency_fee_pct: '',
@@ -99,40 +97,9 @@ function fyStartOf(iso: string): number {
 	const [y, m] = iso.split('-').map(Number);
 	return m >= 4 ? y : y - 1;
 }
-function quarterOf(iso: string): 'Q1' | 'Q2' | 'Q3' | 'Q4' {
-	const m = Number(iso.split('-')[1]);
-	if (m >= 4 && m <= 6) return 'Q1';
-	if (m >= 7 && m <= 9) return 'Q2';
-	if (m >= 10 && m <= 12) return 'Q3';
-	return 'Q4';
-}
-function monthOf(iso: string): string {
-	return iso.split('-')[1];
-}
 function fyLabelShort(start: number): string {
 	return `FY ${start % 100}-${(start + 1) % 100}`;
 }
-
-// Sub-period options in fiscal-year order (Apr → Mar) plus the four quarters.
-const SUB_PERIODS = [
-	{ value: 'All', label: 'All periods' },
-	{ value: 'Q1', label: 'Q1 (Apr–Jun)' },
-	{ value: 'Q2', label: 'Q2 (Jul–Sep)' },
-	{ value: 'Q3', label: 'Q3 (Oct–Dec)' },
-	{ value: 'Q4', label: 'Q4 (Jan–Mar)' },
-	{ value: '04', label: 'April' },
-	{ value: '05', label: 'May' },
-	{ value: '06', label: 'June' },
-	{ value: '07', label: 'July' },
-	{ value: '08', label: 'August' },
-	{ value: '09', label: 'September' },
-	{ value: '10', label: 'October' },
-	{ value: '11', label: 'November' },
-	{ value: '12', label: 'December' },
-	{ value: '01', label: 'January' },
-	{ value: '02', label: 'February' },
-	{ value: '03', label: 'March' }
-];
 
 type DirFilter = 'All' | 'Inbound' | 'Outbound' | 'MarkUp';
 type DateBasis = 'confirmation' | 'invoice';
@@ -149,7 +116,6 @@ export default function CommercialPage() {
 	const { fyStart } = useFiscalYear();
 	const [entityFilter, setEntityFilter] = React.useState('All');
 	const [basis, setBasis] = React.useState<DateBasis>('confirmation');
-	const [subPeriod, setSubPeriod] = React.useState('All');
 	const [form, setForm] = React.useState<DealForm>(EMPTY_FORM);
 
 	const load = React.useCallback(async () => {
@@ -204,7 +170,6 @@ export default function CommercialPage() {
 			e_invoice_date: d.e_invoice_date ?? '',
 			creator: d.creator ? String(d.creator) : '',
 			creator_name_raw: d.creator_name_raw,
-			agency_commission_agreed: d.agency_commission_agreed,
 			direction: d.direction,
 			total_fee: d.total_fee,
 			agency_fee_pct: d.agency_fee_pct,
@@ -266,7 +231,7 @@ export default function CommercialPage() {
 		return Array.from(set).sort((a, b) => a.localeCompare(b));
 	}, [rows]);
 
-	const periodActive = entityFilter !== 'All' || subPeriod !== 'All';
+	const periodActive = entityFilter !== 'All';
 
 	const filtered = React.useMemo(() => {
 		const needle = q.trim().toLowerCase();
@@ -280,14 +245,6 @@ export default function CommercialPage() {
 			// it. Rows with no date for the chosen basis are not attributable to a
 			// year and are hidden — switch "Track by" if a deal has only one date.
 			if (!d || fyStartOf(d) !== fyStart) return false;
-			if (subPeriod !== 'All') {
-				if (!d) return false;
-				if (subPeriod.startsWith('Q')) {
-					if (quarterOf(d) !== subPeriod) return false;
-				} else if (monthOf(d) !== subPeriod) {
-					return false;
-				}
-			}
 			if (!needle) return true;
 			return (
 				r.creator_name?.toLowerCase().includes(needle) ||
@@ -305,11 +262,10 @@ export default function CommercialPage() {
 			if (!bd) return -1;
 			return bd.localeCompare(ad);
 		});
-	}, [rows, q, dirFilter, entityFilter, basis, fyStart, subPeriod]);
+	}, [rows, q, dirFilter, entityFilter, basis, fyStart]);
 
 	function resetFilters() {
 		setEntityFilter('All');
-		setSubPeriod('All');
 	}
 
 	const totals = React.useMemo(() => {
@@ -492,13 +448,6 @@ export default function CommercialPage() {
 								{ value: 'All', label: 'All billing entities' },
 								...entities.map((e) => ({ value: e, label: e }))
 							]}
-						/>
-					</div>
-					<div className="min-w-[150px]">
-						<Select
-							value={subPeriod}
-							onChange={(e) => setSubPeriod(e.target.value)}
-							options={SUB_PERIODS}
 						/>
 					</div>
 					{periodActive && (
@@ -797,14 +746,6 @@ export default function CommercialPage() {
 							onChange={(e) => set('creator_fee', e.target.value)}
 						/>
 					</div>
-					<div>
-						<Label>Agency Commission Agreed</Label>
-						<Input
-							value={form.agency_commission_agreed}
-							onChange={(e) => set('agency_commission_agreed', e.target.value)}
-						/>
-					</div>
-
 					<div>
 						<Label>Billing Entity</Label>
 						<Input
