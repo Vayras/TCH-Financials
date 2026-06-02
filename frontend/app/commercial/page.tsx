@@ -142,21 +142,28 @@ export default function CommercialPage() {
 		load();
 	}, [load]);
 
-	// Auto-compute agency_fee_inr and creator_fee from total_fee + agency_fee_pct.
-	React.useEffect(() => {
-		const total = Number(form.total_fee);
-		const p = Number(form.agency_fee_pct);
-		if (Number.isFinite(total) && Number.isFinite(p) && total > 0 && p > 0) {
-			const pct = p <= 1 ? p : p / 100;
-			const fee = (total * pct).toFixed(2);
-			const creatorFee = (total - total * pct).toFixed(2);
-			setForm((f) =>
-				f.agency_fee_inr === fee && f.creator_fee === creatorFee
-					? f
-					: { ...f, agency_fee_inr: fee, creator_fee: creatorFee }
-			);
+	// Agency fee % and Agency fee (INR) are kept in sync both ways: editing the
+	// % derives the INR, editing the INR derives the %. feeBasis remembers which
+	// one the user drove last so changing Total Fee recomputes the right one.
+	const feeBasis = React.useRef<'pct' | 'inr'>('pct');
+	function recomputeFees(next: DealForm): DealForm {
+		const total = Number(next.total_fee);
+		if (!Number.isFinite(total) || total <= 0) return next;
+		if (feeBasis.current === 'inr') {
+			const inr = Number(next.agency_fee_inr);
+			if (!Number.isFinite(inr) || inr <= 0) return next;
+			return {
+				...next,
+				agency_fee_pct: (inr / total).toFixed(4),
+				creator_fee: (total - inr).toFixed(2)
+			};
 		}
-	}, [form.total_fee, form.agency_fee_pct]);
+		const p = Number(next.agency_fee_pct);
+		if (!Number.isFinite(p) || p <= 0) return next;
+		const pct = p <= 1 ? p : p / 100;
+		const inr = total * pct;
+		return { ...next, agency_fee_inr: inr.toFixed(2), creator_fee: (total - inr).toFixed(2) };
+	}
 
 	// Mark Up deals can't be on exclusive creators — clear a now-hidden pick.
 	React.useEffect(() => {
@@ -742,7 +749,9 @@ export default function CommercialPage() {
 							type="number"
 							step="0.01"
 							value={form.total_fee}
-							onChange={(e) => set('total_fee', e.target.value)}
+							onChange={(e) =>
+								setForm((f) => recomputeFees({ ...f, total_fee: e.target.value }))
+							}
 						/>
 					</div>
 					<div>
@@ -752,16 +761,22 @@ export default function CommercialPage() {
 							step="0.0001"
 							placeholder="0.20 = 20%"
 							value={form.agency_fee_pct}
-							onChange={(e) => set('agency_fee_pct', e.target.value)}
+							onChange={(e) => {
+								feeBasis.current = 'pct';
+								setForm((f) => recomputeFees({ ...f, agency_fee_pct: e.target.value }));
+							}}
 						/>
 					</div>
 					<div>
-						<Label>Agency Fee (INR) — auto</Label>
+						<Label>Agency Fee (INR)</Label>
 						<Input
 							type="number"
 							step="0.01"
 							value={form.agency_fee_inr}
-							onChange={(e) => set('agency_fee_inr', e.target.value)}
+							onChange={(e) => {
+								feeBasis.current = 'inr';
+								setForm((f) => recomputeFees({ ...f, agency_fee_inr: e.target.value }));
+							}}
 						/>
 					</div>
 					<div className="col-span-2">
