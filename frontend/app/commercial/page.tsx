@@ -236,7 +236,7 @@ export default function CommercialPage() {
 	}
 
 	async function remove(d: Deal) {
-		if (!confirm(`Delete deal for "${d.creator_name}" / brand "${d.brand}"?`)) return;
+		if (!confirm(`Delete campaign for "${d.creator_name}" / brand "${d.brand}"?`)) return;
 		await api.del(`/deals/${d.id}/`);
 		await load();
 	}
@@ -310,7 +310,7 @@ export default function CommercialPage() {
 						className="text-[12px] font-medium uppercase"
 						style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
 					>
-						Workspace · Commercial
+						Workspace · Campaign
 					</div>
 					<div className="flex items-end justify-between flex-wrap gap-3">
 						<div>
@@ -318,18 +318,18 @@ export default function CommercialPage() {
 								className="page-title text-[40px] leading-[1.15] font-bold"
 								style={{ color: 'var(--n-fg)' }}
 							>
-								Commercial Tracking
+								Campaign Tracking
 							</h1>
 							<p
 								className="text-[15px] max-w-[640px] mt-2"
 								style={{ color: 'var(--n-fg-muted)' }}
 							>
-								Single source of truth for billing. Add a deal here — Current Overview and
+								Single source of truth for billing. Add a campaign here — Current Overview and
 								Quarterly Exclusives recompute automatically.
 							</p>
 						</div>
 						<Button variant="primary" onClick={startAdd}>
-							<Icon name="plus" size={14} /> Add Deal
+							<Icon name="plus" size={14} /> Add Campaign
 						</Button>
 					</div>
 				</header>
@@ -343,7 +343,7 @@ export default function CommercialPage() {
 							className="text-[11.5px] font-medium uppercase"
 							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
 						>
-							Deals shown
+							Campaigns shown
 						</div>
 						<div
 							className="text-[22px] font-semibold tabular-nums mt-1"
@@ -651,7 +651,7 @@ export default function CommercialPage() {
 												style={{ color: 'var(--n-fg-subtle)' }}
 												colSpan={18}
 											>
-												No deals match the current filters.
+												No campaigns match the current filters.
 											</td>
 										</tr>
 									)}
@@ -671,7 +671,7 @@ export default function CommercialPage() {
 			<Dialog
 				open={open}
 				onOpenChange={setOpen}
-				title={editing ? 'Edit Deal' : 'Add Deal'}
+				title={editing ? 'Edit Campaign' : 'Add Campaign'}
 				className="max-w-4xl"
 				footer={
 					<>
@@ -705,7 +705,14 @@ export default function CommercialPage() {
 						<Label>Direction</Label>
 						<Select
 							value={form.direction}
-							onChange={(e) => set('direction', e.target.value)}
+							onChange={(e) => {
+								const dir = e.target.value;
+								// Mark Up deals: TCH enters the marked-up INR amount and the
+								// commission % is derived from it. Other directions default
+								// back to %-driven.
+								feeBasis.current = dir === 'MarkUp' ? 'inr' : 'pct';
+								setForm((f) => recomputeFees({ ...f, direction: dir }));
+							}}
 							options={DIRECTION}
 						/>
 					</div>

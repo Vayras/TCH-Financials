@@ -24,12 +24,14 @@ class Creator(models.Model):
         ('Dropping', 'Dropping out soon'),
         ('NonTCH', 'Non TCH'),
     ]
+    STATUS_CHOICES = [('Active', 'Active'), ('Inactive', 'Inactive')]
 
     name = models.CharField(max_length=200, unique=True)
     category = models.CharField(max_length=200, blank=True)
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, blank=True)
     stage = models.CharField(max_length=20, choices=STAGE_CHOICES, blank=True)
     relationship = models.CharField(max_length=20, choices=RELATIONSHIP_CHOICES, default='Friend')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Active')
     doj = models.DateField(null=True, blank=True)
     doj_note = models.CharField(max_length=120, blank=True, help_text="Free-text DOJ if unparseable")
     profile_url = models.URLField(max_length=400, blank=True)

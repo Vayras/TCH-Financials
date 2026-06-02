@@ -30,7 +30,13 @@ const SOURCE = [
 	{ value: 'OTHER', label: 'Other' }
 ];
 
+const STATUS = [
+	{ value: 'Active', label: 'Active' },
+	{ value: 'Inactive', label: 'Inactive' }
+];
+
 const REL_FILTERS = ['All', 'Exclusive', 'Friend', 'Dropping', 'NonTCH'];
+const STATUS_FILTERS = ['All', 'Active', 'Inactive'];
 
 const DOC_TYPES = [
 	{ value: 'Agreement', label: 'Agreement' },
@@ -51,6 +57,7 @@ type CreatorForm = {
 	source: string;
 	stage: string;
 	relationship: string;
+	status: string;
 	doj: string;
 	doj_note: string;
 	profile_url: string;
@@ -65,6 +72,7 @@ const EMPTY_FORM: CreatorForm = {
 	source: '',
 	stage: '',
 	relationship: 'Friend',
+	status: 'Active',
 	doj: '',
 	doj_note: '',
 	profile_url: '',
@@ -85,6 +93,9 @@ function stageTone(stage: string) {
 	if (stage === 'Discussing') return 'accent' as const;
 	return 'neutral' as const;
 }
+function statusTone(status: string) {
+	return status === 'Active' ? ('yes' as const) : ('no' as const);
+}
 
 export default function CreatorsPage() {
 	const [rows, setRows] = React.useState<Creator[]>([]);
@@ -94,6 +105,7 @@ export default function CreatorsPage() {
 	const [editing, setEditing] = React.useState<Creator | null>(null);
 	const [q, setQ] = React.useState('');
 	const [relFilter, setRelFilter] = React.useState('All');
+	const [statusFilter, setStatusFilter] = React.useState('All');
 	const [form, setForm] = React.useState<CreatorForm>(EMPTY_FORM);
 
 	// Documents modal state
@@ -210,6 +222,7 @@ export default function CreatorsPage() {
 			source: r.source,
 			stage: r.stage,
 			relationship: r.relationship,
+			status: r.status ?? 'Active',
 			doj: r.doj ?? '',
 			doj_note: r.doj_note,
 			profile_url: r.profile_url,
@@ -249,6 +262,7 @@ export default function CreatorsPage() {
 		const needle = q.trim().toLowerCase();
 		return rows.filter((r) => {
 			if (relFilter !== 'All' && r.relationship !== relFilter) return false;
+			if (statusFilter !== 'All' && (r.status ?? 'Active') !== statusFilter) return false;
 			if (!needle) return true;
 			return (
 				r.name?.toLowerCase().includes(needle) ||
@@ -256,7 +270,7 @@ export default function CreatorsPage() {
 				r.ops_manager?.toLowerCase().includes(needle)
 			);
 		});
-	}, [rows, q, relFilter]);
+	}, [rows, q, relFilter, statusFilter]);
 
 	const counts = React.useMemo(
 		() => ({
@@ -404,6 +418,18 @@ export default function CreatorsPage() {
 							</button>
 						))}
 					</div>
+					<div className="seg-toggle">
+						{STATUS_FILTERS.map((f) => (
+							<button
+								key={f}
+								type="button"
+								className={cn(statusFilter === f && 'active')}
+								onClick={() => setStatusFilter(f)}
+							>
+								{f}
+							</button>
+						))}
+					</div>
 				</div>
 
 				{loading ? (
@@ -429,6 +455,7 @@ export default function CreatorsPage() {
 										<th>Source</th>
 										<th>Stage</th>
 										<th>Relationship</th>
+										<th>Status</th>
 										<th>Location</th>
 										<th>Ops Mgr</th>
 										<th>DOJ</th>
@@ -464,6 +491,11 @@ export default function CreatorsPage() {
 														{r.relationship === 'NonTCH' ? 'Non TCH' : r.relationship}
 													</Tag>
 												)}
+											</td>
+											<td>
+												<Tag tone={statusTone(r.status ?? 'Active')}>
+													{r.status ?? 'Active'}
+												</Tag>
 											</td>
 											<td style={{ color: 'var(--n-fg-muted)' }}>{r.location}</td>
 											<td style={{ color: 'var(--n-fg)' }}>{r.ops_manager}</td>
@@ -503,7 +535,7 @@ export default function CreatorsPage() {
 									{filtered.length === 0 && (
 										<tr>
 											<td
-												colSpan={11}
+												colSpan={12}
 												className="text-center py-8"
 												style={{ color: 'var(--n-fg-subtle)' }}
 											>
@@ -577,6 +609,14 @@ export default function CreatorsPage() {
 							value={form.relationship}
 							onChange={(e) => set('relationship', e.target.value)}
 							options={REL}
+						/>
+					</div>
+					<div>
+						<Label>Status</Label>
+						<Select
+							value={form.status}
+							onChange={(e) => set('status', e.target.value)}
+							options={STATUS}
 						/>
 					</div>
 					<div>

@@ -41,6 +41,7 @@ export type Creator = {
 	source: string;
 	stage: string;
 	relationship: 'Exclusive' | 'Friend' | 'Dropping' | 'NonTCH';
+	status: 'Active' | 'Inactive';
 	doj: string | null;
 	doj_note: string;
 	profile_url: string;
