@@ -6,6 +6,7 @@ import { inr } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
+import { useFiscalYear } from '@/lib/fiscal-year';
 
 function fyLabelFor(start: number): string {
 	return `FY ${start % 100}-${(start + 1) % 100}`;
@@ -19,7 +20,7 @@ function profitPct(row: EntityRow): string {
 }
 
 export default function EntitySummaryPage() {
-	const [fyStart, setFyStart] = React.useState(2025);
+	const { fyStart } = useFiscalYear();
 	const [entityFilter, setEntityFilter] = React.useState('');
 	const [searchInput, setSearchInput] = React.useState('');
 	const [data, setData] = React.useState<EntitySummary | null>(null);
@@ -116,22 +117,6 @@ export default function EntitySummaryPage() {
 				)}
 
 				<div className="ml-auto flex items-center gap-2">
-					<select
-						id="fy-select-ent"
-						className="h-7 rounded px-2 pr-7 text-[13px] appearance-none bg-no-repeat bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
-						style={{
-							backgroundImage:
-								"url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2337352f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\")",
-							backgroundPosition: 'right 6px center',
-							backgroundSize: '12px 12px'
-						}}
-						value={fyStart}
-						onChange={(e) => setFyStart(Number(e.target.value))}
-					>
-						<option value={2025}>{fyLabelFor(2025)}</option>
-						<option value={2026}>{fyLabelFor(2026)}</option>
-						<option value={2027}>{fyLabelFor(2027)}</option>
-					</select>
 					<Button variant="ghost" onClick={() => load(entityFilter)}>
 						<Icon name="refresh" size={14} /> Refresh
 					</Button>

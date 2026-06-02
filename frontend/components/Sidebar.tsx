@@ -5,6 +5,38 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Icon from '@/components/ui/Icon';
+import { FiscalYearProvider, useFiscalYear, FY_OPTIONS, fyLabel } from '@/lib/fiscal-year';
+
+function GlobalFySelect() {
+	const { fyStart, setFyStart } = useFiscalYear();
+	return (
+		<label className="ml-auto flex items-center gap-1.5">
+			<span
+				className="text-[11.5px] font-medium uppercase"
+				style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
+			>
+				Fiscal Year
+			</span>
+			<select
+				className="h-7 rounded px-2 pr-7 text-[13px] appearance-none bg-no-repeat bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+				style={{
+					backgroundImage:
+						"url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2337352f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\")",
+					backgroundPosition: 'right 6px center',
+					backgroundSize: '12px 12px'
+				}}
+				value={fyStart}
+				onChange={(e) => setFyStart(Number(e.target.value))}
+			>
+				{FY_OPTIONS.map((y) => (
+					<option key={y} value={y}>
+						{fyLabel(y)}
+					</option>
+				))}
+			</select>
+		</label>
+	);
+}
 
 const NAV = [
 	{ href: '/', label: 'Overview', icon: 'home' },
@@ -32,6 +64,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 	const currentLabel = current?.label ?? 'TCH';
 
 	return (
+		<FiscalYearProvider>
 		<div className="flex min-h-screen" style={{ background: 'var(--n-bg)' }}>
 			<aside
 				className="sticky top-0 self-start h-screen flex flex-col shrink-0 overflow-hidden transition-[width] duration-150 ease-out z-30"
@@ -136,6 +169,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 					<span className="text-[13px] font-medium" style={{ color: 'var(--n-fg)' }}>
 						{currentLabel}
 					</span>
+					<GlobalFySelect />
 				</header>
 
 				<main className="flex-1 overflow-x-hidden">
@@ -143,6 +177,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 				</main>
 			</div>
 		</div>
+		</FiscalYearProvider>
 	);
 }
 
