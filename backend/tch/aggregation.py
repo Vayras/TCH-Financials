@@ -3,6 +3,7 @@ from the CommercialDeal table — the single source of truth."""
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from datetime import date, timedelta
 from decimal import Decimal
@@ -35,6 +36,37 @@ BUCKET_LABEL = {
 def fiscal_year_of(d: date) -> int:
     """Return the FY-start calendar year. April 2026 -> 2026; Feb 2027 -> 2026."""
     return d.year if d.month >= 4 else d.year - 1
+
+
+_MONTH_NUM = {
+    'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+    'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+}
+# e.g. "TCH/2526/Dec01" -> fy token "2526", month token "Dec"
+_INVOICE_RE = re.compile(r'(\d{2})(\d{2})\s*/\s*([A-Za-z]{3,9})')
+
+
+def invoice_period(e_invoice_number: str | None) -> date | None:
+    """Derive the billing month from an E-Invoice No like 'TCH/2526/Dec01'.
+
+    This — not confirmation_date — decides which fiscal year and month a deal
+    belongs to. The FY token '2526' means FY 2025-26 (fy_start = 2025); the
+    month abbreviation maps Apr-Dec to the fy_start calendar year and Jan-Mar
+    to fy_start + 1. Returns the first day of that month (e.g. date(2025, 12, 1)),
+    or None when the number is blank or unparseable (deal not yet invoiced).
+    """
+    if not e_invoice_number:
+        return None
+    s = ' '.join(str(e_invoice_number).split())  # collapse newlines / stray spaces
+    m = _INVOICE_RE.search(s)
+    if not m:
+        return None
+    fy_start = 2000 + int(m.group(1))
+    month = _MONTH_NUM.get(m.group(3)[:3].lower())
+    if not month:
+        return None
+    year = fy_start if month >= 4 else fy_start + 1
+    return date(year, month, 1)
 
 
 def fy_label(fy_start: int) -> str:
@@ -75,11 +107,11 @@ def overview(fy_start: int) -> dict:
     start = date(fy_start, 4, 1)
     end = date(fy_start + 1, 4, 1)
 
-    deals = (
-        CommercialDeal.objects
-        .select_related('creator')
-        .filter(confirmation_date__gte=start, confirmation_date__lt=end)
-    )
+    # FY membership is decided by the E-Invoice No (invoice_period), not
+    # confirmation_date — fetch all and bucket in Python. Deals without a
+    # parseable invoice number are gathered into a separate "Not yet invoiced"
+    # summary (they belong to no FY until invoiced).
+    deals = CommercialDeal.objects.select_related('creator').all()
 
     # month key = "YYYY-MM"; quarter key = "Q1".."Q4"
     def month_key(d: date) -> str:
@@ -115,15 +147,25 @@ def overview(fy_start: int) -> dict:
     emw = {'by_month': defaultdict(_zero), 'by_quarter': defaultdict(_zero), 'total': Decimal('0')}
     profits = {'by_month': defaultdict(_zero), 'by_quarter': defaultdict(_zero), 'total': Decimal('0')}
     totals = {'by_month': defaultdict(_zero), 'by_quarter': defaultdict(_zero), 'total': Decimal('0')}
+    not_invoiced = {'count': 0, 'total_fee': Decimal('0'), 'profit': Decimal('0')}
 
     for deal in deals:
-        if not deal.confirmation_date:
-            continue
-        bucket = _bucket_for(deal)
-        mk = month_key(deal.confirmation_date)
-        qk = quarter_key(deal.confirmation_date)
         fee = deal.total_fee or Decimal('0')
         profit = deal.agency_fee_inr or Decimal('0')
+
+        period = invoice_period(deal.e_invoice_number)
+        if period is None:
+            # No E-Invoice No yet — belongs to no FY; track separately.
+            not_invoiced['count'] += 1
+            not_invoiced['total_fee'] += fee
+            not_invoiced['profit'] += profit
+            continue
+        if not (start <= period < end):
+            continue
+
+        bucket = _bucket_for(deal)
+        mk = month_key(period)
+        qk = quarter_key(period)
 
         rows[bucket]['by_month'][mk] += fee
         rows[bucket]['by_quarter'][qk] += fee
@@ -200,6 +242,12 @@ def overview(fy_start: int) -> dict:
             'by_quarter': {k: f"{float(v):.4f}" for k, v in profit_pct['by_quarter'].items()},
             'total': f"{float(profit_pct['total']):.4f}",
         },
+        # FY-independent: deals with no E-Invoice No yet (awaiting invoicing).
+        'not_invoiced': {
+            'count': not_invoiced['count'],
+            'total_fee': str(not_invoiced['total_fee']),
+            'profit': str(not_invoiced['profit']),
+        },
     }
 
 
@@ -209,18 +257,19 @@ def entity_summary(fy_start: int, entity_filter: str = '') -> dict:
     start = date(fy_start, 4, 1)
     end = date(fy_start + 1, 4, 1)
 
-    deals = (
-        CommercialDeal.objects
-        .select_related('creator')
-        .filter(confirmation_date__gte=start, confirmation_date__lt=end)
-    )
-    if entity_filter:
-        deals = deals.filter(billing_entity__icontains=entity_filter)
+    # FY membership comes from the E-Invoice No (see invoice_period).
+    deals = CommercialDeal.objects.select_related('creator').all()
+    ef = entity_filter.lower()
 
     from collections import Counter
 
     entities: dict[str, dict] = {}
     for deal in deals:
+        period = invoice_period(deal.e_invoice_number)
+        if period is None or not (start <= period < end):
+            continue
+        if ef and ef not in (deal.billing_entity or '').lower():
+            continue
         be = (deal.billing_entity or '').strip() or '(No Entity)'
         if be not in entities:
             entities[be] = {
@@ -286,11 +335,8 @@ def creator_insights(fy_start: int) -> dict:
     start = date(fy_start, 4, 1)
     end = date(fy_start + 1, 4, 1)
 
-    deals = (
-        CommercialDeal.objects
-        .select_related('creator')
-        .filter(confirmation_date__gte=start, confirmation_date__lt=end)
-    )
+    # FY membership comes from the E-Invoice No (see invoice_period).
+    deals = CommercialDeal.objects.select_related('creator').all()
 
     months_meta = []
     for m in MONTHS_FY_ORDER:
@@ -300,6 +346,9 @@ def creator_insights(fy_start: int) -> dict:
     # key by creator_id when present, else by creator_name_raw fallback
     agg: dict[tuple, dict] = {}
     for d in deals:
+        period = invoice_period(d.e_invoice_number)
+        if period is None or not (start <= period < end):
+            continue
         if d.creator_id:
             key = ('id', d.creator_id)
             name = d.creator.name
@@ -354,13 +403,15 @@ def creator_insights(fy_start: int) -> dict:
         else:
             a['markup_count'] += 1
 
+        # first/last date track when deals were confirmed (relationship
+        # activity); the monthly billing timeline follows the invoice month.
         if d.confirmation_date:
             if a['first_date'] is None or d.confirmation_date < a['first_date']:
                 a['first_date'] = d.confirmation_date
             if a['last_date'] is None or d.confirmation_date > a['last_date']:
                 a['last_date'] = d.confirmation_date
-            mk = f"{d.confirmation_date.year:04d}-{d.confirmation_date.month:02d}"
-            a['by_month'][mk] += fee
+        mk = f"{period.year:04d}-{period.month:02d}"
+        a['by_month'][mk] += fee
 
         if d.brand:
             a['brands'].append(d.brand)
@@ -439,22 +490,23 @@ def quarterly_exclusives(fy_start: int) -> list[dict]:
     start = date(fy_start, 4, 1)
     end = date(fy_start + 1, 4, 1)
 
+    # Relationship is a non-date filter (stays in SQL); FY membership and the
+    # quarter come from the E-Invoice No (see invoice_period).
     deals = (
         CommercialDeal.objects
         .select_related('creator')
-        .filter(
-            confirmation_date__gte=start,
-            confirmation_date__lt=end,
-            creator__relationship='Exclusive',
-        )
+        .filter(creator__relationship='Exclusive')
     )
 
     # key: (creator_id, creator_name, quarter) -> agg
     agg: dict[tuple, dict] = {}
     for d in deals:
+        period = invoice_period(d.e_invoice_number)
+        if period is None or not (start <= period < end):
+            continue
         qk = ''
         for qn, months in QUARTERS:
-            if d.confirmation_date.month in months:
+            if period.month in months:
                 qk = qn
                 break
         key = (d.creator_id, d.creator.name, qk)
