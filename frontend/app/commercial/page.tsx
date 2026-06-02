@@ -12,6 +12,7 @@ import Textarea from '@/components/ui/Textarea';
 import Label from '@/components/ui/Label';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
+import { useFiscalYear } from '@/lib/fiscal-year';
 
 const DIRECTION = [
 	{ value: 'Inbound', label: 'Inbound' },
@@ -145,9 +146,9 @@ export default function CommercialPage() {
 	const [editing, setEditing] = React.useState<Deal | null>(null);
 	const [q, setQ] = React.useState('');
 	const [dirFilter, setDirFilter] = React.useState<DirFilter>('All');
+	const { fyStart } = useFiscalYear();
 	const [entityFilter, setEntityFilter] = React.useState('All');
 	const [basis, setBasis] = React.useState<DateBasis>('confirmation');
-	const [fyFilter, setFyFilter] = React.useState('All');
 	const [subPeriod, setSubPeriod] = React.useState('All');
 	const [form, setForm] = React.useState<DealForm>(EMPTY_FORM);
 
@@ -265,17 +266,7 @@ export default function CommercialPage() {
 		return Array.from(set).sort((a, b) => a.localeCompare(b));
 	}, [rows]);
 
-	// Fiscal years present in the data for the chosen tracking basis.
-	const fyYears = React.useMemo(() => {
-		const set = new Set<number>();
-		for (const r of rows) {
-			const d = basis === 'invoice' ? r.e_invoice_date : r.confirmation_date;
-			if (d) set.add(fyStartOf(d));
-		}
-		return Array.from(set).sort((a, b) => b - a);
-	}, [rows, basis]);
-
-	const periodActive = entityFilter !== 'All' || fyFilter !== 'All' || subPeriod !== 'All';
+	const periodActive = entityFilter !== 'All' || subPeriod !== 'All';
 
 	const filtered = React.useMemo(() => {
 		const needle = q.trim().toLowerCase();
@@ -284,9 +275,10 @@ export default function CommercialPage() {
 			if (entityFilter !== 'All' && (r.billing_entity || '').trim() !== entityFilter)
 				return false;
 			const d = basis === 'invoice' ? r.e_invoice_date : r.confirmation_date;
-			if (fyFilter !== 'All') {
-				if (!d || fyStartOf(d) !== Number(fyFilter)) return false;
-			}
+			// Scope to the site-wide fiscal year. Dated rows outside the selected
+			// FY are hidden; undated rows (not yet invoiced/confirmed) always show
+			// so newly added deals stay visible regardless of the selected FY.
+			if (d && fyStartOf(d) !== fyStart) return false;
 			if (subPeriod !== 'All') {
 				if (!d) return false;
 				if (subPeriod.startsWith('Q')) {
@@ -312,11 +304,10 @@ export default function CommercialPage() {
 			if (!bd) return -1;
 			return bd.localeCompare(ad);
 		});
-	}, [rows, q, dirFilter, entityFilter, basis, fyFilter, subPeriod]);
+	}, [rows, q, dirFilter, entityFilter, basis, fyStart, subPeriod]);
 
 	function resetFilters() {
 		setEntityFilter('All');
-		setFyFilter('All');
 		setSubPeriod('All');
 	}
 
@@ -502,16 +493,6 @@ export default function CommercialPage() {
 							]}
 						/>
 					</div>
-					<div className="min-w-[130px]">
-						<Select
-							value={fyFilter}
-							onChange={(e) => setFyFilter(e.target.value)}
-							options={[
-								{ value: 'All', label: 'All years' },
-								...fyYears.map((y) => ({ value: String(y), label: fyLabelShort(y) }))
-							]}
-						/>
-					</div>
 					<div className="min-w-[150px]">
 						<Select
 							value={subPeriod}
@@ -524,6 +505,13 @@ export default function CommercialPage() {
 							Reset filters
 						</Button>
 					)}
+					<span
+						className="text-[11.5px] font-medium uppercase whitespace-nowrap"
+						style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
+						title="Set the fiscal year from the selector in the top bar"
+					>
+						Scoped to {fyLabelShort(fyStart)}
+					</span>
 				</div>
 
 				{loading ? (
