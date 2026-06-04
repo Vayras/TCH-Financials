@@ -231,6 +231,57 @@ class DropOff(models.Model):
         return self.creator.name if self.creator_id else self.creator_name_raw
 
 
+class SocialMediaSnapshot(models.Model):
+    """Tracks a creator's social media stats at a point in time."""
+    SNAPSHOT_TYPES = [
+        ('Baseline', 'Baseline (Day 0)'),
+        ('Quarterly', 'Quarterly'),
+    ]
+
+    creator = models.ForeignKey(Creator, on_delete=models.CASCADE, related_name='social_snapshots')
+    snapshot_type = models.CharField(max_length=20, choices=SNAPSHOT_TYPES, default='Quarterly')
+    snapshot_date = models.DateField()
+    platform = models.CharField(max_length=40, default='Instagram')
+    followers = models.IntegerField(default=0)
+    engagement_rate = models.DecimalField(max_digits=6, decimal_places=3, default=Decimal('0'),
+                                          help_text="As percentage, e.g. 3.5 = 3.5%")
+    estimated_reach = models.IntegerField(default=0)
+    revenue_last_3m = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'),
+                                           help_text="Estimated revenue in last 3 months (INR)")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['creator__name', 'snapshot_date']
+
+    def __str__(self) -> str:
+        return f"Snapshot<{self.creator.name}/{self.snapshot_type}/{self.snapshot_date}>"
+
+
+class EventInvite(models.Model):
+    """Tracks event invitations sent to creators and their responses."""
+    RESPONSE_CHOICES = [
+        ('Accepted', 'Accepted'),
+        ('Declined', 'Declined'),
+        ('NoResponse', 'No Response'),
+        ('', ''),
+    ]
+
+    creator = models.ForeignKey(Creator, on_delete=models.CASCADE, related_name='event_invites')
+    event_name = models.CharField(max_length=255)
+    event_date = models.DateField()
+    invited_date = models.DateField(null=True, blank=True)
+    response = models.CharField(max_length=20, choices=RESPONSE_CHOICES, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-event_date', 'creator__name']
+
+    def __str__(self) -> str:
+        return f"Event<{self.creator.name}/{self.event_name}>"
+
+
 class EmployeeWeeklyReport(models.Model):
     week_ending = models.DateField(null=True, blank=True)
     employee_name = models.CharField(max_length=120)

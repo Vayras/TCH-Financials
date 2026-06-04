@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Creator, ContractingCompliance, CommercialDeal, EmployeeWeeklyReport,
-    DropOff, CreatorDocument, DealCreatorShare,
+    DropOff, CreatorDocument, DealCreatorShare, SocialMediaSnapshot, EventInvite,
 )
 
 
@@ -104,3 +104,19 @@ class DropOffSerializer(serializers.ModelSerializer):
 
     def get_creator_name(self, obj):
         return obj.effective_creator_name
+
+
+class SocialMediaSnapshotSerializer(serializers.ModelSerializer):
+    creator_name = serializers.CharField(source='creator.name', read_only=True)
+
+    class Meta:
+        model = SocialMediaSnapshot
+        fields = '__all__'
+
+
+class EventInviteSerializer(serializers.ModelSerializer):
+    creator_name = serializers.CharField(source='creator.name', read_only=True)
+
+    class Meta:
+        model = EventInvite
+        fields = '__all__'

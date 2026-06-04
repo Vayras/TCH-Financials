@@ -1,10 +1,15 @@
 'use client';
 
 import * as React from 'react';
-import { api, type CreatorInsights, type CreatorInsight } from '@/lib/api';
+import { api, type CreatorInsights, type CreatorInsight, type SocialMediaSnapshot, type EventInvite, type Creator } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
+import Dialog from '@/components/ui/Dialog';
+import Input from '@/components/ui/Input';
+import Select from '@/components/ui/Select';
+import Label from '@/components/ui/Label';
+import Textarea from '@/components/ui/Textarea';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
 import { useFiscalYear } from '@/lib/fiscal-year';
@@ -66,13 +71,40 @@ export default function InsightsPage() {
 	const [error, setError] = React.useState<string | null>(null);
 	const [q, setQ] = React.useState('');
 	const [relFilter, setRelFilter] = React.useState<RelFilter>('All');
+	const [creators, setCreators] = React.useState<Creator[]>([]);
+	const [expanded, setExpanded] = React.useState<number | string | null>(null);
+	const [snapshots, setSnapshots] = React.useState<SocialMediaSnapshot[]>([]);
+	const [events, setEvents] = React.useState<EventInvite[]>([]);
+
+	// Snapshot dialog
+	const [snapOpen, setSnapOpen] = React.useState(false);
+	const [snapForm, setSnapForm] = React.useState({
+		creator: '', snapshot_type: 'Quarterly', snapshot_date: '', platform: 'Instagram',
+		followers: '', engagement_rate: '', estimated_reach: '', revenue_last_3m: '', notes: ''
+	});
+	const [snapEditing, setSnapEditing] = React.useState<SocialMediaSnapshot | null>(null);
+
+	// Event dialog
+	const [evtOpen, setEvtOpen] = React.useState(false);
+	const [evtForm, setEvtForm] = React.useState({
+		creator: '', event_name: '', event_date: '', invited_date: '', response: '', notes: ''
+	});
+	const [evtEditing, setEvtEditing] = React.useState<EventInvite | null>(null);
 
 	const load = React.useCallback(async () => {
 		setLoading(true);
 		setError(null);
 		try {
-			const fresh = await api.get<CreatorInsights>(`/creator-insights/?fy=${fyStart}`);
+			const [fresh, crs, snaps, evts] = await Promise.all([
+				api.get<CreatorInsights>(`/creator-insights/?fy=${fyStart}`),
+				api.get<Creator[]>('/creators/'),
+				api.get<SocialMediaSnapshot[]>('/social-snapshots/'),
+				api.get<EventInvite[]>('/event-invites/'),
+			]);
 			setData(fresh);
+			setCreators(crs);
+			setSnapshots(snaps);
+			setEvents(evts);
 		} catch (e) {
 			setError((e as Error).message);
 		} finally {
@@ -106,7 +138,91 @@ export default function InsightsPage() {
 		});
 	}, [data, q, relFilter]);
 
+	function creatorSnaps(creatorId: number | null, name: string) {
+		if (creatorId) return snapshots.filter((s) => s.creator === creatorId);
+		return snapshots.filter((s) => s.creator_name === name);
+	}
+	function creatorEvents(creatorId: number | null, name: string) {
+		if (creatorId) return events.filter((e) => e.creator === creatorId);
+		return events.filter((e) => e.creator_name === name);
+	}
+
+	function openSnapAdd(creatorId: number) {
+		setSnapEditing(null);
+		setSnapForm({
+			creator: String(creatorId), snapshot_type: 'Quarterly',
+			snapshot_date: new Date().toISOString().slice(0, 10), platform: 'Instagram',
+			followers: '', engagement_rate: '', estimated_reach: '', revenue_last_3m: '', notes: ''
+		});
+		setSnapOpen(true);
+	}
+	function openSnapEdit(s: SocialMediaSnapshot) {
+		setSnapEditing(s);
+		setSnapForm({
+			creator: String(s.creator), snapshot_type: s.snapshot_type,
+			snapshot_date: s.snapshot_date, platform: s.platform,
+			followers: String(s.followers), engagement_rate: s.engagement_rate,
+			estimated_reach: String(s.estimated_reach), revenue_last_3m: s.revenue_last_3m, notes: s.notes
+		});
+		setSnapOpen(true);
+	}
+	async function submitSnap() {
+		const payload = {
+			...snapForm, creator: Number(snapForm.creator),
+			followers: Number(snapForm.followers) || 0,
+			estimated_reach: Number(snapForm.estimated_reach) || 0,
+			engagement_rate: snapForm.engagement_rate || '0',
+			revenue_last_3m: snapForm.revenue_last_3m || '0',
+		};
+		try {
+			if (snapEditing) await api.patch(`/social-snapshots/${snapEditing.id}/`, payload);
+			else await api.post('/social-snapshots/', payload);
+			setSnapOpen(false);
+			await load();
+		} catch (e) { alert((e as Error).message); }
+	}
+	async function deleteSnap(id: number) {
+		if (!confirm('Delete this snapshot?')) return;
+		await api.del(`/social-snapshots/${id}/`);
+		await load();
+	}
+
+	function openEvtAdd(creatorId: number) {
+		setEvtEditing(null);
+		setEvtForm({
+			creator: String(creatorId), event_name: '',
+			event_date: new Date().toISOString().slice(0, 10), invited_date: '', response: '', notes: ''
+		});
+		setEvtOpen(true);
+	}
+	function openEvtEdit(e: EventInvite) {
+		setEvtEditing(e);
+		setEvtForm({
+			creator: String(e.creator), event_name: e.event_name,
+			event_date: e.event_date, invited_date: e.invited_date ?? '', response: e.response, notes: e.notes
+		});
+		setEvtOpen(true);
+	}
+	async function submitEvt() {
+		const payload = {
+			...evtForm, creator: Number(evtForm.creator),
+			invited_date: evtForm.invited_date || null,
+		};
+		try {
+			if (evtEditing) await api.patch(`/event-invites/${evtEditing.id}/`, payload);
+			else await api.post('/event-invites/', payload);
+			setEvtOpen(false);
+			await load();
+		} catch (e) { alert((e as Error).message); }
+	}
+	async function deleteEvt(id: number) {
+		if (!confirm('Delete this event invite?')) return;
+		await api.del(`/event-invites/${id}/`);
+		await load();
+	}
+
 	return (
+		<>
 		<section className="space-y-6">
 			<header className="space-y-2">
 				<div
@@ -565,6 +681,176 @@ export default function InsightsPage() {
 											)}
 										</div>
 									)}
+									{/* Expand toggle */}
+									<div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--n-border)' }}>
+										<button
+											type="button"
+											className="text-[12px] font-medium uppercase flex items-center gap-1"
+											style={{ color: 'var(--n-accent)', letterSpacing: '0.04em' }}
+											onClick={() => setExpanded(expanded === (c.creator_id ?? c.creator_name) ? null : (c.creator_id ?? c.creator_name))}
+										>
+											<Icon name={expanded === (c.creator_id ?? c.creator_name) ? 'chevron-down' : 'chevron-right'} size={14} />
+											Social Media &amp; Events
+										</button>
+									</div>
+
+									{expanded === (c.creator_id ?? c.creator_name) && c.creator_id && (
+										<div className="mt-4 space-y-5">
+											{/* Social Media Snapshots */}
+											<div>
+												<div className="flex items-center justify-between mb-2">
+													<div className="text-[11px] font-medium uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
+														Social Media Snapshots
+													</div>
+													<Button variant="outline" onClick={() => openSnapAdd(c.creator_id!)}>
+														<Icon name="plus" size={13} /> Add Snapshot
+													</Button>
+												</div>
+												{(() => {
+													const snaps = creatorSnaps(c.creator_id, c.creator_name);
+													if (snaps.length === 0) return (
+														<div className="text-[13px] py-3 text-center rounded" style={{ color: 'var(--n-fg-subtle)', border: '1px dashed var(--n-border)' }}>
+															No snapshots yet. Add a baseline or quarterly snapshot.
+														</div>
+													);
+													const baseline = snaps.find((s) => s.snapshot_type === 'Baseline');
+													const latest = snaps[snaps.length - 1];
+													return (
+														<div className="space-y-2">
+															{baseline && latest && baseline.id !== latest.id && (
+																<div className="grid grid-cols-4 gap-2 text-[13px] mb-2 p-2 rounded" style={{ background: 'var(--n-bg-soft)', border: '1px solid var(--n-border)' }}>
+																	<div>
+																		<div className="text-[10px] uppercase" style={{ color: 'var(--n-fg-subtle)' }}>Follower Growth</div>
+																		<div className="font-semibold" style={{ color: latest.followers > baseline.followers ? '#0f7b6c' : '#dc6803' }}>
+																			{baseline.followers > 0 ? `${(((latest.followers - baseline.followers) / baseline.followers) * 100).toFixed(1)}%` : '—'}
+																		</div>
+																	</div>
+																	<div>
+																		<div className="text-[10px] uppercase" style={{ color: 'var(--n-fg-subtle)' }}>Engagement Chg</div>
+																		<div className="font-semibold" style={{ color: Number(latest.engagement_rate) >= Number(baseline.engagement_rate) ? '#0f7b6c' : '#dc6803' }}>
+																			{Number(baseline.engagement_rate) > 0 ? `${(Number(latest.engagement_rate) - Number(baseline.engagement_rate)).toFixed(2)}pp` : '—'}
+																		</div>
+																	</div>
+																	<div>
+																		<div className="text-[10px] uppercase" style={{ color: 'var(--n-fg-subtle)' }}>Reach Growth</div>
+																		<div className="font-semibold" style={{ color: latest.estimated_reach > baseline.estimated_reach ? '#0f7b6c' : '#dc6803' }}>
+																			{baseline.estimated_reach > 0 ? `${(((latest.estimated_reach - baseline.estimated_reach) / baseline.estimated_reach) * 100).toFixed(1)}%` : '—'}
+																		</div>
+																	</div>
+																	<div>
+																		<div className="text-[10px] uppercase" style={{ color: 'var(--n-fg-subtle)' }}>Since Baseline</div>
+																		<div className="font-medium" style={{ color: 'var(--n-fg-muted)' }}>{baseline.snapshot_date} → {latest.snapshot_date}</div>
+																	</div>
+																</div>
+															)}
+															<div className="overflow-x-auto">
+																<table className="w-full text-[13px]">
+																	<thead>
+																		<tr style={{ borderBottom: '1px solid var(--n-border)' }}>
+																			<th className="text-left py-1 font-medium" style={{ color: 'var(--n-fg-subtle)' }}>Type</th>
+																			<th className="text-left py-1 font-medium" style={{ color: 'var(--n-fg-subtle)' }}>Date</th>
+																			<th className="text-right py-1 font-medium" style={{ color: 'var(--n-fg-subtle)' }}>Followers</th>
+																			<th className="text-right py-1 font-medium" style={{ color: 'var(--n-fg-subtle)' }}>Eng. Rate</th>
+																			<th className="text-right py-1 font-medium" style={{ color: 'var(--n-fg-subtle)' }}>Reach</th>
+																			<th className="text-right py-1 font-medium" style={{ color: 'var(--n-fg-subtle)' }}>Rev (3m)</th>
+																			<th className="text-right py-1 font-medium" style={{ color: 'var(--n-fg-subtle)' }}></th>
+																		</tr>
+																	</thead>
+																	<tbody>
+																		{snaps.map((s) => (
+																			<tr key={s.id} style={{ borderBottom: '1px solid var(--n-border)' }}>
+																				<td className="py-1.5"><Tag tone={s.snapshot_type === 'Baseline' ? 'accent' : 'neutral'}>{s.snapshot_type}</Tag></td>
+																				<td className="py-1.5 tabular-nums">{s.snapshot_date}</td>
+																				<td className="py-1.5 text-right tabular-nums">{s.followers.toLocaleString('en-IN')}</td>
+																				<td className="py-1.5 text-right tabular-nums">{s.engagement_rate}%</td>
+																				<td className="py-1.5 text-right tabular-nums">{s.estimated_reach.toLocaleString('en-IN')}</td>
+																				<td className="py-1.5 text-right tabular-nums">{inr(s.revenue_last_3m)}</td>
+																				<td className="py-1.5 text-right">
+																					<div className="flex gap-1 justify-end">
+																						<Button variant="ghost" onClick={() => openSnapEdit(s)}>Edit</Button>
+																						<Button variant="danger" onClick={() => deleteSnap(s.id)}>Del</Button>
+																					</div>
+																				</td>
+																			</tr>
+																		))}
+																	</tbody>
+																</table>
+															</div>
+														</div>
+													);
+												})()}
+											</div>
+
+											{/* Event Invites */}
+											<div>
+												<div className="flex items-center justify-between mb-2">
+													<div className="text-[11px] font-medium uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
+														Event Invites
+														{c.relationship !== 'Exclusive' && (
+															<span className="ml-2 normal-case font-normal text-[11px]" style={{ color: '#dc6803' }}>
+																(typically for Exclusives only)
+															</span>
+														)}
+													</div>
+													<Button variant="outline" onClick={() => openEvtAdd(c.creator_id!)}>
+														<Icon name="plus" size={13} /> Add Event
+													</Button>
+												</div>
+												{(() => {
+													const evts = creatorEvents(c.creator_id, c.creator_name);
+													if (evts.length === 0) return (
+														<div className="text-[13px] py-3 text-center rounded" style={{ color: 'var(--n-fg-subtle)', border: '1px dashed var(--n-border)' }}>
+															No event invites logged yet.
+														</div>
+													);
+													const accepted = evts.filter((e) => e.response === 'Accepted').length;
+													const declined = evts.filter((e) => e.response === 'Declined').length;
+													const noResp = evts.filter((e) => e.response === 'NoResponse' || !e.response).length;
+													return (
+														<div className="space-y-2">
+															<div className="flex gap-3 text-[13px]">
+																<span style={{ color: 'var(--n-fg-muted)' }}>Total: <strong>{evts.length}</strong></span>
+																<span style={{ color: '#0f7b6c' }}>Accepted: <strong>{accepted}</strong></span>
+																<span style={{ color: '#dc6803' }}>Declined: <strong>{declined}</strong></span>
+																<span style={{ color: 'var(--n-fg-subtle)' }}>No Response: <strong>{noResp}</strong></span>
+															</div>
+															<div className="overflow-x-auto">
+																<table className="w-full text-[13px]">
+																	<thead>
+																		<tr style={{ borderBottom: '1px solid var(--n-border)' }}>
+																			<th className="text-left py-1 font-medium" style={{ color: 'var(--n-fg-subtle)' }}>Event</th>
+																			<th className="text-left py-1 font-medium" style={{ color: 'var(--n-fg-subtle)' }}>Date</th>
+																			<th className="text-left py-1 font-medium" style={{ color: 'var(--n-fg-subtle)' }}>Response</th>
+																			<th className="text-right py-1 font-medium" style={{ color: 'var(--n-fg-subtle)' }}></th>
+																		</tr>
+																	</thead>
+																	<tbody>
+																		{evts.map((e) => (
+																			<tr key={e.id} style={{ borderBottom: '1px solid var(--n-border)' }}>
+																				<td className="py-1.5" style={{ color: 'var(--n-fg)' }}>{e.event_name}</td>
+																				<td className="py-1.5 tabular-nums" style={{ color: 'var(--n-fg-muted)' }}>{e.event_date}</td>
+																				<td className="py-1.5">
+																					{e.response === 'Accepted' ? <Tag tone="yes">Accepted</Tag> :
+																					 e.response === 'Declined' ? <Tag tone="no">Declined</Tag> :
+																					 <Tag tone="neutral">No Response</Tag>}
+																				</td>
+																				<td className="py-1.5 text-right">
+																					<div className="flex gap-1 justify-end">
+																						<Button variant="ghost" onClick={() => openEvtEdit(e)}>Edit</Button>
+																						<Button variant="danger" onClick={() => deleteEvt(e.id)}>Del</Button>
+																					</div>
+																				</td>
+																			</tr>
+																		))}
+																	</tbody>
+																</table>
+															</div>
+														</div>
+													);
+												})()}
+											</div>
+										</div>
+									)}
 								</article>
 							);
 						})}
@@ -572,5 +858,76 @@ export default function InsightsPage() {
 				)
 			) : null}
 		</section>
+
+		{/* Snapshot Dialog */}
+		<Dialog open={snapOpen} onOpenChange={setSnapOpen} title={snapEditing ? 'Edit Snapshot' : 'Add Social Media Snapshot'} className="max-w-2xl" footer={<>
+			<Button variant="outline" onClick={() => setSnapOpen(false)}>Cancel</Button>
+			<Button variant="primary" onClick={submitSnap}>{snapEditing ? 'Save' : 'Create'}</Button>
+		</>}>
+			<div className="grid grid-cols-2 gap-3">
+				<div>
+					<Label>Snapshot Type</Label>
+					<Select value={snapForm.snapshot_type} onChange={(e) => setSnapForm((f) => ({ ...f, snapshot_type: e.target.value }))} options={[{ value: 'Baseline', label: 'Baseline (Day 0)' }, { value: 'Quarterly', label: 'Quarterly' }]} />
+				</div>
+				<div>
+					<Label>Date</Label>
+					<Input type="date" value={snapForm.snapshot_date} onChange={(e) => setSnapForm((f) => ({ ...f, snapshot_date: e.target.value }))} />
+				</div>
+				<div>
+					<Label>Platform</Label>
+					<Input value={snapForm.platform} onChange={(e) => setSnapForm((f) => ({ ...f, platform: e.target.value }))} />
+				</div>
+				<div>
+					<Label>Followers</Label>
+					<Input type="number" value={snapForm.followers} onChange={(e) => setSnapForm((f) => ({ ...f, followers: e.target.value }))} />
+				</div>
+				<div>
+					<Label>Engagement Rate (%)</Label>
+					<Input type="number" step="0.01" placeholder="e.g. 3.5" value={snapForm.engagement_rate} onChange={(e) => setSnapForm((f) => ({ ...f, engagement_rate: e.target.value }))} />
+				</div>
+				<div>
+					<Label>Estimated Reach</Label>
+					<Input type="number" value={snapForm.estimated_reach} onChange={(e) => setSnapForm((f) => ({ ...f, estimated_reach: e.target.value }))} />
+				</div>
+				<div className="col-span-2">
+					<Label>Revenue (Last 3 months, INR)</Label>
+					<Input type="number" step="0.01" value={snapForm.revenue_last_3m} onChange={(e) => setSnapForm((f) => ({ ...f, revenue_last_3m: e.target.value }))} />
+				</div>
+				<div className="col-span-2">
+					<Label>Notes</Label>
+					<Textarea value={snapForm.notes} onChange={(e) => setSnapForm((f) => ({ ...f, notes: e.target.value }))} />
+				</div>
+			</div>
+		</Dialog>
+
+		{/* Event Dialog */}
+		<Dialog open={evtOpen} onOpenChange={setEvtOpen} title={evtEditing ? 'Edit Event Invite' : 'Add Event Invite'} className="max-w-2xl" footer={<>
+			<Button variant="outline" onClick={() => setEvtOpen(false)}>Cancel</Button>
+			<Button variant="primary" onClick={submitEvt}>{evtEditing ? 'Save' : 'Create'}</Button>
+		</>}>
+			<div className="grid grid-cols-2 gap-3">
+				<div className="col-span-2">
+					<Label>Event Name</Label>
+					<Input value={evtForm.event_name} onChange={(e) => setEvtForm((f) => ({ ...f, event_name: e.target.value }))} />
+				</div>
+				<div>
+					<Label>Event Date</Label>
+					<Input type="date" value={evtForm.event_date} onChange={(e) => setEvtForm((f) => ({ ...f, event_date: e.target.value }))} />
+				</div>
+				<div>
+					<Label>Invited Date</Label>
+					<Input type="date" value={evtForm.invited_date} onChange={(e) => setEvtForm((f) => ({ ...f, invited_date: e.target.value }))} />
+				</div>
+				<div>
+					<Label>Response</Label>
+					<Select value={evtForm.response} onChange={(e) => setEvtForm((f) => ({ ...f, response: e.target.value }))} options={[{ value: 'Accepted', label: 'Accepted' }, { value: 'Declined', label: 'Declined' }, { value: 'NoResponse', label: 'No Response' }]} placeholder="—" />
+				</div>
+				<div>
+					<Label>Notes</Label>
+					<Input value={evtForm.notes} onChange={(e) => setEvtForm((f) => ({ ...f, notes: e.target.value }))} />
+				</div>
+			</div>
+		</Dialog>
+		</>
 	);
 }
