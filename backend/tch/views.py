@@ -107,7 +107,9 @@ def entity_summary_view(request):
     fy = request.GET.get('fy')
     fy_start = int(fy) if fy else fiscal_year_of(date.today())
     entity_filter = request.GET.get('entity', '')
-    return Response(entity_summary(fy_start, entity_filter))
+    quarter = request.GET.get('quarter', '')
+    month = request.GET.get('month', '')
+    return Response(entity_summary(fy_start, entity_filter, quarter, month))
 
 
 @api_view(['GET'])

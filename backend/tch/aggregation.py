@@ -327,11 +327,20 @@ def overview(fy_start: int) -> dict:
     }
 
 
-def entity_summary(fy_start: int, entity_filter: str = '') -> dict:
+def entity_summary(fy_start: int, entity_filter: str = '', quarter: str = '', month: str = '') -> dict:
     """Summarise billing grouped by billing_entity for a fiscal year.
-    If entity_filter is given, restrict to rows whose billing_entity contains that string."""
+    If entity_filter is given, restrict to rows whose billing_entity contains that string.
+    Optional quarter ('Q1'..'Q4') or month ('04'..'03') filters narrow within the FY."""
     start = date(fy_start, 4, 1)
     end = date(fy_start + 1, 4, 1)
+
+    quarter_months: set[int] | None = None
+    if quarter:
+        for qk, qm in QUARTERS:
+            if qk == quarter:
+                quarter_months = set(qm)
+                break
+    target_month: int | None = int(month) if month else None
 
     # FY membership comes from the E-Invoice No (see invoice_period).
     deals = (
@@ -348,6 +357,10 @@ def entity_summary(fy_start: int, entity_filter: str = '') -> dict:
     for deal in deals:
         period = invoice_period(deal.e_invoice_number)
         if period is None or not (start <= period < end):
+            continue
+        if quarter_months and period.month not in quarter_months:
+            continue
+        if target_month is not None and period.month != target_month:
             continue
         if ef and ef not in (deal.billing_entity or '').lower():
             continue
@@ -394,6 +407,8 @@ def entity_summary(fy_start: int, entity_filter: str = '') -> dict:
         'fy': fy_label(fy_start),
         'fy_start': fy_start,
         'entity_filter': entity_filter,
+        'quarter': quarter,
+        'month': month,
         'entities': rows,
         'grand_total_billing': str(grand_billing),
         'grand_total_profit': str(grand_profit),
