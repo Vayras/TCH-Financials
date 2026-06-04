@@ -276,12 +276,22 @@ def overview(fy_start: int) -> dict:
             'total': str(r['total']),
         }
 
+    # Creator counts by relationship (active = status 'Active' or no status field).
+    creator_counts = {}
+    total_active = 0
+    for rel_key in BUCKET_ORDER:
+        cnt = Creator.objects.filter(relationship=rel_key, status='Active').count()
+        creator_counts[rel_key] = cnt
+        total_active += cnt
+
     return {
         'fy': fy_label(fy_start),
         'fy_start': fy_start,
         'months': months_meta,
         'quarters': quarters_meta,
         'bucket_order': BUCKET_ORDER,
+        'creator_counts': creator_counts,
+        'total_active_creators': total_active,
         'rows': payload_rows,
         'totals': {
             'by_month': plain(totals['by_month']),
