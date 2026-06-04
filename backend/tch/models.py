@@ -24,12 +24,14 @@ class Creator(models.Model):
         ('Dropping', 'Dropping out soon'),
         ('NonTCH', 'Non TCH'),
     ]
+    STATUS_CHOICES = [('Active', 'Active'), ('Inactive', 'Inactive')]
 
     name = models.CharField(max_length=200, unique=True)
     category = models.CharField(max_length=200, blank=True)
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, blank=True)
     stage = models.CharField(max_length=20, choices=STAGE_CHOICES, blank=True)
     relationship = models.CharField(max_length=20, choices=RELATIONSHIP_CHOICES, default='Friend')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Active')
     doj = models.DateField(null=True, blank=True)
     doj_note = models.CharField(max_length=120, blank=True, help_text="Free-text DOJ if unparseable")
     profile_url = models.URLField(max_length=400, blank=True)
@@ -44,6 +46,33 @@ class Creator(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+
+def creator_document_path(instance, filename: str) -> str:
+    """Store uploads under creator_docs/<creator_id>/<filename>."""
+    return f"creator_docs/{instance.creator_id}/{filename}"
+
+
+class CreatorDocument(models.Model):
+    DOC_TYPES = [
+        ('Agreement', 'Agreement'),
+        ('Bank', 'Bank Details'),
+        ('PAN', 'PAN'),
+        ('GST', 'GST'),
+        ('Other', 'Other'),
+    ]
+
+    creator = models.ForeignKey(Creator, on_delete=models.CASCADE, related_name='documents')
+    doc_type = models.CharField(max_length=20, choices=DOC_TYPES, default='Other')
+    label = models.CharField(max_length=200, blank=True)
+    file = models.FileField(upload_to=creator_document_path)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self) -> str:
+        return f"Document<{self.creator.name}/{self.doc_type}>"
 
 
 class ContractingCompliance(models.Model):
@@ -79,6 +108,8 @@ class CommercialDeal(models.Model):
         max_length=200, blank=True,
         help_text="Raw name string for non-TCH / outsiders without a Creator row",
     )
+    tch_poc = models.CharField(max_length=120, blank=True,
+                               help_text="TCH person who worked on this deal")
     agency_commission_agreed = models.CharField(max_length=120, blank=True)
     direction = models.CharField(max_length=16, choices=DIRECTION, default='Outbound')
     total_fee = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
@@ -89,6 +120,8 @@ class CommercialDeal(models.Model):
     creator_fee = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     billing_entity = models.CharField(max_length=120, blank=True)
     brand = models.CharField(max_length=200, blank=True)
+    brand_poc = models.CharField(max_length=200, blank=True,
+                                 help_text="Brand-side point of contact (name / detail)")
     campaign = models.CharField(max_length=255, blank=True)
     deliverables = models.CharField(max_length=255, blank=True)
     ro_number = models.CharField(max_length=80, blank=True)
@@ -112,6 +145,34 @@ class CommercialDeal(models.Model):
         if self.total_fee and self.agency_fee_inr and not self.creator_fee:
             self.creator_fee = (self.total_fee - self.agency_fee_inr).quantize(Decimal('0.01'))
         super().save(*args, **kwargs)
+
+    @property
+    def effective_creator_name(self) -> str:
+        return self.creator.name if self.creator_id else self.creator_name_raw
+
+
+class DealCreatorShare(models.Model):
+    """Per-creator split of a campaign's billing.
+
+    When a campaign has multiple creators, each gets a row here partitioning
+    the campaign's total_fee / profit / creator_fee. A campaign with no shares
+    falls back to its single `creator` (legacy behaviour) in aggregations.
+    """
+
+    deal = models.ForeignKey(
+        CommercialDeal, on_delete=models.CASCADE, related_name='creator_shares'
+    )
+    creator = models.ForeignKey(
+        Creator, on_delete=models.PROTECT, related_name='deal_shares', null=True, blank=True
+    )
+    creator_name_raw = models.CharField(max_length=200, blank=True)
+    total_fee = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    agency_fee_pct = models.DecimalField(max_digits=6, decimal_places=4, default=Decimal('0'))
+    agency_fee_inr = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    creator_fee = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+
+    class Meta:
+        ordering = ['id']
 
     @property
     def effective_creator_name(self) -> str:

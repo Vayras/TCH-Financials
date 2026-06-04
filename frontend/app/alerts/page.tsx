@@ -11,7 +11,7 @@ type State =
 	| { kind: 'loading' }
 	| { kind: 'error'; message: string }
 	| { kind: 'ok'; data: AlertsPayload };
-type SectionKey = 'urgent' | 'bd' | 'health' | 'seasonal';
+type SectionKey = 'urgent' | 'bd' | 'health' | 'docs' | 'seasonal';
 type FilterKey = 'all' | SectionKey;
 
 function sevTone(s: AlertSeverity): 'no' | 'markup' | 'neutral' {
@@ -48,6 +48,13 @@ const SECTION_META: Record<
 		accent: '#8a6a18',
 		accentBg: '#fcf2cf'
 	},
+	docs: {
+		title: 'Documents Missing',
+		subtitle: 'Active creators with no agreement / KYC document on file',
+		icon: 'file-signature',
+		accent: '#9b3b6a',
+		accentBg: '#f7e1ec'
+	},
 	seasonal: {
 		title: 'Upcoming Seasonal Moments',
 		subtitle: 'Cultural / retail moments to plan campaigns around',
@@ -57,14 +64,15 @@ const SECTION_META: Record<
 	}
 };
 
-const ORDER: SectionKey[] = ['urgent', 'bd', 'health', 'seasonal'];
-const FILTERS: FilterKey[] = ['all', 'urgent', 'bd', 'health', 'seasonal'];
+const ORDER: SectionKey[] = ['urgent', 'bd', 'health', 'docs', 'seasonal'];
+const FILTERS: FilterKey[] = ['all', 'urgent', 'bd', 'health', 'docs', 'seasonal'];
 
 function filterLabel(f: FilterKey): string {
 	if (f === 'all') return 'All';
 	if (f === 'bd') return 'BD';
 	if (f === 'urgent') return 'Urgent';
 	if (f === 'health') return 'Health';
+	if (f === 'docs') return 'Docs';
 	return 'Seasonal';
 }
 
@@ -113,7 +121,7 @@ export default function AlertsPage() {
 					Intelligence Alerts
 				</h1>
 				<p className="text-[15px] max-w-[720px]" style={{ color: 'var(--n-fg-muted)' }}>
-					Formula-derived signals from Commercial Tracking, Creators, and Contracting. No AI — just
+					Formula-derived signals from Commercial Tracking, Creators, and Documents. No AI — just
 					thresholds applied to the live database, recomputed on every load.
 				</p>
 			</header>
@@ -137,6 +145,7 @@ export default function AlertsPage() {
 										? alerts.counts.urgent +
 											alerts.counts.bd +
 											alerts.counts.health +
+											alerts.counts.docs +
 											alerts.counts.seasonal
 										: alerts.counts[f]}
 								</span>
@@ -174,10 +183,11 @@ export default function AlertsPage() {
 						payload.counts.urgent +
 						payload.counts.bd +
 						payload.counts.health +
+						payload.counts.docs +
 						payload.counts.seasonal;
 					return (
 						<>
-							<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+							<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
 								{ORDER.map((key) => {
 									const meta = SECTION_META[key];
 									return (

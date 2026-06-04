@@ -21,7 +21,17 @@ export const api = {
 		req<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
 	put: <T,>(path: string, body: unknown) =>
 		req<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
-	del: (path: string) => req<void>(path, { method: 'DELETE' })
+	del: (path: string) => req<void>(path, { method: 'DELETE' }),
+	// Multipart upload — the browser sets the Content-Type (with boundary),
+	// so we must not send our JSON header here.
+	upload: async <T,>(path: string, form: FormData): Promise<T> => {
+		const res = await fetch(`${API_BASE}${path}`, { method: 'POST', body: form });
+		if (!res.ok) {
+			const text = await res.text();
+			throw new Error(`${res.status} ${res.statusText}: ${text}`);
+		}
+		return res.json() as Promise<T>;
+	}
 };
 
 export type Creator = {
@@ -31,6 +41,7 @@ export type Creator = {
 	source: string;
 	stage: string;
 	relationship: 'Exclusive' | 'Friend' | 'Dropping' | 'NonTCH';
+	status: 'Active' | 'Inactive';
 	doj: string | null;
 	doj_note: string;
 	profile_url: string;
@@ -64,6 +75,18 @@ export type Contracting = {
 	renewal_note: string;
 };
 
+export type CreatorShare = {
+	id?: number;
+	creator: number | null;
+	creator_name?: string;
+	creator_relationship?: string;
+	creator_name_raw: string;
+	total_fee: string;
+	agency_fee_pct: string;
+	agency_fee_inr: string;
+	creator_fee: string;
+};
+
 export type Deal = {
 	id: number;
 	confirmation_date: string | null;
@@ -72,6 +95,7 @@ export type Deal = {
 	creator_name: string;
 	creator_name_raw: string;
 	creator_relationship: string;
+	tch_poc: string;
 	agency_commission_agreed: string;
 	direction: 'Inbound' | 'Outbound' | 'MarkUp';
 	total_fee: string;
@@ -80,6 +104,7 @@ export type Deal = {
 	creator_fee: string;
 	billing_entity: string;
 	brand: string;
+	brand_poc: string;
 	campaign: string;
 	deliverables: string;
 	ro_number: string;
@@ -89,6 +114,17 @@ export type Deal = {
 	e_invoice_number: string;
 	payment_received: string;
 	comments: string;
+	creator_shares: CreatorShare[];
+};
+
+export type CreatorDocument = {
+	id: number;
+	creator: number;
+	creator_name: string;
+	doc_type: string;
+	label: string;
+	file: string;
+	uploaded_at: string;
 };
 
 export type EmployeeReport = {
@@ -222,6 +258,7 @@ export type AlertsPayload = {
 	urgent: AlertItem[];
 	bd: AlertItem[];
 	health: AlertItem[];
+	docs: AlertItem[];
 	seasonal: AlertItem[];
-	counts: { urgent: number; bd: number; health: number; seasonal: number };
+	counts: { urgent: number; bd: number; health: number; docs: number; seasonal: number };
 };

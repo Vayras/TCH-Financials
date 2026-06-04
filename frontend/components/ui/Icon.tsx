@@ -135,6 +135,13 @@ const PATHS: Record<string, React.ReactNode> = {
 		</>
 	),
 	activity: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />,
+	download: (
+		<>
+			<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+			<polyline points="7 10 12 15 17 10" />
+			<line x1="12" y1="15" x2="12" y2="3" />
+		</>
+	),
 	'calendar-clock': (
 		<>
 			<rect x="3" y="4" width="13" height="18" rx="2" />
