@@ -3,7 +3,9 @@
 import * as React from 'react';
 import { api, type EntitySummary, type EntityRow } from '@/lib/api';
 import { inr } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
+import Select from '@/components/ui/Select';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
 import { useFiscalYear } from '@/lib/fiscal-year';
@@ -27,14 +29,17 @@ export default function EntitySummaryPage() {
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
 	const [expandedEntity, setExpandedEntity] = React.useState<string | null>(null);
+	const [period, setPeriod] = React.useState('FY');
 
 	const load = React.useCallback(
-		async (filter: string = entityFilter) => {
+		async (filter: string = entityFilter, per: string = period) => {
 			setLoading(true);
 			setError(null);
 			try {
 				const params = new URLSearchParams({ fy: String(fyStart) });
 				if (filter) params.set('entity', filter);
+				if (per.startsWith('Q')) params.set('quarter', per);
+				else if (per !== 'FY') params.set('month', per);
 				const fresh = await api.get<EntitySummary>(`/entity-summary/?${params}`);
 				setData(fresh);
 			} catch (e) {
@@ -43,24 +48,24 @@ export default function EntitySummaryPage() {
 				setLoading(false);
 			}
 		},
-		[fyStart, entityFilter]
+		[fyStart, entityFilter, period]
 	);
 
 	React.useEffect(() => {
-		load(entityFilter);
+		load(entityFilter, period);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [fyStart]);
+	}, [fyStart, period]);
 
 	function applyFilter() {
 		const next = searchInput.trim();
 		setEntityFilter(next);
-		load(next);
+		load(next, period);
 	}
 
 	function clearFilter() {
 		setSearchInput('');
 		setEntityFilter('');
-		load('');
+		load('', period);
 	}
 
 	function toggleExpand(entity: string) {
@@ -83,7 +88,8 @@ export default function EntitySummaryPage() {
 					Billing Entity Summary
 				</h1>
 				<p className="text-[15px] max-w-[640px]" style={{ color: 'var(--n-fg-muted)' }}>
-					Total billing and TCH profit grouped by billing entity. Source: Commercial Tracking.
+					Total billing and TCH profit grouped by billing entity. Auto-calculated from
+					Commercial Tracking. Use the period selector to drill into a quarter or month.
 				</p>
 			</header>
 
@@ -115,9 +121,34 @@ export default function EntitySummaryPage() {
 						Clear
 					</Button>
 				)}
+				<div className="min-w-[160px]">
+					<Select
+						value={period}
+						onChange={(e) => setPeriod(e.target.value)}
+						options={[
+							{ value: 'FY', label: 'Full Year' },
+							{ value: 'Q1', label: 'Q1 (Apr-Jun)' },
+							{ value: 'Q2', label: 'Q2 (Jul-Sep)' },
+							{ value: 'Q3', label: 'Q3 (Oct-Dec)' },
+							{ value: 'Q4', label: 'Q4 (Jan-Mar)' },
+							{ value: '04', label: 'April' },
+							{ value: '05', label: 'May' },
+							{ value: '06', label: 'June' },
+							{ value: '07', label: 'July' },
+							{ value: '08', label: 'August' },
+							{ value: '09', label: 'September' },
+							{ value: '10', label: 'October' },
+							{ value: '11', label: 'November' },
+							{ value: '12', label: 'December' },
+							{ value: '01', label: 'January' },
+							{ value: '02', label: 'February' },
+							{ value: '03', label: 'March' },
+						]}
+					/>
+				</div>
 
 				<div className="ml-auto flex items-center gap-2">
-					<Button variant="ghost" onClick={() => load(entityFilter)}>
+					<Button variant="ghost" onClick={() => load(entityFilter, period)}>
 						<Icon name="refresh" size={14} /> Refresh
 					</Button>
 				</div>
@@ -244,6 +275,9 @@ export default function EntitySummaryPage() {
 											</td>
 											<td className="font-medium" style={{ color: 'var(--n-fg)' }}>
 												{row.entity}
+												{row.deal_count === 1 && (
+													<Tag tone="neutral" className="ml-2">low activity</Tag>
+												)}
 											</td>
 											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>
 												{row.deal_count}
