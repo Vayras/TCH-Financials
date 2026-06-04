@@ -113,6 +113,18 @@ export type Deal = {
 	payment_cleared: string;
 	e_invoice_number: string;
 	payment_received: string;
+	client_invoice_number: string;
+	client_invoice_date: string | null;
+	client_invoice_amount: string;
+	client_payment_status: '' | 'Pending' | 'Partial' | 'Received' | 'Overdue';
+	client_payment_received_amount: string;
+	client_payment_date: string | null;
+	creator_invoice_number: string;
+	creator_invoice_date: string | null;
+	creator_invoice_amount: string;
+	creator_payment_status: '' | 'Pending' | 'Scheduled' | 'Paid' | 'Overdue';
+	creator_payment_cycle: '' | 'Immediate' | 'Net15' | 'Net30' | 'Net45' | 'Net60';
+	creator_payment_date: string | null;
 	comments: string;
 	creator_shares: CreatorShare[];
 };

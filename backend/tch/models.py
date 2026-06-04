@@ -130,6 +130,36 @@ class CommercialDeal(models.Model):
     payment_cleared = models.CharField(max_length=1, choices=YN, blank=True)
     e_invoice_number = models.CharField(max_length=80, blank=True)
     payment_received = models.CharField(max_length=1, choices=YN, blank=True)
+
+    # --- Finance: Client Invoice (TCH → Client) ---
+    client_invoice_number = models.CharField(max_length=120, blank=True, help_text="Invoice number sent to client")
+    client_invoice_date = models.DateField(null=True, blank=True)
+    client_invoice_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    client_payment_status = models.CharField(
+        max_length=20,
+        choices=[('Pending', 'Pending'), ('Partial', 'Partial'), ('Received', 'Received'), ('Overdue', 'Overdue'), ('', '')],
+        blank=True,
+    )
+    client_payment_received_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    client_payment_date = models.DateField(null=True, blank=True)
+
+    # --- Finance: Creator Invoice (Creator → TCH) ---
+    creator_invoice_number = models.CharField(max_length=120, blank=True, help_text="Invoice from creator")
+    creator_invoice_date = models.DateField(null=True, blank=True)
+    creator_invoice_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
+    creator_payment_status = models.CharField(
+        max_length=20,
+        choices=[('Pending', 'Pending'), ('Scheduled', 'Scheduled'), ('Paid', 'Paid'), ('Overdue', 'Overdue'), ('', '')],
+        blank=True,
+    )
+    creator_payment_cycle = models.CharField(
+        max_length=20,
+        choices=[('Immediate', 'Immediate'), ('Net15', 'Net 15'), ('Net30', 'Net 30'), ('Net45', 'Net 45'), ('Net60', 'Net 60'), ('', '')],
+        blank=True,
+        help_text="Payment cycle for creator payout",
+    )
+    creator_payment_date = models.DateField(null=True, blank=True)
+
     comments = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
