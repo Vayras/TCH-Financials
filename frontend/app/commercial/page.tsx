@@ -12,6 +12,7 @@ import Textarea from '@/components/ui/Textarea';
 import Label from '@/components/ui/Label';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
+import { useFiscalYear } from '@/lib/fiscal-year';
 
 const DIRECTION = [
 	{ value: 'Inbound', label: 'Inbound' },
@@ -19,8 +20,8 @@ const DIRECTION = [
 	{ value: 'MarkUp', label: 'Mark Up' }
 ];
 const YN = [
-	{ value: 'Y', label: 'Y' },
-	{ value: 'N', label: 'N' }
+	{ value: 'Y', label: 'Yes' },
+	{ value: 'N', label: 'No' }
 ];
 
 const CLIENT_PAY_STATUS = [
@@ -50,7 +51,7 @@ type DealForm = {
 	e_invoice_date: string;
 	creator: string;
 	creator_name_raw: string;
-	agency_commission_agreed: string;
+	tch_poc: string;
 	direction: string;
 	total_fee: string;
 	agency_fee_pct: string;
@@ -58,6 +59,7 @@ type DealForm = {
 	creator_fee: string;
 	billing_entity: string;
 	brand: string;
+	brand_poc: string;
 	campaign: string;
 	deliverables: string;
 	ro_number: string;
@@ -86,7 +88,7 @@ const EMPTY_FORM: DealForm = {
 	e_invoice_date: '',
 	creator: '',
 	creator_name_raw: '',
-	agency_commission_agreed: '',
+	tch_poc: '',
 	direction: 'Outbound',
 	total_fee: '',
 	agency_fee_pct: '',
@@ -94,6 +96,7 @@ const EMPTY_FORM: DealForm = {
 	creator_fee: '',
 	billing_entity: '',
 	brand: '',
+	brand_poc: '',
 	campaign: '',
 	deliverables: '',
 	ro_number: '',
@@ -116,6 +119,35 @@ const EMPTY_FORM: DealForm = {
 	creator_payment_date: '',
 	comments: ''
 };
+
+// One extra creator on a multi-creator campaign. The first/primary creator
+// lives in the main form fields; these are the additional split rows.
+type ShareForm = {
+	creator: string;
+	creator_name_raw: string;
+	total_fee: string;
+	agency_fee_inr: string;
+};
+const EMPTY_SHARE: ShareForm = {
+	creator: '',
+	creator_name_raw: '',
+	total_fee: '',
+	agency_fee_inr: ''
+};
+
+// Build a CreatorShare payload row, deriving % and creator fee from totals.
+function buildShare(creator: string, raw: string, total: string, inr: string) {
+	const t = Number(total) || 0;
+	const a = Number(inr) || 0;
+	return {
+		creator: creator ? Number(creator) : null,
+		creator_name_raw: raw || '',
+		total_fee: total || '0',
+		agency_fee_inr: inr || '0',
+		agency_fee_pct: t > 0 ? (a / t).toFixed(4) : '0',
+		creator_fee: (t - a).toFixed(2)
+	};
+}
 
 function relTone(rel?: string) {
 	if (rel === 'Exclusive') return 'exclusive' as const;
@@ -144,40 +176,9 @@ function fyStartOf(iso: string): number {
 	const [y, m] = iso.split('-').map(Number);
 	return m >= 4 ? y : y - 1;
 }
-function quarterOf(iso: string): 'Q1' | 'Q2' | 'Q3' | 'Q4' {
-	const m = Number(iso.split('-')[1]);
-	if (m >= 4 && m <= 6) return 'Q1';
-	if (m >= 7 && m <= 9) return 'Q2';
-	if (m >= 10 && m <= 12) return 'Q3';
-	return 'Q4';
-}
-function monthOf(iso: string): string {
-	return iso.split('-')[1];
-}
 function fyLabelShort(start: number): string {
 	return `FY ${start % 100}-${(start + 1) % 100}`;
 }
-
-// Sub-period options in fiscal-year order (Apr → Mar) plus the four quarters.
-const SUB_PERIODS = [
-	{ value: 'All', label: 'All periods' },
-	{ value: 'Q1', label: 'Q1 (Apr–Jun)' },
-	{ value: 'Q2', label: 'Q2 (Jul–Sep)' },
-	{ value: 'Q3', label: 'Q3 (Oct–Dec)' },
-	{ value: 'Q4', label: 'Q4 (Jan–Mar)' },
-	{ value: '04', label: 'April' },
-	{ value: '05', label: 'May' },
-	{ value: '06', label: 'June' },
-	{ value: '07', label: 'July' },
-	{ value: '08', label: 'August' },
-	{ value: '09', label: 'September' },
-	{ value: '10', label: 'October' },
-	{ value: '11', label: 'November' },
-	{ value: '12', label: 'December' },
-	{ value: '01', label: 'January' },
-	{ value: '02', label: 'February' },
-	{ value: '03', label: 'March' }
-];
 
 type DirFilter = 'All' | 'Inbound' | 'Outbound' | 'MarkUp';
 type DateBasis = 'confirmation' | 'invoice';
@@ -192,10 +193,9 @@ export default function CommercialPage() {
 	const [editing, setEditing] = React.useState<Deal | null>(null);
 	const [q, setQ] = React.useState('');
 	const [dirFilter, setDirFilter] = React.useState<DirFilter>('All');
+	const { fyStart } = useFiscalYear();
 	const [entityFilter, setEntityFilter] = React.useState('All');
 	const [basis, setBasis] = React.useState<DateBasis>('confirmation');
-	const [fyFilter, setFyFilter] = React.useState('All');
-	const [subPeriod, setSubPeriod] = React.useState('All');
 	const [form, setForm] = React.useState<DealForm>(EMPTY_FORM);
 	const [viewMode, setViewMode] = React.useState<ViewMode>('table');
 	const [colGroups, setColGroups] = React.useState<Record<ColumnGroup, boolean>>({
@@ -205,6 +205,7 @@ export default function CommercialPage() {
 		status: true,
 	});
 	const toggleCol = (g: ColumnGroup) => setColGroups((prev) => ({ ...prev, [g]: !prev[g] }));
+	const [shares, setShares] = React.useState<ShareForm[]>([]);
 
 	const load = React.useCallback(async () => {
 		setLoading(true);
@@ -226,21 +227,36 @@ export default function CommercialPage() {
 		load();
 	}, [load]);
 
-	// Auto-compute agency_fee_inr and creator_fee from total_fee + agency_fee_pct.
-	React.useEffect(() => {
-		const total = Number(form.total_fee);
-		const p = Number(form.agency_fee_pct);
-		if (Number.isFinite(total) && Number.isFinite(p) && total > 0 && p > 0) {
-			const pct = p <= 1 ? p : p / 100;
-			const fee = (total * pct).toFixed(2);
-			const creatorFee = (total - total * pct).toFixed(2);
-			setForm((f) =>
-				f.agency_fee_inr === fee && f.creator_fee === creatorFee
-					? f
-					: { ...f, agency_fee_inr: fee, creator_fee: creatorFee }
-			);
+	// Agency fee % and Agency fee (INR) are kept in sync both ways: editing the
+	// % derives the INR, editing the INR derives the %. feeBasis remembers which
+	// one the user drove last so changing Total Fee recomputes the right one.
+	const feeBasis = React.useRef<'pct' | 'inr'>('pct');
+	function recomputeFees(next: DealForm): DealForm {
+		const total = Number(next.total_fee);
+		if (!Number.isFinite(total) || total <= 0) return next;
+		if (feeBasis.current === 'inr') {
+			const inr = Number(next.agency_fee_inr);
+			if (!Number.isFinite(inr) || inr <= 0) return next;
+			return {
+				...next,
+				agency_fee_pct: (inr / total).toFixed(4),
+				creator_fee: (total - inr).toFixed(2)
+			};
 		}
-	}, [form.total_fee, form.agency_fee_pct]);
+		const p = Number(next.agency_fee_pct);
+		if (!Number.isFinite(p) || p <= 0) return next;
+		const pct = p <= 1 ? p : p / 100;
+		const inr = total * pct;
+		return { ...next, agency_fee_inr: inr.toFixed(2), creator_fee: (total - inr).toFixed(2) };
+	}
+
+	// Mark Up deals can't be on exclusive creators — clear a now-hidden pick.
+	React.useEffect(() => {
+		if (form.direction === 'MarkUp' && form.creator) {
+			const c = creators.find((x) => String(x.id) === form.creator);
+			if (c && c.relationship === 'Exclusive') setForm((f) => ({ ...f, creator: '' }));
+		}
+	}, [form.direction, form.creator, creators]);
 
 	function startAdd() {
 		setEditing(null);
@@ -248,24 +264,36 @@ export default function CommercialPage() {
 			...EMPTY_FORM,
 			confirmation_date: new Date().toISOString().slice(0, 10)
 		});
+		setShares([]);
 		setOpen(true);
 	}
 
 	function startEdit(d: Deal) {
 		setEditing(d);
+		const cs = d.creator_shares ?? [];
+		// When the campaign has splits, the first share fills the primary fields
+		// and the rest become additional rows.
+		const primary = cs[0];
 		setForm({
 			confirmation_date: d.confirmation_date ?? '',
 			e_invoice_date: d.e_invoice_date ?? '',
-			creator: d.creator ? String(d.creator) : '',
-			creator_name_raw: d.creator_name_raw,
-			agency_commission_agreed: d.agency_commission_agreed,
+			creator: primary
+				? primary.creator
+					? String(primary.creator)
+					: ''
+				: d.creator
+					? String(d.creator)
+					: '',
+			creator_name_raw: primary ? primary.creator_name_raw : d.creator_name_raw,
+			tch_poc: d.tch_poc ?? '',
 			direction: d.direction,
-			total_fee: d.total_fee,
-			agency_fee_pct: d.agency_fee_pct,
-			agency_fee_inr: d.agency_fee_inr,
-			creator_fee: d.creator_fee,
+			total_fee: primary ? primary.total_fee : d.total_fee,
+			agency_fee_pct: primary ? primary.agency_fee_pct : d.agency_fee_pct,
+			agency_fee_inr: primary ? primary.agency_fee_inr : d.agency_fee_inr,
+			creator_fee: primary ? primary.creator_fee : d.creator_fee,
 			billing_entity: d.billing_entity,
 			brand: d.brand,
+			brand_poc: d.brand_poc ?? '',
 			campaign: d.campaign,
 			deliverables: d.deliverables,
 			ro_number: d.ro_number,
@@ -288,19 +316,43 @@ export default function CommercialPage() {
 			creator_payment_date: d.creator_payment_date ?? '',
 			comments: d.comments
 		});
+		setShares(
+			cs.slice(1).map((s) => ({
+				creator: s.creator ? String(s.creator) : '',
+				creator_name_raw: s.creator_name_raw,
+				total_fee: s.total_fee,
+				agency_fee_inr: s.agency_fee_inr
+			}))
+		);
 		setOpen(true);
 	}
 
 	async function submit() {
+		// A campaign is "split" when extra creators are added. We then send the
+		// full creator_shares set (primary + additions) and roll the campaign
+		// totals up from the shares. With no extra creators we send an empty
+		// set so any previous split is cleared and the single creator is used.
+		const hasSplit = shares.length > 0;
+		const shareRows = hasSplit
+			? [
+					buildShare(form.creator, form.creator_name_raw, form.total_fee, form.agency_fee_inr),
+					...shares.map((s) =>
+						buildShare(s.creator, s.creator_name_raw, s.total_fee, s.agency_fee_inr)
+					)
+				]
+			: [];
+		const sum = (k: 'total_fee' | 'agency_fee_inr' | 'creator_fee') =>
+			shareRows.reduce((n, s) => n + (Number(s[k]) || 0), 0).toFixed(2);
 		const payload = {
 			...form,
 			creator: form.creator ? Number(form.creator) : null,
 			confirmation_date: form.confirmation_date || null,
 			e_invoice_date: form.e_invoice_date || null,
-			total_fee: form.total_fee || '0',
+			total_fee: hasSplit ? sum('total_fee') : form.total_fee || '0',
 			agency_fee_pct: form.agency_fee_pct || '0',
-			agency_fee_inr: form.agency_fee_inr || '0',
-			creator_fee: form.creator_fee || '0',
+			agency_fee_inr: hasSplit ? sum('agency_fee_inr') : form.agency_fee_inr || '0',
+			creator_fee: hasSplit ? sum('creator_fee') : form.creator_fee || '0',
+			creator_shares: shareRows,
 			client_invoice_date: form.client_invoice_date || null,
 			client_invoice_amount: form.client_invoice_amount || '0',
 			client_payment_received_amount: form.client_payment_received_amount || '0',
@@ -323,7 +375,7 @@ export default function CommercialPage() {
 	}
 
 	async function remove(d: Deal) {
-		if (!confirm(`Delete deal for "${d.creator_name}" / brand "${d.brand}"?`)) return;
+		if (!confirm(`Delete campaign for "${d.creator_name}" / brand "${d.brand}"?`)) return;
 		await api.del(`/deals/${d.id}/`);
 		await load();
 	}
@@ -339,17 +391,7 @@ export default function CommercialPage() {
 		return Array.from(set).sort((a, b) => a.localeCompare(b));
 	}, [rows]);
 
-	// Fiscal years present in the data for the chosen tracking basis.
-	const fyYears = React.useMemo(() => {
-		const set = new Set<number>();
-		for (const r of rows) {
-			const d = basis === 'invoice' ? r.e_invoice_date : r.confirmation_date;
-			if (d) set.add(fyStartOf(d));
-		}
-		return Array.from(set).sort((a, b) => b - a);
-	}, [rows, basis]);
-
-	const periodActive = entityFilter !== 'All' || fyFilter !== 'All' || subPeriod !== 'All';
+	const periodActive = entityFilter !== 'All';
 
 	const filtered = React.useMemo(() => {
 		const needle = q.trim().toLowerCase();
@@ -358,17 +400,11 @@ export default function CommercialPage() {
 			if (entityFilter !== 'All' && (r.billing_entity || '').trim() !== entityFilter)
 				return false;
 			const d = basis === 'invoice' ? r.e_invoice_date : r.confirmation_date;
-			if (fyFilter !== 'All') {
-				if (!d || fyStartOf(d) !== Number(fyFilter)) return false;
-			}
-			if (subPeriod !== 'All') {
-				if (!d) return false;
-				if (subPeriod.startsWith('Q')) {
-					if (quarterOf(d) !== subPeriod) return false;
-				} else if (monthOf(d) !== subPeriod) {
-					return false;
-				}
-			}
+			// Scope strictly to the site-wide fiscal year: a deal only belongs to
+			// the selected FY if its tracking date (conf or invoice) falls inside
+			// it. Rows with no date for the chosen basis are not attributable to a
+			// year and are hidden — switch "Track by" if a deal has only one date.
+			if (!d || fyStartOf(d) !== fyStart) return false;
 			if (!needle) return true;
 			return (
 				r.creator_name?.toLowerCase().includes(needle) ||
@@ -386,12 +422,10 @@ export default function CommercialPage() {
 			if (!bd) return -1;
 			return bd.localeCompare(ad);
 		});
-	}, [rows, q, dirFilter, entityFilter, basis, fyFilter, subPeriod]);
+	}, [rows, q, dirFilter, entityFilter, basis, fyStart]);
 
 	function resetFilters() {
 		setEntityFilter('All');
-		setFyFilter('All');
-		setSubPeriod('All');
 	}
 
 	const totals = React.useMemo(() => {
@@ -417,6 +451,23 @@ export default function CommercialPage() {
 	const set = <K extends keyof DealForm>(k: K, v: DealForm[K]) =>
 		setForm((f) => ({ ...f, [k]: v }));
 
+	const updateShare = (i: number, k: keyof ShareForm, v: string) =>
+		setShares((arr) => arr.map((s, idx) => (idx === i ? { ...s, [k]: v } : s)));
+	const removeShare = (i: number) =>
+		setShares((arr) => arr.filter((_, idx) => idx !== i));
+
+	// Creator options, filtered to exclude exclusives on Mark Up campaigns.
+	const creatorOptions = creators
+		.filter((c) => form.direction !== 'MarkUp' || c.relationship !== 'Exclusive')
+		.map((c) => ({ value: String(c.id), label: `${c.name} · ${c.relationship}` }));
+
+	// Campaign total when splitting (primary share + additional shares).
+	const splitTotal =
+		shares.length > 0
+			? (Number(form.total_fee) || 0) +
+				shares.reduce((n, s) => n + (Number(s.total_fee) || 0), 0)
+			: 0;
+
 	return (
 		<>
 			<section className="space-y-6">
@@ -425,7 +476,7 @@ export default function CommercialPage() {
 						className="text-[12px] font-medium uppercase"
 						style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
 					>
-						Workspace · Commercial
+						Workspace · Campaign
 					</div>
 					<div className="flex items-end justify-between flex-wrap gap-3">
 						<div>
@@ -433,18 +484,18 @@ export default function CommercialPage() {
 								className="page-title text-[40px] leading-[1.15] font-bold"
 								style={{ color: 'var(--n-fg)' }}
 							>
-								Commercial Tracking
+								Campaign Tracking
 							</h1>
 							<p
 								className="text-[15px] max-w-[640px] mt-2"
 								style={{ color: 'var(--n-fg-muted)' }}
 							>
-								Single source of truth for billing. Add a deal here — Current Overview and
+								Single source of truth for billing. Add a campaign here — Current Overview and
 								Quarterly Exclusives recompute automatically.
 							</p>
 						</div>
 						<Button variant="primary" onClick={startAdd}>
-							<Icon name="plus" size={14} /> Add Deal
+							<Icon name="plus" size={14} /> Add Campaign
 						</Button>
 					</div>
 				</header>
@@ -458,7 +509,7 @@ export default function CommercialPage() {
 							className="text-[11.5px] font-medium uppercase"
 							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
 						>
-							Deals shown
+							Campaigns shown
 						</div>
 						<div
 							className="text-[22px] font-semibold tabular-nums mt-1"
@@ -586,28 +637,18 @@ export default function CommercialPage() {
 							]}
 						/>
 					</div>
-					<div className="min-w-[130px]">
-						<Select
-							value={fyFilter}
-							onChange={(e) => setFyFilter(e.target.value)}
-							options={[
-								{ value: 'All', label: 'All years' },
-								...fyYears.map((y) => ({ value: String(y), label: fyLabelShort(y) }))
-							]}
-						/>
-					</div>
-					<div className="min-w-[150px]">
-						<Select
-							value={subPeriod}
-							onChange={(e) => setSubPeriod(e.target.value)}
-							options={SUB_PERIODS}
-						/>
-					</div>
 					{periodActive && (
 						<Button variant="ghost" onClick={resetFilters}>
 							Reset filters
 						</Button>
 					)}
+					<span
+						className="text-[11.5px] font-medium uppercase whitespace-nowrap"
+						style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
+						title="Set the fiscal year from the selector in the top bar"
+					>
+						Scoped to {fyLabelShort(fyStart)}
+					</span>
 				</div>
 
 				<div className="flex flex-wrap items-center gap-2">
@@ -913,14 +954,25 @@ export default function CommercialPage() {
 											</td>
 											<td className="ct-sticky-l2 ct-cell">
 												<div className="font-medium" style={{ color: 'var(--n-fg)' }}>
-													{r.creator_name || '—'}
+													{r.creator_shares && r.creator_shares.length > 0
+														? r.creator_shares
+																.map((s) => s.creator_name || s.creator_name_raw)
+																.filter(Boolean)
+																.join(', ')
+														: r.creator_name || '—'}
 												</div>
-												{r.creator_relationship && (
-													<Tag tone={relTone(r.creator_relationship)} className="mt-0.5">
-														{r.creator_relationship === 'NonTCH'
-															? 'Non TCH'
-															: r.creator_relationship}
+												{r.creator_shares && r.creator_shares.length > 1 ? (
+													<Tag tone="markup" className="mt-0.5">
+														{r.creator_shares.length} creators
 													</Tag>
+												) : (
+													r.creator_relationship && (
+														<Tag tone={relTone(r.creator_relationship)} className="mt-0.5">
+															{r.creator_relationship === 'NonTCH'
+																? 'Non TCH'
+																: r.creator_relationship}
+														</Tag>
+													)
 												)}
 											</td>
 											{colGroups.deal && <>
@@ -1076,7 +1128,7 @@ export default function CommercialPage() {
 												style={{ color: 'var(--n-fg-subtle)' }}
 												colSpan={99}
 											>
-												No deals match the current filters.
+												No campaigns match the current filters.
 											</td>
 										</tr>
 									)}
@@ -1096,7 +1148,7 @@ export default function CommercialPage() {
 			<Dialog
 				open={open}
 				onOpenChange={setOpen}
-				title={editing ? 'Edit Deal' : 'Add Deal'}
+				title={editing ? 'Edit Campaign' : 'Add Campaign'}
 				className="max-w-4xl"
 				footer={
 					<>
@@ -1130,7 +1182,14 @@ export default function CommercialPage() {
 						<Label>Direction</Label>
 						<Select
 							value={form.direction}
-							onChange={(e) => set('direction', e.target.value)}
+							onChange={(e) => {
+								const dir = e.target.value;
+								// Mark Up deals: TCH enters the marked-up INR amount and the
+								// commission % is derived from it. Other directions default
+								// back to %-driven.
+								feeBasis.current = dir === 'MarkUp' ? 'inr' : 'pct';
+								setForm((f) => recomputeFees({ ...f, direction: dir }));
+							}}
 							options={DIRECTION}
 						/>
 					</div>
@@ -1140,10 +1199,7 @@ export default function CommercialPage() {
 						<Select
 							value={form.creator}
 							onChange={(e) => set('creator', e.target.value)}
-							options={creators.map((c) => ({
-								value: String(c.id),
-								label: `${c.name} · ${c.relationship}`
-							}))}
+							options={creatorOptions}
 							placeholder="— none —"
 						/>
 					</div>
@@ -1154,6 +1210,15 @@ export default function CommercialPage() {
 							onChange={(e) => set('creator_name_raw', e.target.value)}
 						/>
 					</div>
+					<div className="col-span-2">
+						<Label>TCH POC (who worked on this)</Label>
+						<Input
+							value={form.tch_poc}
+							onChange={(e) => set('tch_poc', e.target.value)}
+							placeholder="TCH person handling this deal"
+						/>
+					</div>
+					<div />
 
 					<div>
 						<Label>Total Fee (INR)</Label>
@@ -1161,7 +1226,9 @@ export default function CommercialPage() {
 							type="number"
 							step="0.01"
 							value={form.total_fee}
-							onChange={(e) => set('total_fee', e.target.value)}
+							onChange={(e) =>
+								setForm((f) => recomputeFees({ ...f, total_fee: e.target.value }))
+							}
 						/>
 					</div>
 					<div>
@@ -1171,16 +1238,22 @@ export default function CommercialPage() {
 							step="0.0001"
 							placeholder="0.20 = 20%"
 							value={form.agency_fee_pct}
-							onChange={(e) => set('agency_fee_pct', e.target.value)}
+							onChange={(e) => {
+								feeBasis.current = 'pct';
+								setForm((f) => recomputeFees({ ...f, agency_fee_pct: e.target.value }));
+							}}
 						/>
 					</div>
 					<div>
-						<Label>Agency Fee (INR) — auto</Label>
+						<Label>Agency Fee (INR)</Label>
 						<Input
 							type="number"
 							step="0.01"
 							value={form.agency_fee_inr}
-							onChange={(e) => set('agency_fee_inr', e.target.value)}
+							onChange={(e) => {
+								feeBasis.current = 'inr';
+								setForm((f) => recomputeFees({ ...f, agency_fee_inr: e.target.value }));
+							}}
 						/>
 					</div>
 					<div className="col-span-2">
@@ -1192,12 +1265,72 @@ export default function CommercialPage() {
 							onChange={(e) => set('creator_fee', e.target.value)}
 						/>
 					</div>
-					<div>
-						<Label>Agency Commission Agreed</Label>
-						<Input
-							value={form.agency_commission_agreed}
-							onChange={(e) => set('agency_commission_agreed', e.target.value)}
-						/>
+
+					<div
+						className="col-span-3 mt-1 pt-3"
+						style={{ borderTop: '1px solid var(--n-border)' }}
+					>
+						<div className="flex items-center justify-between mb-2">
+							<Label>
+								Additional creators (split billing)
+								{shares.length > 0 && (
+									<span className="ml-2 font-normal" style={{ color: 'var(--n-fg-muted)' }}>
+										Campaign total ₹ {inr(splitTotal)} · fields above are the 1st creator&apos;s
+										share
+									</span>
+								)}
+							</Label>
+							<Button
+								variant="outline"
+								onClick={() => setShares((s) => [...s, { ...EMPTY_SHARE }])}
+							>
+								<Icon name="plus" size={13} /> Add creator
+							</Button>
+						</div>
+						{shares.length === 0 ? (
+							<p className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
+								Single creator. Add creators here to split this campaign&apos;s billing across
+								several people — each keeps their own fee, profit, and reporting.
+							</p>
+						) : (
+							<div className="space-y-2">
+								{shares.map((s, i) => (
+									<div key={i} className="grid grid-cols-12 gap-2 items-center">
+										<div className="col-span-6">
+											<Select
+												value={s.creator}
+												onChange={(e) => updateShare(i, 'creator', e.target.value)}
+												options={creatorOptions}
+												placeholder="— pick creator —"
+											/>
+										</div>
+										<div className="col-span-3">
+											<Input
+												type="number"
+												step="0.01"
+												placeholder="Their fee"
+												value={s.total_fee}
+												onChange={(e) => updateShare(i, 'total_fee', e.target.value)}
+											/>
+										</div>
+										<div className="col-span-2">
+											<Input
+												type="number"
+												step="0.01"
+												placeholder="Agency ₹"
+												value={s.agency_fee_inr}
+												onChange={(e) => updateShare(i, 'agency_fee_inr', e.target.value)}
+											/>
+										</div>
+										<div className="col-span-1 flex justify-end">
+											<Button variant="danger" onClick={() => removeShare(i)}>
+												×
+											</Button>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
 					</div>
 
 					<div>
@@ -1217,6 +1350,14 @@ export default function CommercialPage() {
 					<div>
 						<Label>Brand</Label>
 						<Input value={form.brand} onChange={(e) => set('brand', e.target.value)} />
+					</div>
+					<div>
+						<Label>Brand POC</Label>
+						<Input
+							value={form.brand_poc}
+							onChange={(e) => set('brand_poc', e.target.value)}
+							placeholder="Brand-side contact"
+						/>
 					</div>
 					<div>
 						<Label>Campaign</Label>

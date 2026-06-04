@@ -11,8 +11,8 @@
 	--n-fg-subtle: rgba(55, 53, 47, 0.45);
 	--n-border: rgba(55, 53, 47, 0.09);
 	--n-border-strong: rgba(55, 53, 47, 0.16);
-	--n-accent: #2383e2;
-	--n-accent-soft: rgba(35, 131, 226, 0.14);
+	--n-accent: #441151;
+	--n-accent-soft: rgba(68, 17, 81, 0.14);
 
 	--color-bg: var(--n-bg);
 	--color-fg: var(--n-fg);
@@ -314,8 +314,8 @@ thead .ct-sticky-r {
 	color: var(--n-fg);
 }
 .nav-item.active {
-	background: var(--n-bg-active);
-	color: var(--n-fg);
+	background: var(--n-accent-soft);
+	color: var(--n-accent);
 	font-weight: 500;
 }
 .nav-icon {
@@ -327,7 +327,9 @@ thead .ct-sticky-r {
 	align-items: center;
 	justify-content: center;
 }
-.nav-item.active .nav-icon,
+.nav-item.active .nav-icon {
+	color: var(--n-accent);
+}
 .nav-item:hover .nav-icon {
 	color: var(--n-fg-muted);
 }

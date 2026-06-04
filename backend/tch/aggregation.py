@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Iterable
 
-from .models import CommercialDeal, Creator, ContractingCompliance
+from .models import CommercialDeal, Creator, ContractingCompliance, CreatorDocument
 
 
 # Indian fiscal year: April -> March.
@@ -79,6 +79,64 @@ def _bucket_for(deal: CommercialDeal) -> str:
     return 'NonTCH'
 
 
+def creator_splits(deal: CommercialDeal):
+    """Yield each creator's contribution to a campaign.
+
+    Each item is a dict: creator_id, relationship, name, category, ops_manager,
+    fee, profit, creator_fee. When the deal has DealCreatorShare rows the
+    billing/profit is split across them; otherwise the whole campaign is
+    attributed to the single deal.creator (legacy behaviour). Relationship is
+    one of the BUCKET_ORDER keys (raw / outsider names map to 'NonTCH')."""
+    shares = list(deal.creator_shares.all())
+    if shares:
+        for s in shares:
+            if s.creator_id:
+                yield {
+                    'creator_id': s.creator_id,
+                    'relationship': s.creator.relationship or 'Friend',
+                    'name': s.creator.name,
+                    'category': s.creator.category or '',
+                    'ops_manager': s.creator.ops_manager or '',
+                    'fee': s.total_fee or Decimal('0'),
+                    'profit': s.agency_fee_inr or Decimal('0'),
+                    'creator_fee': s.creator_fee or Decimal('0'),
+                }
+            else:
+                yield {
+                    'creator_id': None,
+                    'relationship': 'NonTCH',
+                    'name': (s.creator_name_raw or '').strip() or '(Unnamed)',
+                    'category': '',
+                    'ops_manager': '',
+                    'fee': s.total_fee or Decimal('0'),
+                    'profit': s.agency_fee_inr or Decimal('0'),
+                    'creator_fee': s.creator_fee or Decimal('0'),
+                }
+        return
+    if deal.creator_id:
+        yield {
+            'creator_id': deal.creator_id,
+            'relationship': deal.creator.relationship or 'Friend',
+            'name': deal.creator.name,
+            'category': deal.creator.category or '',
+            'ops_manager': deal.creator.ops_manager or '',
+            'fee': deal.total_fee or Decimal('0'),
+            'profit': deal.agency_fee_inr or Decimal('0'),
+            'creator_fee': deal.creator_fee or Decimal('0'),
+        }
+    else:
+        yield {
+            'creator_id': None,
+            'relationship': 'NonTCH',
+            'name': (deal.creator_name_raw or '').strip() or '(Unnamed)',
+            'category': '',
+            'ops_manager': '',
+            'fee': deal.total_fee or Decimal('0'),
+            'profit': deal.agency_fee_inr or Decimal('0'),
+            'creator_fee': deal.creator_fee or Decimal('0'),
+        }
+
+
 def _zero() -> Decimal:
     return Decimal('0')
 
@@ -111,7 +169,12 @@ def overview(fy_start: int) -> dict:
     # confirmation_date — fetch all and bucket in Python. Deals without a
     # parseable invoice number are gathered into a separate "Not yet invoiced"
     # summary (they belong to no FY until invoiced).
-    deals = CommercialDeal.objects.select_related('creator').all()
+    deals = (
+        CommercialDeal.objects
+        .select_related('creator')
+        .prefetch_related('creator_shares__creator')
+        .all()
+    )
 
     # month key = "YYYY-MM"; quarter key = "Q1".."Q4"
     def month_key(d: date) -> str:
@@ -150,35 +213,38 @@ def overview(fy_start: int) -> dict:
     not_invoiced = {'count': 0, 'total_fee': Decimal('0'), 'profit': Decimal('0')}
 
     for deal in deals:
-        fee = deal.total_fee or Decimal('0')
-        profit = deal.agency_fee_inr or Decimal('0')
-
         period = invoice_period(deal.e_invoice_number)
         if period is None:
             # No E-Invoice No yet — belongs to no FY; track separately.
             not_invoiced['count'] += 1
-            not_invoiced['total_fee'] += fee
-            not_invoiced['profit'] += profit
+            not_invoiced['total_fee'] += deal.total_fee or Decimal('0')
+            not_invoiced['profit'] += deal.agency_fee_inr or Decimal('0')
             continue
         if not (start <= period < end):
             continue
 
-        bucket = _bucket_for(deal)
         mk = month_key(period)
         qk = quarter_key(period)
-
-        rows[bucket]['by_month'][mk] += fee
-        rows[bucket]['by_quarter'][qk] += fee
-        rows[bucket]['total'] += fee
-        totals['by_month'][mk] += fee
-        totals['by_quarter'][qk] += fee
-        totals['total'] += fee
-        profits['by_month'][mk] += profit
-        profits['by_quarter'][qk] += profit
-        profits['total'] += profit
+        is_emw = False
         if deal.billing_entity:
             be = deal.billing_entity.upper()
-            if 'EMW' in be or 'ELEMENTS MEDIAWORK' in be:
+            is_emw = 'EMW' in be or 'ELEMENTS MEDIAWORK' in be
+
+        # Attribute each creator's share to their own relationship bucket.
+        for c in creator_splits(deal):
+            bucket = c['relationship'] if c['relationship'] in rows else 'NonTCH'
+            fee = c['fee']
+            profit = c['profit']
+            rows[bucket]['by_month'][mk] += fee
+            rows[bucket]['by_quarter'][qk] += fee
+            rows[bucket]['total'] += fee
+            totals['by_month'][mk] += fee
+            totals['by_quarter'][qk] += fee
+            totals['total'] += fee
+            profits['by_month'][mk] += profit
+            profits['by_quarter'][qk] += profit
+            profits['total'] += profit
+            if is_emw:
                 emw['by_month'][mk] += fee
                 emw['by_quarter'][qk] += fee
                 emw['total'] += fee
@@ -258,7 +324,12 @@ def entity_summary(fy_start: int, entity_filter: str = '') -> dict:
     end = date(fy_start + 1, 4, 1)
 
     # FY membership comes from the E-Invoice No (see invoice_period).
-    deals = CommercialDeal.objects.select_related('creator').all()
+    deals = (
+        CommercialDeal.objects
+        .select_related('creator')
+        .prefetch_related('creator_shares__creator')
+        .all()
+    )
     ef = entity_filter.lower()
 
     from collections import Counter
@@ -284,9 +355,10 @@ def entity_summary(fy_start: int, entity_filter: str = '') -> dict:
         e['deal_count'] += 1
         e['total_billing'] += deal.total_fee or Decimal('0')
         e['total_profit'] += deal.agency_fee_inr or Decimal('0')
-        name = deal.creator.name if deal.creator_id else deal.creator_name_raw
-        if name:
-            e['creator_names'].append(name)
+        # All creators on the campaign (split-aware) count toward this entity.
+        for c in creator_splits(deal):
+            if c['name']:
+                e['creator_names'].append(c['name'])
         if deal.brand:
             e['brands'].append(deal.brand)
 
@@ -336,7 +408,12 @@ def creator_insights(fy_start: int) -> dict:
     end = date(fy_start + 1, 4, 1)
 
     # FY membership comes from the E-Invoice No (see invoice_period).
-    deals = CommercialDeal.objects.select_related('creator').all()
+    deals = (
+        CommercialDeal.objects
+        .select_related('creator')
+        .prefetch_related('creator_shares__creator')
+        .all()
+    )
 
     months_meta = []
     for m in MONTHS_FY_ORDER:
@@ -349,82 +426,68 @@ def creator_insights(fy_start: int) -> dict:
         period = invoice_period(d.e_invoice_number)
         if period is None or not (start <= period < end):
             continue
-        if d.creator_id:
-            key = ('id', d.creator_id)
-            name = d.creator.name
-            relationship = d.creator.relationship or 'Friend'
-            category = d.creator.category or ''
-            ops_manager = d.creator.ops_manager or ''
-        else:
-            raw = (d.creator_name_raw or '').strip() or '(Unnamed)'
-            key = ('raw', raw)
-            name = raw
-            relationship = 'NonTCH'
-            category = ''
-            ops_manager = ''
-
-        a = agg.setdefault(key, {
-            'creator_id': d.creator_id,
-            'creator_name': name,
-            'relationship': relationship,
-            'category': category,
-            'ops_manager': ops_manager,
-            'total_count': 0,
-            'inbound_count': 0,
-            'outbound_count': 0,
-            'markup_count': 0,
-            'total_billing': Decimal('0'),
-            'total_profit': Decimal('0'),
-            'total_creator_fee': Decimal('0'),
-            'first_date': None,
-            'last_date': None,
-            'brands': [],
-            'deliverables': [],
-            'campaigns': [],
-            'billing_entities': [],
-            'by_month': defaultdict(_zero),
-            'paid_count': 0,
-            'over_count': 0,
-        })
-
-        fee = d.total_fee or Decimal('0')
-        profit = d.agency_fee_inr or Decimal('0')
-        cfee = d.creator_fee or Decimal('0')
-
-        a['total_count'] += 1
-        a['total_billing'] += fee
-        a['total_profit'] += profit
-        a['total_creator_fee'] += cfee
-
-        if d.direction == 'Inbound':
-            a['inbound_count'] += 1
-        elif d.direction == 'Outbound':
-            a['outbound_count'] += 1
-        else:
-            a['markup_count'] += 1
-
-        # first/last date track when deals were confirmed (relationship
-        # activity); the monthly billing timeline follows the invoice month.
-        if d.confirmation_date:
-            if a['first_date'] is None or d.confirmation_date < a['first_date']:
-                a['first_date'] = d.confirmation_date
-            if a['last_date'] is None or d.confirmation_date > a['last_date']:
-                a['last_date'] = d.confirmation_date
         mk = f"{period.year:04d}-{period.month:02d}"
-        a['by_month'][mk] += fee
 
-        if d.brand:
-            a['brands'].append(d.brand)
-        if d.deliverables:
-            a['deliverables'].append(d.deliverables)
-        if d.campaign:
-            a['campaigns'].append(d.campaign)
-        if d.billing_entity:
-            a['billing_entities'].append(d.billing_entity)
-        if d.payment_received == 'Y':
-            a['paid_count'] += 1
-        if d.campaign_over == 'Y':
-            a['over_count'] += 1
+        # One contribution per creator on the campaign (split-aware).
+        for c in creator_splits(d):
+            key = ('id', c['creator_id']) if c['creator_id'] else ('raw', c['name'])
+            a = agg.setdefault(key, {
+                'creator_id': c['creator_id'],
+                'creator_name': c['name'],
+                'relationship': c['relationship'],
+                'category': c['category'],
+                'ops_manager': c['ops_manager'],
+                'total_count': 0,
+                'inbound_count': 0,
+                'outbound_count': 0,
+                'markup_count': 0,
+                'total_billing': Decimal('0'),
+                'total_profit': Decimal('0'),
+                'total_creator_fee': Decimal('0'),
+                'first_date': None,
+                'last_date': None,
+                'brands': [],
+                'deliverables': [],
+                'campaigns': [],
+                'billing_entities': [],
+                'by_month': defaultdict(_zero),
+                'paid_count': 0,
+                'over_count': 0,
+            })
+
+            a['total_count'] += 1
+            a['total_billing'] += c['fee']
+            a['total_profit'] += c['profit']
+            a['total_creator_fee'] += c['creator_fee']
+
+            if d.direction == 'Inbound':
+                a['inbound_count'] += 1
+            elif d.direction == 'Outbound':
+                a['outbound_count'] += 1
+            else:
+                a['markup_count'] += 1
+
+            # first/last date track when deals were confirmed (relationship
+            # activity); the monthly billing timeline follows the invoice month.
+            if d.confirmation_date:
+                if a['first_date'] is None or d.confirmation_date < a['first_date']:
+                    a['first_date'] = d.confirmation_date
+                if a['last_date'] is None or d.confirmation_date > a['last_date']:
+                    a['last_date'] = d.confirmation_date
+            a['by_month'][mk] += c['fee']
+
+            if d.brand:
+                a['brands'].append(d.brand)
+            if d.deliverables:
+                a['deliverables'].append(d.deliverables)
+            if d.campaign:
+                a['campaigns'].append(d.campaign)
+            if d.billing_entity:
+                a['billing_entities'].append(d.billing_entity)
+            if d.payment_received == 'Y':
+                a['paid_count'] += 1
+            if d.campaign_over == 'Y':
+                a['over_count'] += 1
 
     results = []
     for v in agg.values():
@@ -490,12 +553,14 @@ def quarterly_exclusives(fy_start: int) -> list[dict]:
     start = date(fy_start, 4, 1)
     end = date(fy_start + 1, 4, 1)
 
-    # Relationship is a non-date filter (stays in SQL); FY membership and the
-    # quarter come from the E-Invoice No (see invoice_period).
+    # A campaign can include exclusive creators among its splits even if the
+    # primary creator isn't exclusive, so scan all deals and pick the exclusive
+    # contributions. FY membership and the quarter come from the E-Invoice No.
     deals = (
         CommercialDeal.objects
         .select_related('creator')
-        .filter(creator__relationship='Exclusive')
+        .prefetch_related('creator_shares__creator')
+        .all()
     )
 
     # key: (creator_id, creator_name, quarter) -> agg
@@ -509,37 +574,40 @@ def quarterly_exclusives(fy_start: int) -> list[dict]:
             if period.month in months:
                 qk = qn
                 break
-        key = (d.creator_id, d.creator.name, qk)
-        a = agg.setdefault(key, {
-            'creator_id': d.creator_id,
-            'creator_name': d.creator.name,
-            'quarter': qk,
-            'inbound_count': 0,
-            'inbound_amount': Decimal('0'),
-            'inbound_creator_fee': Decimal('0'),
-            'inbound_tch_profit': Decimal('0'),
-            'outbound_count': 0,
-            'outbound_amount': Decimal('0'),
-            'outbound_creator_fee': Decimal('0'),
-            'outbound_tch_profit': Decimal('0'),
-            'brands': [],
-            'deliverables': [],
-            'categories': [],
-        })
-        if d.direction == 'Inbound':
-            a['inbound_count'] += 1
-            a['inbound_amount'] += d.total_fee or Decimal('0')
-            a['inbound_creator_fee'] += d.creator_fee or Decimal('0')
-            a['inbound_tch_profit'] += d.agency_fee_inr or Decimal('0')
-        else:
-            a['outbound_count'] += 1
-            a['outbound_amount'] += d.total_fee or Decimal('0')
-            a['outbound_creator_fee'] += d.creator_fee or Decimal('0')
-            a['outbound_tch_profit'] += d.agency_fee_inr or Decimal('0')
-        if d.brand:
-            a['brands'].append(d.brand)
-        if d.deliverables:
-            a['deliverables'].append(d.deliverables)
+        for c in creator_splits(d):
+            if c['relationship'] != 'Exclusive':
+                continue
+            key = (c['creator_id'], c['name'], qk)
+            a = agg.setdefault(key, {
+                'creator_id': c['creator_id'],
+                'creator_name': c['name'],
+                'quarter': qk,
+                'inbound_count': 0,
+                'inbound_amount': Decimal('0'),
+                'inbound_creator_fee': Decimal('0'),
+                'inbound_tch_profit': Decimal('0'),
+                'outbound_count': 0,
+                'outbound_amount': Decimal('0'),
+                'outbound_creator_fee': Decimal('0'),
+                'outbound_tch_profit': Decimal('0'),
+                'brands': [],
+                'deliverables': [],
+                'categories': [],
+            })
+            if d.direction == 'Inbound':
+                a['inbound_count'] += 1
+                a['inbound_amount'] += c['fee']
+                a['inbound_creator_fee'] += c['creator_fee']
+                a['inbound_tch_profit'] += c['profit']
+            else:
+                a['outbound_count'] += 1
+                a['outbound_amount'] += c['fee']
+                a['outbound_creator_fee'] += c['creator_fee']
+                a['outbound_tch_profit'] += c['profit']
+            if d.brand:
+                a['brands'].append(d.brand)
+            if d.deliverables:
+                a['deliverables'].append(d.deliverables)
 
     results = []
     for v in agg.values():
@@ -636,6 +704,7 @@ def alerts(today: date | None = None) -> dict:
     deals_qs = (
         CommercialDeal.objects
         .select_related('creator')
+        .prefetch_related('creator_shares__creator')
         .all()
     )
     # Cache as list — we iterate multiple times.
@@ -644,14 +713,18 @@ def alerts(today: date | None = None) -> dict:
     # ---- Urgent ----
     urgent: list[dict] = []
 
-    # (a) Inactive Exclusive/Friend creators
+    # (a) Inactive Exclusive/Friend creators — a creator counts as active on a
+    # campaign if they appear in its splits (or are the single creator).
     last_deal_by_creator: dict[int, date] = {}
     for d in deals:
-        if not d.creator_id or not d.confirmation_date:
+        if not d.confirmation_date:
             continue
-        prev = last_deal_by_creator.get(d.creator_id)
-        if prev is None or d.confirmation_date > prev:
-            last_deal_by_creator[d.creator_id] = d.confirmation_date
+        for c in creator_splits(d):
+            if not c['creator_id']:
+                continue
+            prev = last_deal_by_creator.get(c['creator_id'])
+            if prev is None or d.confirmation_date > prev:
+                last_deal_by_creator[c['creator_id']] = d.confirmation_date
 
     active_creators = Creator.objects.filter(relationship__in=['Exclusive', 'Friend'])
     for c in active_creators:
@@ -744,9 +817,9 @@ def alerts(today: date | None = None) -> dict:
         if not d.brand or not d.confirmation_date:
             continue
         brand_dates[d.brand].append(d.confirmation_date)
-        name = d.creator.name if d.creator_id else d.creator_name_raw
-        if name:
-            brand_creators[d.brand].add(name)
+        for c in creator_splits(d):
+            if c['name']:
+                brand_creators[d.brand].add(c['name'])
         brand_billing[d.brand] += d.total_fee or Decimal('0')
 
     for brand, dates in brand_dates.items():
@@ -798,21 +871,22 @@ def alerts(today: date | None = None) -> dict:
         return ('Q1', fy)
 
     for d in deals:
-        if not d.creator_id or not d.confirmation_date:
-            continue
-        if d.creator.relationship != 'Exclusive':
+        if not d.confirmation_date:
             continue
         qk, fy = q_for(d.confirmation_date)
-        key = (d.creator_id, qk, fy)
-        a = q_agg.setdefault(key, {
-            'billing': Decimal('0'),
-            'profit': Decimal('0'),
-            'count': 0,
-            'name': d.creator.name,
-        })
-        a['billing'] += d.total_fee or Decimal('0')
-        a['profit'] += d.agency_fee_inr or Decimal('0')
-        a['count'] += 1
+        for c in creator_splits(d):
+            if c['relationship'] != 'Exclusive' or not c['creator_id']:
+                continue
+            key = (c['creator_id'], qk, fy)
+            a = q_agg.setdefault(key, {
+                'billing': Decimal('0'),
+                'profit': Decimal('0'),
+                'count': 0,
+                'name': c['name'],
+            })
+            a['billing'] += c['fee']
+            a['profit'] += c['profit']
+            a['count'] += 1
 
     cur_qk = QUARTERS[cur_q_idx][0]
     if cur_q_idx == 0:
@@ -842,6 +916,24 @@ def alerts(today: date | None = None) -> dict:
                 'meta': {'creator_id': cid, 'drop_pct': drop_pct},
             })
 
+    # ---- Documents missing ----
+    # Active creators (Exclusive / Friend) with no document on file yet.
+    docs: list[dict] = []
+    creators_with_docs = set(
+        CreatorDocument.objects.values_list('creator_id', flat=True)
+    )
+    for c in Creator.objects.filter(relationship__in=['Exclusive', 'Friend']):
+        if c.id in creators_with_docs:
+            continue
+        docs.append({
+            'kind': 'missing_documents',
+            'severity': 'high' if c.relationship == 'Exclusive' else 'med',
+            'title': f"{c.name} — No documents on file",
+            'detail': f"{c.relationship}. No agreement / KYC document uploaded yet.",
+            'action': 'Upload documents',
+            'meta': {'creator_id': c.id, 'relationship': c.relationship},
+        })
+
     # ---- Seasonal moments ----
     seasonal: list[dict] = []
     for m, d_day, label in SEASONAL_MOMENTS:
@@ -866,6 +958,7 @@ def alerts(today: date | None = None) -> dict:
     urgent.sort(key=sort_key)
     bd.sort(key=sort_key)
     health.sort(key=sort_key)
+    docs.sort(key=lambda it: (sev_rank.get(it['severity'], 9), it['title']))
 
     return {
         'generated_at': today.isoformat(),
@@ -881,11 +974,13 @@ def alerts(today: date | None = None) -> dict:
         'urgent': urgent,
         'bd': bd,
         'health': health,
+        'docs': docs,
         'seasonal': seasonal,
         'counts': {
             'urgent': len(urgent),
             'bd': len(bd),
             'health': len(health),
+            'docs': len(docs),
             'seasonal': len(seasonal),
         },
     }

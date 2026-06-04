@@ -40,11 +40,10 @@ function GlobalFySelect() {
 
 const NAV = [
 	{ href: '/', label: 'Overview', icon: 'home' },
-	{ href: '/commercial', label: 'Commercial', icon: 'briefcase' },
+	{ href: '/commercial', label: 'Campaign', icon: 'briefcase' },
 	{ href: '/creators', label: 'Creators', icon: 'users' },
 	{ href: '/insights', label: 'Creator Insights', icon: 'sparkle' },
 	{ href: '/alerts', label: 'Alerts', icon: 'bell' },
-	{ href: '/contracting', label: 'Contracting', icon: 'file-signature' },
 	{ href: '/exclusives', label: 'Exclusives', icon: 'star' },
 	{ href: '/employees', label: 'Employees', icon: 'user-cog' },
 	{ href: '/dropoffs', label: 'Drop-offs', icon: 'log-out' },
@@ -144,12 +143,6 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 					</div>
 				</nav>
 
-				<div
-					className="px-3 py-2 text-[11px]"
-					style={{ color: 'var(--n-fg-subtle)', borderTop: '1px solid var(--n-border)' }}
-				>
-					{!collapsed ? 'MIS · derived live' : '·'}
-				</div>
 			</aside>
 
 			<div className="flex-1 min-w-0 flex flex-col">
