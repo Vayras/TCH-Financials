@@ -7,12 +7,12 @@ from rest_framework.response import Response
 
 from .models import (
     Creator, ContractingCompliance, CommercialDeal, EmployeeWeeklyReport,
-    DropOff, CreatorDocument,
+    DropOff, CreatorDocument, SocialMediaSnapshot, EventInvite,
 )
 from .serializers import (
     CreatorSerializer, ContractingComplianceSerializer,
     CommercialDealSerializer, EmployeeWeeklyReportSerializer, DropOffSerializer,
-    CreatorDocumentSerializer,
+    CreatorDocumentSerializer, SocialMediaSnapshotSerializer, EventInviteSerializer,
 )
 from .aggregation import overview, quarterly_exclusives, entity_summary, creator_insights, fiscal_year_of, alerts
 
@@ -55,6 +55,30 @@ class CreatorDocumentViewSet(viewsets.ModelViewSet):
     queryset = CreatorDocument.objects.select_related('creator').all()
     serializer_class = CreatorDocumentSerializer
     parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        creator = self.request.query_params.get('creator')
+        if creator:
+            qs = qs.filter(creator_id=creator)
+        return qs
+
+
+class SocialMediaSnapshotViewSet(viewsets.ModelViewSet):
+    queryset = SocialMediaSnapshot.objects.select_related('creator').all()
+    serializer_class = SocialMediaSnapshotSerializer
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        creator = self.request.query_params.get('creator')
+        if creator:
+            qs = qs.filter(creator_id=creator)
+        return qs
+
+
+class EventInviteViewSet(viewsets.ModelViewSet):
+    queryset = EventInvite.objects.select_related('creator').all()
+    serializer_class = EventInviteSerializer
 
     def get_queryset(self):
         qs = super().get_queryset()

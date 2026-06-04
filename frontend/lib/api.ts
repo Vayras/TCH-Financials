@@ -139,6 +139,31 @@ export type CreatorDocument = {
 	uploaded_at: string;
 };
 
+export type SocialMediaSnapshot = {
+	id: number;
+	creator: number;
+	creator_name: string;
+	snapshot_type: 'Baseline' | 'Quarterly';
+	snapshot_date: string;
+	platform: string;
+	followers: number;
+	engagement_rate: string;
+	estimated_reach: number;
+	revenue_last_3m: string;
+	notes: string;
+};
+
+export type EventInvite = {
+	id: number;
+	creator: number;
+	creator_name: string;
+	event_name: string;
+	event_date: string;
+	invited_date: string | null;
+	response: '' | 'Accepted' | 'Declined' | 'NoResponse';
+	notes: string;
+};
+
 export type EmployeeReport = {
 	id: number;
 	week_ending: string | null;
