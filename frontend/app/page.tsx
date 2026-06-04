@@ -84,6 +84,124 @@ export default function OverviewPage() {
 				</p>
 			</header>
 
+			{data && (
+				<>
+					{/* Creator Status Cards */}
+					<div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+						<div
+							className="rounded p-3"
+							style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
+						>
+							<div
+								className="text-[11.5px] font-medium uppercase"
+								style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
+							>
+								Active Creators
+							</div>
+							<div
+								className="text-[28px] font-bold tabular-nums mt-1"
+								style={{ color: 'var(--n-fg)' }}
+							>
+								{data.total_active_creators}
+							</div>
+						</div>
+						{data.bucket_order.map((b) => (
+							<div
+								key={b}
+								className="rounded p-3"
+								style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
+							>
+								<div className="text-[11.5px] font-medium uppercase flex items-center gap-1.5" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
+									<span className={cn('h-1.5 w-1.5 rounded-full', BUCKET_DOT[b] ?? '')} />
+									{b === 'NonTCH' ? 'Non TCH' : b}
+								</div>
+								<div
+									className="text-[22px] font-semibold tabular-nums mt-1"
+									style={{ color: 'var(--n-fg)' }}
+								>
+									{data.creator_counts[b] ?? 0}
+								</div>
+							</div>
+						))}
+					</div>
+
+					{/* Billing Summary Cards */}
+					<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+						<div
+							className="rounded p-3"
+							style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
+						>
+							<div
+								className="text-[11.5px] font-medium uppercase"
+								style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
+							>
+								Total Billing
+							</div>
+							<div
+								className="text-[26px] font-bold tabular-nums mt-1"
+								style={{ color: 'var(--n-fg)' }}
+							>
+								{inr(data.totals.total)}
+							</div>
+						</div>
+						<div
+							className="rounded p-3"
+							style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
+						>
+							<div className="text-[11.5px] font-medium uppercase flex items-center gap-1.5" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
+								<span className="h-1.5 w-1.5 rounded-full bg-[#19567c]" />
+								Elements (EMW)
+							</div>
+							<div
+								className="text-[22px] font-semibold tabular-nums mt-1"
+								style={{ color: 'var(--n-fg)' }}
+							>
+								{inr(data.emw_billing.total)}
+							</div>
+							<div className="text-[12px] tabular-nums mt-0.5" style={{ color: 'var(--n-fg-subtle)' }}>
+								{pct(data.emw_pct.total)} of billing
+							</div>
+						</div>
+						<div
+							className="rounded p-3"
+							style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
+						>
+							<div className="text-[11.5px] font-medium uppercase flex items-center gap-1.5" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
+								<span className="h-1.5 w-1.5 rounded-full bg-[#9b9a97]" />
+								External
+							</div>
+							<div
+								className="text-[22px] font-semibold tabular-nums mt-1"
+								style={{ color: 'var(--n-fg)' }}
+							>
+								{inr(Number(data.totals.total) - Number(data.emw_billing.total))}
+							</div>
+							<div className="text-[12px] tabular-nums mt-0.5" style={{ color: 'var(--n-fg-subtle)' }}>
+								{pct(String(1 - Number(data.emw_pct.total)))} of billing
+							</div>
+						</div>
+						<div
+							className="rounded p-3"
+							style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
+						>
+							<div className="text-[11.5px] font-medium uppercase flex items-center gap-1.5" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
+								<span className="h-1.5 w-1.5 rounded-full bg-[#0f7b6c]" />
+								Profit (TCH Fee)
+							</div>
+							<div
+								className="text-[22px] font-semibold tabular-nums mt-1"
+								style={{ color: '#0f7b6c' }}
+							>
+								{inr(data.profits.total)}
+							</div>
+							<div className="text-[12px] tabular-nums mt-0.5" style={{ color: 'var(--n-fg-subtle)' }}>
+								{pct(data.profit_pct.total)} margin
+							</div>
+						</div>
+					</div>
+				</>
+			)}
+
 			<div
 				className="flex items-center gap-3 flex-wrap pb-3"
 				style={{ borderBottom: '1px solid var(--n-border)' }}

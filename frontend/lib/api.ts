@@ -158,6 +158,8 @@ export type Overview = {
 	months: { key: string; label: string }[];
 	quarters: { key: string; label: string }[];
 	bucket_order: string[];
+	creator_counts: Record<string, number>;
+	total_active_creators: number;
 	rows: Record<
 		string,
 		{ label: string; by_month: Record<string, string>; by_quarter: Record<string, string>; total: string }
