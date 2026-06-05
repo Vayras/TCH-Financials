@@ -4,7 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     CreatorViewSet, ContractingComplianceViewSet,
     CommercialDealViewSet, EmployeeWeeklyReportViewSet, DropOffViewSet,
-    CreatorDocumentViewSet, SocialMediaSnapshotViewSet, EventInviteViewSet,
+    CreatorDocumentViewSet, SocialMediaSnapshotViewSet, EventInviteViewSet, InvoiceFileViewSet,
     overview_view, quarterly_exclusives_view, entity_summary_view,
     creator_insights_view, alerts_view,
 )
@@ -18,6 +18,7 @@ router.register(r'dropoffs', DropOffViewSet)
 router.register(r'creator-documents', CreatorDocumentViewSet)
 router.register(r'social-snapshots', SocialMediaSnapshotViewSet)
 router.register(r'event-invites', EventInviteViewSet)
+router.register(r'invoice-files', InvoiceFileViewSet)
 
 urlpatterns = [
     path('overview/', overview_view),

@@ -7,12 +7,13 @@ from rest_framework.response import Response
 
 from .models import (
     Creator, ContractingCompliance, CommercialDeal, EmployeeWeeklyReport,
-    DropOff, CreatorDocument, SocialMediaSnapshot, EventInvite,
+    DropOff, CreatorDocument, SocialMediaSnapshot, EventInvite, InvoiceFile,
 )
 from .serializers import (
     CreatorSerializer, ContractingComplianceSerializer,
     CommercialDealSerializer, EmployeeWeeklyReportSerializer, DropOffSerializer,
     CreatorDocumentSerializer, SocialMediaSnapshotSerializer, EventInviteSerializer,
+    InvoiceFileSerializer,
 )
 from .aggregation import overview, quarterly_exclusives, entity_summary, creator_insights, fiscal_year_of, alerts
 
@@ -61,6 +62,22 @@ class CreatorDocumentViewSet(viewsets.ModelViewSet):
         creator = self.request.query_params.get('creator')
         if creator:
             qs = qs.filter(creator_id=creator)
+        return qs
+
+
+class InvoiceFileViewSet(viewsets.ModelViewSet):
+    queryset = InvoiceFile.objects.select_related('deal__creator').all()
+    serializer_class = InvoiceFileSerializer
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        deal = self.request.query_params.get('deal')
+        if deal:
+            qs = qs.filter(deal_id=deal)
+        inv_type = self.request.query_params.get('type')
+        if inv_type:
+            qs = qs.filter(invoice_type=inv_type)
         return qs
 
 
