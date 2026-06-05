@@ -119,6 +119,7 @@ export type Deal = {
 	client_payment_status: '' | 'Pending' | 'Partial' | 'Received' | 'Overdue';
 	client_payment_received_amount: string;
 	client_payment_date: string | null;
+	client_invoice_due_date: string | null;
 	creator_invoice_number: string;
 	creator_invoice_date: string | null;
 	creator_invoice_amount: string;
@@ -137,6 +138,23 @@ export type CreatorDocument = {
 	label: string;
 	file: string;
 	uploaded_at: string;
+};
+
+export type InvoiceFile = {
+	id: number;
+	deal: number;
+	invoice_type: 'creator' | 'client';
+	file: string;
+	label: string;
+	status: 'Received' | 'Accepted' | 'NeedsRevision' | 'Cleared';
+	due_date: string | null;
+	comments: string;
+	uploaded_at: string;
+	creator_name: string;
+	brand: string;
+	campaign: string;
+	is_overdue: boolean;
+	days_until_due: number | null;
 };
 
 export type SocialMediaSnapshot = {

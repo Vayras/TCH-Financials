@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import (
     Creator, ContractingCompliance, CommercialDeal, EmployeeWeeklyReport,
     DropOff, CreatorDocument, DealCreatorShare, SocialMediaSnapshot, EventInvite,
+    InvoiceFile,
 )
 
 
@@ -104,6 +105,26 @@ class DropOffSerializer(serializers.ModelSerializer):
 
     def get_creator_name(self, obj):
         return obj.effective_creator_name
+
+
+class InvoiceFileSerializer(serializers.ModelSerializer):
+    creator_name = serializers.SerializerMethodField()
+    brand = serializers.CharField(source='deal.brand', read_only=True)
+    campaign = serializers.CharField(source='deal.campaign', read_only=True)
+    is_overdue = serializers.BooleanField(read_only=True)
+    days_until_due = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = InvoiceFile
+        fields = [
+            'id', 'deal', 'invoice_type', 'file', 'label', 'status',
+            'due_date', 'comments', 'uploaded_at',
+            'creator_name', 'brand', 'campaign', 'is_overdue', 'days_until_due',
+        ]
+        read_only_fields = ['uploaded_at']
+
+    def get_creator_name(self, obj):
+        return obj.deal.effective_creator_name if obj.deal_id else ''
 
 
 class SocialMediaSnapshotSerializer(serializers.ModelSerializer):

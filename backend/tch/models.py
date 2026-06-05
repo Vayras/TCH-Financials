@@ -142,6 +142,7 @@ class CommercialDeal(models.Model):
     )
     client_payment_received_amount = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0'))
     client_payment_date = models.DateField(null=True, blank=True)
+    client_invoice_due_date = models.DateField(null=True, blank=True, help_text="When client payment is due")
 
     # --- Finance: Creator Invoice (Creator → TCH) ---
     creator_invoice_number = models.CharField(max_length=120, blank=True, help_text="Invoice from creator")
@@ -229,6 +230,53 @@ class DropOff(models.Model):
     @property
     def effective_creator_name(self) -> str:
         return self.creator.name if self.creator_id else self.creator_name_raw
+
+
+def invoice_upload_path(instance, filename: str) -> str:
+    return f"invoices/{instance.deal_id}/{instance.invoice_type}/{filename}"
+
+
+class InvoiceFile(models.Model):
+    """Uploaded invoice file linked to a campaign deal."""
+    INVOICE_TYPES = [
+        ('creator', 'Creator Invoice'),
+        ('client', 'Client Invoice'),
+    ]
+    STATUS_CHOICES = [
+        ('Received', 'Received'),
+        ('Accepted', 'Accepted'),
+        ('NeedsRevision', 'Needs Revision'),
+        ('Cleared', 'Cleared'),
+    ]
+
+    deal = models.ForeignKey(CommercialDeal, on_delete=models.CASCADE, related_name='invoice_files')
+    invoice_type = models.CharField(max_length=10, choices=INVOICE_TYPES)
+    file = models.FileField(upload_to=invoice_upload_path)
+    label = models.CharField(max_length=255, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Received')
+    due_date = models.DateField(null=True, blank=True, help_text="For client invoices — payment due date")
+    comments = models.TextField(blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self) -> str:
+        return f"Invoice<{self.invoice_type}/{self.deal_id}/{self.label}>"
+
+    @property
+    def is_overdue(self) -> bool:
+        if self.invoice_type != 'client' or not self.due_date or self.status == 'Cleared':
+            return False
+        from datetime import date
+        return date.today() > self.due_date
+
+    @property
+    def days_until_due(self) -> int | None:
+        if not self.due_date:
+            return None
+        from datetime import date
+        return (self.due_date - date.today()).days
 
 
 class SocialMediaSnapshot(models.Model):

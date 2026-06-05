@@ -47,6 +47,7 @@ const NAV = [
 	{ href: '/exclusives', label: 'Exclusives', icon: 'star' },
 	{ href: '/employees', label: 'Employees', icon: 'user-cog' },
 	{ href: '/dropoffs', label: 'Drop-offs', icon: 'log-out' },
+	{ href: '/payments', label: 'Payments', icon: 'file-signature' },
 	{ href: '/entity-summary', label: 'Entity Summary', icon: 'layers' }
 ];
 
