@@ -25,6 +25,7 @@
 
 html,
 body {
+	accent-color: var(--n-accent);
 	background: var(--n-bg);
 	color: var(--n-fg);
 	font-family:
@@ -179,24 +180,10 @@ body {
 	border: 1px solid var(--n-border);
 	border-radius: 6px;
 	background: var(--n-bg);
-	box-shadow: 0 1px 2px rgba(15, 15, 15, 0.02);
 	overflow: auto;
 	max-height: calc(100vh - 320px);
 	min-height: 360px;
 	isolation: isolate;
-	background-image:
-		linear-gradient(90deg, var(--n-bg) 28%, rgba(255, 255, 255, 0)),
-		linear-gradient(90deg, rgba(255, 255, 255, 0), var(--n-bg) 72%),
-		radial-gradient(farthest-side at 0 50%, rgba(15, 15, 15, 0.18), rgba(15, 15, 15, 0)),
-		radial-gradient(farthest-side at 100% 50%, rgba(15, 15, 15, 0.18), rgba(15, 15, 15, 0));
-	background-position: 0 0, 100% 0, 0 0, 100% 0;
-	background-repeat: no-repeat;
-	background-size:
-		40px 100%,
-		40px 100%,
-		16px 100%,
-		16px 100%;
-	background-attachment: local, local, scroll, scroll;
 }
 .ct-wrap::-webkit-scrollbar {
 	width: 10px;
@@ -255,37 +242,51 @@ body {
 .ct-row:hover .ct-cell {
 	background-color: #f4f3f0;
 }
-.ct-sticky-l1 {
-	position: sticky;
-	left: 0;
-	z-index: 20;
-	background-color: #ffffff;
-	box-shadow: 6px 0 8px -6px rgba(15, 15, 15, 0.12);
-}
+.ct-sticky-l1,
 .ct-sticky-l2 {
-	position: sticky;
-	left: 100px;
-	z-index: 19;
-	background-color: #ffffff;
-	box-shadow: 6px 0 8px -6px rgba(15, 15, 15, 0.12);
+	position: static;
+	background-color: inherit;
 }
 .ct-sticky-r {
 	position: sticky;
 	right: 0;
 	z-index: 20;
 	background-color: #ffffff;
-	box-shadow: -6px 0 8px -6px rgba(15, 15, 15, 0.12);
 }
-thead .ct-sticky-l1,
-thead .ct-sticky-l2,
 thead .ct-sticky-r {
 	z-index: 30;
 	background-color: #fbfbfa;
 }
-.ct-row:hover .ct-sticky-l1,
-.ct-row:hover .ct-sticky-l2,
 .ct-row:hover .ct-sticky-r {
 	background-color: #f4f3f0;
+}
+
+.MuiInputLabel-root.Mui-focused {
+	color: var(--n-accent) !important;
+}
+
+.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+	border-color: var(--n-accent) !important;
+}
+
+.MuiMenuItem-root.Mui-selected {
+	background-color: var(--n-accent-soft) !important;
+}
+
+.MuiMenuItem-root.Mui-selected:hover {
+	background-color: rgba(68, 17, 81, 0.2) !important;
+}
+
+.MuiCheckbox-root.Mui-checked {
+	color: var(--n-accent) !important;
+}
+
+input[type='date'] {
+	accent-color: var(--n-accent);
+}
+
+input[type='date']::-webkit-calendar-picker-indicator {
+	cursor: pointer;
 }
 
 :focus-visible {

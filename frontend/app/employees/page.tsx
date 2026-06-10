@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Collapse from '@mui/material/Collapse';
 import { api, type EmployeeReport } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import Button from '@/components/ui/Button';
@@ -41,6 +42,7 @@ export default function EmployeesPage() {
 	const [open, setOpen] = React.useState(false);
 	const [editing, setEditing] = React.useState<EmployeeReport | null>(null);
 	const [q, setQ] = React.useState('');
+	const [expandedCards, setExpandedCards] = React.useState<Record<string, boolean>>({});
 	const [form, setForm] = React.useState<EmployeeForm>(EMPTY_FORM);
 
 	const load = React.useCallback(async () => {
@@ -131,6 +133,22 @@ export default function EmployeesPage() {
 		() => [...new Set(rows.map((r) => r.employee_name))],
 		[rows]
 	);
+
+	const employeeGroups = React.useMemo(() => {
+		const map = new Map<string, { key: string; name: string; reports: EmployeeReport[]; outreach: number; revenue: number; profit: number; live: number }>();
+		for (const r of filtered) {
+			const name = r.employee_name || '—';
+			const key = name.toLowerCase();
+			const group = map.get(key) ?? { key, name, reports: [], outreach: 0, revenue: 0, profit: 0, live: 0 };
+			group.reports.push(r);
+			group.outreach += r.new_outreach || 0;
+			group.revenue += Number(r.revenue_locked || 0);
+			group.profit += Number(r.profit_locked || 0);
+			group.live += r.live_campaigns || 0;
+			map.set(key, group);
+		}
+		return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+	}, [filtered]);
 
 	const set = <K extends keyof EmployeeForm>(k: K, v: EmployeeForm[K]) =>
 		setForm((f) => ({ ...f, [k]: v }));
@@ -269,82 +287,51 @@ export default function EmployeesPage() {
 						Error: {error}
 					</div>
 				) : (
-					<div className="tbl-card">
-						<div className="scroll-x">
-							<table className="grid-table">
-								<thead>
-									<tr>
-										<th className="whitespace-nowrap">Week Ending</th>
-										<th>Employee</th>
-										<th className="num">Outreach</th>
-										<th>Paid Confirmations</th>
-										<th className="num">Revenue Locked</th>
-										<th className="num">Profit Locked</th>
-										<th>Barter / PR</th>
-										<th className="num">Live</th>
-										<th>Action Points</th>
-										<th className="w-[110px]">Actions</th>
-									</tr>
-								</thead>
-								<tbody>
-									{filtered.map((r) => (
-										<tr key={r.id}>
-											<td
-												className="whitespace-nowrap"
-												style={{ color: 'var(--n-fg-muted)' }}
+					<>
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+							{employeeGroups.map((group) => {
+								const expanded = expandedCards[group.key] ?? false;
+								return (
+									<div key={group.key} className="rounded-lg p-4 space-y-3 transition-[box-shadow,transform,border-color] duration-150 hover:shadow-md hover:-translate-y-0.5 hover:border-[var(--n-accent)]" style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}>
+										<div className="flex items-start justify-between gap-2">
+											<div>
+												<div className="font-semibold text-[15px]" style={{ color: 'var(--n-fg)' }}>{group.name}</div>
+												<div className="text-[13px] mt-0.5" style={{ color: 'var(--n-fg-muted)' }}>{group.reports.length} report{group.reports.length === 1 ? '' : 's'}</div>
+											</div>
+											<button
+												type="button"
+												aria-label={expanded ? 'Collapse reports' : 'Expand reports'}
+												onClick={() => setExpandedCards((prev) => ({ ...prev, [group.key]: !expanded }))}
+												className="h-5 w-5 inline-flex items-center justify-center rounded-[3px] border border-[var(--n-border)] text-[var(--n-fg-muted)] hover:bg-[var(--n-accent)] hover:border-[var(--n-accent)] hover:text-white transition-colors"
 											>
-												{r.week_ending ?? ''}
-											</td>
-											<td className="font-medium" style={{ color: 'var(--n-fg)' }}>
-												{r.employee_name}
-											</td>
-											<td
-												className="num font-semibold"
-												style={{ color: 'var(--n-fg)' }}
-											>
-												{r.new_outreach}
-											</td>
-											<td style={{ color: 'var(--n-fg)' }}>{r.paid_confirmations}</td>
-											<td className="num font-semibold" style={{ color: '#1f6f43' }}>
-												{inr(r.revenue_locked)}
-											</td>
-											<td className="num" style={{ color: '#1f6f43' }}>
-												{inr(r.profit_locked)}
-											</td>
-											<td style={{ color: 'var(--n-fg-muted)' }}>{r.barter_confirmations}</td>
-											<td className="num" style={{ color: 'var(--n-fg)' }}>
-												{r.live_campaigns}
-											</td>
-											<td className="text-[13.5px]" style={{ color: 'var(--n-fg-muted)' }}>
-												{r.action_points}
-											</td>
-											<td>
-												<div className="flex gap-1">
-													<Button variant="ghost" onClick={() => startEdit(r)}>
-														Edit
-													</Button>
-													<Button variant="danger" onClick={() => remove(r)}>
-														Del
-													</Button>
-												</div>
-											</td>
-										</tr>
-									))}
-									{filtered.length === 0 && (
-										<tr>
-											<td
-												colSpan={10}
-												className="text-center py-8"
-												style={{ color: 'var(--n-fg-subtle)' }}
-											>
-												No reports yet.
-											</td>
-										</tr>
-									)}
-								</tbody>
-							</table>
+												<Icon name="chevron-right" size={13} className={expanded ? 'rotate-90 transition-transform' : 'transition-transform'} />
+											</button>
+										</div>
+										<div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
+											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Revenue</div><div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{inr(group.revenue)}</div></div>
+											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Profit</div><div className="font-semibold tabular-nums" style={{ color: '#1f6f43' }}>{inr(group.profit)}</div></div>
+											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Outreach</div><div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{group.outreach}</div></div>
+											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Live</div><div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{group.live}</div></div>
+										</div>
+										<Collapse in={expanded} timeout="auto" unmountOnExit>
+											<div className="space-y-2 pt-2 border-t" style={{ borderColor: 'var(--n-border)' }}>
+												{group.reports.map((r) => (
+													<div key={r.id} className="text-[13px] space-y-1">
+														<div className="flex items-center gap-2">
+															<div className="min-w-0 flex-1"><div className="font-medium" style={{ color: 'var(--n-fg)' }}>{r.week_ending || 'No date'}</div><div className="truncate" style={{ color: 'var(--n-fg-muted)' }}>{r.paid_confirmations || r.action_points || '—'}</div></div>
+															<Button variant="primary" onClick={() => startEdit(r)}>Edit</Button>
+															<Button variant="danger" onClick={() => remove(r)}>Del</Button>
+														</div>
+													</div>
+												))}
+											</div>
+										</Collapse>
+									</div>
+								);
+							})}
 						</div>
-					</div>
+						{filtered.length === 0 && <div className="text-[14px] py-8 text-center" style={{ color: 'var(--n-fg-subtle)' }}>No reports yet.</div>}
+					</>
 				)}
 			</section>
 

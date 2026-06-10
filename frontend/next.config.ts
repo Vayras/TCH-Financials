@@ -12,8 +12,13 @@ const config: NextConfig = {
 	async rewrites() {
 		return [
 			{
+				// Next strips the trailing slash from :path* when forwarding to an
+				// external destination, which would trigger Django's APPEND_SLASH 301
+				// and an infinite redirect loop. Re-append the slash so the request
+				// hits Django's slash-terminated routes directly. Query strings are
+				// forwarded automatically and are unaffected.
 				source: '/api/:path*',
-				destination: `${BACKEND}/api/:path*`
+				destination: `${BACKEND}/api/:path*/`
 			}
 		];
 	}

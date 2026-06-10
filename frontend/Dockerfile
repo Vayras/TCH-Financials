@@ -10,6 +10,10 @@ COPY . .
 ARG NEXT_PUBLIC_API_BASE=/api
 ENV NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE}
 
+# Baked into the Next.js rewrite at build time (see next.config.ts).
+ARG API_PROXY_TARGET=http://backend:8000
+ENV API_PROXY_TARGET=${API_PROXY_TARGET}
+
 RUN npm run build
 
 FROM node:22-slim AS runner

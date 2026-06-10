@@ -1,8 +1,19 @@
+from decimal import Decimal, InvalidOperation
+
 from rest_framework import serializers
 from .models import (
     Creator, ContractingCompliance, CommercialDeal, EmployeeWeeklyReport,
     DropOff, CreatorDocument, DealCreatorShare, SocialMediaSnapshot, EventInvite,
 )
+
+
+def normalise_agency_pct(value):
+    """Accept both fractional (0.15) and human percent (15) inputs."""
+    try:
+        pct = Decimal(str(value or '0'))
+    except (InvalidOperation, ValueError):
+        return value
+    return pct / Decimal('100') if pct > 1 else pct
 
 
 class CreatorDocumentSerializer(serializers.ModelSerializer):
@@ -50,6 +61,14 @@ class DealCreatorShareSerializer(serializers.ModelSerializer):
     def get_creator_relationship(self, obj):
         return obj.creator.relationship if obj.creator_id else 'NonTCH'
 
+    def validate(self, attrs):
+        if not attrs.get('creator'):
+            raise serializers.ValidationError({'creator': 'Pick a creator from the master list.'})
+        attrs['creator_name_raw'] = ''
+        if 'agency_fee_pct' in attrs:
+            attrs['agency_fee_pct'] = normalise_agency_pct(attrs['agency_fee_pct'])
+        return attrs
+
 
 class CommercialDealSerializer(serializers.ModelSerializer):
     creator_name = serializers.SerializerMethodField()
@@ -69,6 +88,56 @@ class CommercialDealSerializer(serializers.ModelSerializer):
 
     def get_creator_relationship(self, obj):
         return obj.creator.relationship if obj.creator_id else 'NonTCH'
+
+    def validate(self, attrs):
+        def value_of(field):
+            if field in attrs:
+                return attrs[field]
+            return getattr(self.instance, field, None) if self.instance else None
+
+        creator = attrs.get('creator') or (self.instance.creator if self.instance else None)
+        if not creator:
+            raise serializers.ValidationError({'creator': 'Pick a creator from the master list.'})
+        attrs['creator_name_raw'] = ''
+        if 'agency_fee_pct' in attrs:
+            attrs['agency_fee_pct'] = normalise_agency_pct(attrs['agency_fee_pct'])
+
+        required_fields = {
+            'confirmation_date': 'Confirmation Date',
+            'e_invoice_date': 'E-Invoice Date',
+            'direction': 'Direction',
+            'tch_poc': 'TCH POC',
+            'total_fee': 'Total Fee',
+            'agency_fee_pct': 'Agency Fee %',
+            'agency_fee_inr': 'Agency Fee (INR)',
+            'creator_fee': 'Creator Fee',
+            'billing_entity': 'Billing Entity',
+            'brand': 'Brand',
+            'brand_poc': 'Brand POC',
+            'campaign': 'Campaign',
+            'deliverables': 'Deliverables',
+            'ro_number': 'RO Number',
+            'campaign_over': 'Campaign Over',
+            'invoice_received': 'Invoice Received',
+            'payment_cleared': 'Payment Cleared by TCH',
+            'e_invoice_number': 'E-Invoice #',
+            'payment_received': 'Payment Received by TCH',
+        }
+        missing = [label for field, label in required_fields.items() if value_of(field) in (None, '')]
+        if missing:
+            raise serializers.ValidationError({
+                'required_fields': f"Please fill required campaign fields: {', '.join(missing)}. Client Invoice and Creator Invoice sections are optional."
+            })
+
+        shares = attrs.get('creator_shares')
+        if shares is not None:
+            for share in shares:
+                if not share.get('creator'):
+                    raise serializers.ValidationError({'creator_shares': 'Pick every split creator from the master list.'})
+                share['creator_name_raw'] = ''
+                if 'agency_fee_pct' in share:
+                    share['agency_fee_pct'] = normalise_agency_pct(share['agency_fee_pct'])
+        return attrs
 
     def create(self, validated_data):
         shares = validated_data.pop('creator_shares', None)
