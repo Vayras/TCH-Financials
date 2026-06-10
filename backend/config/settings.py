@@ -52,16 +52,45 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('PGDATABASE', config('DB_NAME', default='tch_financials')),
-        'USER': os.environ.get('PGUSER', config('DB_USER', default='runner')),
-        'PASSWORD': os.environ.get('PGPASSWORD', config('DB_PASSWORD', default='')),
-        'HOST': os.environ.get('PGHOST', config('DB_HOST', default='localhost')),
-        'PORT': os.environ.get('PGPORT', config('DB_PORT', default='5432')),
+# DATABASE_URL (e.g. a Supabase connection string) takes precedence; the
+# discrete PG* / DB_* variables remain the fallback for the local docker DB.
+# For Supabase use the *session* pooler URI and keep sslmode=require, e.g.
+#   postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+DATABASE_URL = os.environ.get('DATABASE_URL', config('DATABASE_URL', default=''))
+
+if DATABASE_URL:
+    import dj_database_url
+
+    # Use a small client-side psycopg pool rather than per-thread persistent
+    # connections (conn_max_age): Supabase's session pooler caps clients at 15,
+    # and one held connection per request thread exhausts that immediately
+    # (FATAL: EMAXCONNSESSION). conn_max_age must stay 0 when pooling.
+    # conn_health_checks pings each pooled connection at checkout — Supabase /
+    # NAT silently drops idle TCP connections, and without the check the pool
+    # hands a dead socket to the next request, which then 500s with
+    # "SSL error: unexpected eof while reading".
+    DATABASES = {
+        'default': dj_database_url.parse(
+            DATABASE_URL, conn_max_age=0, conn_health_checks=True
+        )
     }
-}
+    DATABASES['default'].setdefault('OPTIONS', {})['pool'] = {
+        'min_size': 1,
+        'max_size': 4,   # × gunicorn workers (2) stays well under the 15-client cap
+        'timeout': 20,
+        'max_idle': 120,  # retire idle conns before the upstream kills them
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('PGDATABASE', config('DB_NAME', default='tch_financials')),
+            'USER': os.environ.get('PGUSER', config('DB_USER', default='runner')),
+            'PASSWORD': os.environ.get('PGPASSWORD', config('DB_PASSWORD', default='')),
+            'HOST': os.environ.get('PGHOST', config('DB_HOST', default='localhost')),
+            'PORT': os.environ.get('PGPORT', config('DB_PORT', default='5432')),
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = []
 

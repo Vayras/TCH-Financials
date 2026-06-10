@@ -239,6 +239,14 @@ body {
 	text-align: right;
 	font-variant-numeric: tabular-nums;
 }
+/* Long-text columns: cap the width and truncate with an ellipsis — the cell's
+   title attribute carries the full value for hover. */
+.ct-cell.clip {
+	max-width: 200px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
 .ct-row:hover .ct-cell {
 	background-color: #f4f3f0;
 }

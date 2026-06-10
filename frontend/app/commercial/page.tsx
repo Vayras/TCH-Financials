@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Alert from '@mui/material/Alert';
+import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
@@ -24,7 +25,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { api, type Deal, type Creator } from '@/lib/api';
+import { api, type Deal, type Creator, type Campaign } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
@@ -339,11 +340,31 @@ function calYearOfMonth(mm: string, fyStart: number): number {
 	return Number(mm) >= 4 ? fyStart : fyStart + 1;
 }
 
+// Mirrors backend billing_period (tch/aggregation.py): the E-Invoice No (e.g.
+// "TCH/2627/Apr06") is authoritative for the billing month — it wins when it
+// disagrees with e_invoice_date — with e_invoice_date as the fallback when the
+// number is blank or unparseable. Keeping the two in lockstep is what makes
+// this page's headline match the Overview's "Campaigns this FY".
+const INVOICE_NO_RE = /(\d{2})(\d{2})\s*\/\s*([A-Za-z]{3,9})/;
+const MONTH_NUM: Record<string, number> = {
+	jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+	jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12
+};
+function billingPeriodOf(r: Deal): string | null {
+	const m = INVOICE_NO_RE.exec((r.e_invoice_number || '').replace(/\s+/g, ' '));
+	if (m) {
+		const fy = 2000 + Number(m[1]);
+		const month = MONTH_NUM[m[3].slice(0, 3).toLowerCase()];
+		if (month) {
+			const year = month >= 4 ? fy : fy + 1;
+			return `${year}-${String(month).padStart(2, '0')}-01`;
+		}
+	}
+	return r.e_invoice_date || null;
+}
+
 type DirFilter = 'All' | 'Inbound' | 'Outbound' | 'MarkUp';
 type ViewMode = 'table' | 'cards';
-// Which date drives FY / period filtering. Billing is recognised on the invoice
-// date by default (issue #7); confirmation date is an opt-in alternate lens.
-type TrackBy = 'invoice' | 'confirmation';
 // Card grouping: one card per campaign (default), or rolled up by creator / brand.
 type CardGroupBy = 'campaign' | 'creator' | 'brand';
 
@@ -367,6 +388,7 @@ function creatorLabel(names: string[]): string {
 export default function CommercialPage() {
 	const [rows, setRows] = React.useState<Deal[]>([]);
 	const [creators, setCreators] = React.useState<Creator[]>([]);
+	const [campaigns, setCampaigns] = React.useState<Campaign[]>([]);
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
 	const [open, setOpen] = React.useState(false);
@@ -377,7 +399,6 @@ export default function CommercialPage() {
 	const [dirFilter, setDirFilter] = React.useState<DirFilter>('All');
 	const [quarter, setQuarter] = React.useState<'All' | Quarter>('All');
 	const [month, setMonth] = React.useState('All');
-	const [trackBy, setTrackBy] = React.useState<TrackBy>('invoice');
 	const { fyStart } = useFiscalYear();
 	const [entityFilter, setEntityFilter] = React.useState('All');
 	const [form, setForm] = React.useState<DealForm>(EMPTY_FORM);
@@ -428,12 +449,14 @@ export default function CommercialPage() {
 	const load = React.useCallback(async () => {
 		setLoading(true);
 		try {
-			const [d, c] = await Promise.all([
+			const [d, c, camps] = await Promise.all([
 				api.get<Deal[]>('/deals/'),
-				api.get<Creator[]>('/creators/')
+				api.get<Creator[]>('/creators/'),
+				api.get<Campaign[]>('/campaigns/')
 			]);
 			setRows(d);
 			setCreators(c);
+			setCampaigns(camps);
 		} catch (e) {
 			setError((e as Error).message);
 		} finally {
@@ -523,7 +546,7 @@ export default function CommercialPage() {
 			billing_entity: d.billing_entity,
 			brand: d.brand,
 			brand_poc: d.brand_poc ?? '',
-			campaign: d.campaign,
+			campaign: d.campaign ?? '',
 			deliverables: d.deliverables,
 			ro_number: d.ro_number,
 			campaign_over: d.campaign_over,
@@ -694,12 +717,10 @@ export default function CommercialPage() {
 		}
 	}, [availQuarters, monthsForQuarter, quarter, month]);
 
-	// The date a deal is tracked on. Billing is recognised on the invoice date by
-	// default; "confirmation" is an alternate lens that pivots every total below.
-	const trackDate = React.useCallback(
-		(r: Deal) => (trackBy === 'confirmation' ? r.confirmation_date : r.e_invoice_date),
-		[trackBy]
-	);
+	// The date a deal is tracked on: the billing month (E-Invoice No, falling
+	// back to invoice date) — the same rule the Overview uses, so the two pages
+	// always agree.
+	const trackDate = React.useCallback((r: Deal) => billingPeriodOf(r), []);
 
 	// Deals that can't be placed in a fiscal year because they lack the tracking
 	// date — surfaced for ops to backfill rather than silently dropped.
@@ -773,10 +794,16 @@ export default function CommercialPage() {
 			}
 		}
 		const count = filtered.length;
+		// Distinct campaigns, excluding deals without one — same definition as the
+		// Overview's "Campaigns this FY" so the two headlines agree.
+		const campaignCount = new Set(
+			filtered.map((r) => r.campaign?.trim()).filter(Boolean)
+		).size;
 		return {
 			total,
 			profit,
 			count,
+			campaignCount,
 			avg: count > 0 ? total / count : 0,
 			clientOutstanding,
 			clientReceived,
@@ -896,7 +923,7 @@ export default function CommercialPage() {
 		if (groupBy === 'brand') {
 			return (
 				<>
-					<div className="font-medium" style={{ color: 'var(--n-fg)' }}>{r.brand || '—'}</div>
+					<div className="font-medium truncate" title={r.brand || undefined} style={{ color: 'var(--n-fg)' }}>{r.brand || '—'}</div>
 					{r.campaign && <div className="text-[12px] truncate" style={{ color: 'var(--n-fg-muted)' }}>{r.campaign}</div>}
 				</>
 			);
@@ -904,14 +931,14 @@ export default function CommercialPage() {
 		if (groupBy === 'campaign') {
 			return (
 				<>
-					<div className="font-medium" style={{ color: 'var(--n-fg)' }}>{r.campaign || '—'}</div>
+					<div className="font-medium truncate" title={r.campaign || undefined} style={{ color: 'var(--n-fg)' }}>{r.campaign || '—'}</div>
 					{r.brand && <div className="text-[12px] truncate" style={{ color: 'var(--n-fg-muted)' }}>{r.brand}</div>}
 				</>
 			);
 		}
 		return (
 			<>
-				<div className="font-medium" style={{ color: 'var(--n-fg)' }}>
+				<div className="font-medium truncate" style={{ color: 'var(--n-fg)' }}>
 					{r.creator_shares && r.creator_shares.length > 0
 						? r.creator_shares
 								.map((s) => s.creator_name || s.creator_name_raw)
@@ -947,7 +974,18 @@ export default function CommercialPage() {
 				</Box>
 
 				<Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
-					<MetricCard label="Campaigns shown" value={totals.count} />
+					<MetricCard
+						label="Shown"
+						value={
+							<>
+								{totals.count} deal{totals.count === 1 ? '' : 's'}{' '}
+								<Box component="span" sx={{ color: 'var(--n-fg-muted)', fontWeight: 400, fontSize: 15 }}>
+									across
+								</Box>{' '}
+								{totals.campaignCount} campaign{totals.campaignCount === 1 ? '' : 's'}
+							</>
+						}
+					/>
 					<MetricCard label="Total Billing" value={`₹ ${inr(totals.total)}`} />
 					<MetricCard label="Avg Deal Size" value={totals.count > 0 ? `₹ ${inr(totals.avg)}` : '—'} />
 					<MetricCard label="TCH Profit" value={`₹ ${inr(totals.profit)}`} dotColor="#0f7b6c" />
@@ -1030,17 +1068,6 @@ export default function CommercialPage() {
 					<TextField
 						select
 						size="small"
-						label="Track by"
-						value={trackBy}
-						onChange={(e) => setTrackBy(e.target.value as TrackBy)}
-						sx={{ flex: '0 1 160px', minWidth: 140 }}
-					>
-						<MenuItem value="invoice">Invoice date</MenuItem>
-						<MenuItem value="confirmation">Confirmation date</MenuItem>
-					</TextField>
-					<TextField
-						select
-						size="small"
 						label="View"
 						value={viewMode}
 						onChange={(e) => setViewMode(e.target.value as ViewMode)}
@@ -1108,9 +1135,9 @@ export default function CommercialPage() {
 
 				{missingDate.length > 0 && (
 					<Alert severity="warning" sx={{ '& .MuiAlert-message': { fontSize: 13 } }}>
-						{missingDate.length} campaign{missingDate.length === 1 ? '' : 's'} {missingDate.length === 1 ? 'has' : 'have'} no{' '}
-						{trackBy === 'invoice' ? 'invoice' : 'confirmation'} date and {missingDate.length === 1 ? "isn't" : "aren't"} counted in any
-						period — backfill the date to include {missingDate.length === 1 ? 'it' : 'them'} in billing totals.
+						{missingDate.length} deal{missingDate.length === 1 ? '' : 's'} {missingDate.length === 1 ? 'has' : 'have'} no{' '}
+						E-Invoice No or invoice date and {missingDate.length === 1 ? "isn't" : "aren't"} counted in any
+						period — backfill {missingDate.length === 1 ? 'it' : 'them'} to include {missingDate.length === 1 ? 'it' : 'them'} in billing totals.
 					</Alert>
 				)}
 
@@ -1153,7 +1180,12 @@ export default function CommercialPage() {
 											<Tag tone={dirTone(r.direction)}>{r.direction}</Tag>
 										</div>
 										{r.campaign && (
-											<div className="text-[13px] truncate" style={{ color: 'var(--n-fg-muted)' }}>{r.campaign}</div>
+											<div className="flex items-center gap-2 min-w-0">
+												<div className="text-[13px] truncate" style={{ color: 'var(--n-fg-muted)' }}>{r.campaign}</div>
+												{r.campaign_status && (
+													<Tag tone={r.campaign_status === 'Over' ? 'neutral' : 'yes'}>{r.campaign_status}</Tag>
+												)}
+											</div>
 										)}
 										<div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
 											<div>
@@ -1321,7 +1353,7 @@ export default function CommercialPage() {
 													<Tag tone="markup">no date</Tag>
 												)}
 											</TableCell>
-											<TableCell className="ct-sticky-l2 ct-cell">
+											<TableCell className="ct-sticky-l2 ct-cell clip">
 												{renderStickyGroupCell(r)}
 											</TableCell>
 											{colGroups.deal && <>
@@ -1357,7 +1389,7 @@ export default function CommercialPage() {
 											</TableCell>
 											)}
 											{visibleCols.billing_entity && (
-											<TableCell className="ct-cell">
+											<TableCell className="ct-cell clip" title={r.billing_entity || undefined}>
 												<span style={{ color: 'var(--n-fg)' }}>{r.billing_entity}</span>
 												{r.billing_entity && isEmw(r.billing_entity) && (
 													<Tag tone="emw" className="ml-1">
@@ -1367,23 +1399,24 @@ export default function CommercialPage() {
 											</TableCell>
 											)}
 											{visibleCols.brand && (
-											<TableCell className="ct-cell" style={{ color: 'var(--n-fg)' }}>
+											<TableCell className="ct-cell clip" title={r.brand || undefined} style={{ color: 'var(--n-fg)' }}>
 												{r.brand}
 											</TableCell>
 											)}
 											{visibleCols.campaign && (
-											<TableCell className="ct-cell" style={{ color: 'var(--n-fg-muted)' }}>
+											<TableCell className="ct-cell clip" title={r.campaign || undefined} style={{ color: 'var(--n-fg-muted)' }}>
 												{r.campaign}
 											</TableCell>
 											)}
 											{visibleCols.deliverables && (
-											<TableCell className="ct-cell" style={{ color: 'var(--n-fg-muted)' }}>
+											<TableCell className="ct-cell clip" title={r.deliverables || undefined} style={{ color: 'var(--n-fg-muted)' }}>
 												{r.deliverables}
 											</TableCell>
 											)}
 											{visibleCols.ro_number && (
 											<TableCell
-												className="ct-cell tabular-nums whitespace-nowrap"
+												className="ct-cell clip tabular-nums whitespace-nowrap"
+												title={r.ro_number || undefined}
 												style={{ color: 'var(--n-fg-muted)' }}
 											>
 												{r.ro_number}
@@ -1391,7 +1424,7 @@ export default function CommercialPage() {
 											)}
 										</>}
 										{colGroups.finance_client && <>
-											<TableCell className="ct-cell whitespace-nowrap" style={{ color: 'var(--n-fg-muted)' }}>
+											<TableCell className="ct-cell clip whitespace-nowrap" title={r.client_invoice_number || undefined} style={{ color: 'var(--n-fg-muted)' }}>
 												{r.client_invoice_number}
 											</TableCell>
 											<TableCell className="ct-cell whitespace-nowrap tabular-nums" style={{ color: 'var(--n-fg-muted)' }}>
@@ -1417,7 +1450,7 @@ export default function CommercialPage() {
 											</TableCell>
 										</>}
 										{colGroups.finance_creator && <>
-											<TableCell className="ct-cell whitespace-nowrap" style={{ color: 'var(--n-fg-muted)' }}>
+											<TableCell className="ct-cell clip whitespace-nowrap" title={r.creator_invoice_number || undefined} style={{ color: 'var(--n-fg-muted)' }}>
 												{r.creator_invoice_number}
 											</TableCell>
 											<TableCell className="ct-cell whitespace-nowrap tabular-nums" style={{ color: 'var(--n-fg-muted)' }}>
@@ -1465,7 +1498,8 @@ export default function CommercialPage() {
 												) : null}
 											</TableCell>
 											<TableCell
-												className="ct-cell tabular-nums whitespace-nowrap"
+												className="ct-cell clip tabular-nums whitespace-nowrap"
+												title={r.e_invoice_number || undefined}
 												style={{ color: 'var(--n-fg-muted)' }}
 											>
 												{r.e_invoice_number}
@@ -1534,6 +1568,7 @@ export default function CommercialPage() {
 							<DetailField label="Invoice Date" value={detail.e_invoice_date} />
 							<DetailField label="E-Invoice #" value={detail.e_invoice_number} />
 							<DetailField label="Campaign" value={detail.campaign} />
+							<DetailField label="Campaign Status" value={detail.campaign_status} />
 							<DetailField label="Deliverables" value={detail.deliverables} />
 							<DetailField label="RO #" value={detail.ro_number} />
 
@@ -1737,7 +1772,22 @@ export default function CommercialPage() {
 						<TextField label="Brand POC" size="small" fullWidth value={form.brand_poc} onChange={(e) => set('brand_poc', e.target.value)} placeholder="Brand-side contact" error={isMissing('brand_poc')} helperText={reqHelper('brand_poc')} sx={muiInputSx} />
 					</div>
 					<div>
-						<TextField label="Campaign" size="small" fullWidth value={form.campaign} onChange={(e) => set('campaign', e.target.value)} error={isMissing('campaign')} helperText={reqHelper('campaign')} sx={muiInputSx} />
+						<Autocomplete
+							freeSolo
+							size="small"
+							options={campaigns.map((c) => c.name)}
+							value={form.campaign}
+							onInputChange={(_, value) => set('campaign', value)}
+							renderInput={(params) => (
+								<TextField
+									{...params}
+									label="Campaign (pick or create)"
+									error={isMissing('campaign')}
+									helperText={reqHelper('campaign')}
+									sx={muiInputSx}
+								/>
+							)}
+						/>
 						{suggestedCampaignName && suggestedCampaignName !== form.campaign && (
 							<button
 								type="button"

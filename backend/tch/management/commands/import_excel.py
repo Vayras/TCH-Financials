@@ -31,7 +31,7 @@ from django.db import transaction
 import openpyxl
 
 from tch.models import (
-    Creator, ContractingCompliance, CommercialDeal, EmployeeWeeklyReport, DropOff,
+    Campaign, Creator, ContractingCompliance, CommercialDeal, EmployeeWeeklyReport, DropOff,
 )
 
 
@@ -155,6 +155,18 @@ def _resolve_creator(name: str, default_relationship: str = 'NonTCH') -> Creator
     return Creator.objects.create(name=canonical, relationship=default_relationship)
 
 
+def _resolve_campaign(name: str, brand: str = '') -> Campaign | None:
+    """Match a campaign name (case-insensitive, whitespace-collapsed) to an
+    existing Campaign, creating it on first sight."""
+    canonical = ' '.join((name or '').split())[:255]
+    if not canonical:
+        return None
+    campaign = Campaign.objects.filter(name__iexact=canonical).first()
+    if campaign:
+        return campaign
+    return Campaign.objects.create(name=canonical, brand=(brand or '')[:200])
+
+
 class Command(BaseCommand):
     help = "Import the TCH MIS workbook into the DB."
 
@@ -168,6 +180,7 @@ class Command(BaseCommand):
         if wipe:
             self.stdout.write('Wiping existing rows...')
             CommercialDeal.objects.all().delete()
+            Campaign.objects.all().delete()
             ContractingCompliance.objects.all().delete()
             EmployeeWeeklyReport.objects.all().delete()
             DropOff.objects.all().delete()
@@ -303,90 +316,189 @@ class Command(BaseCommand):
         self.stdout.write(f'  contracting: {count}')
 
     def _import_deals(self, ws):
-        """Detect column layout by reading the header row (row 3 in the new file,
-        but tolerate either layout).
+        """Detect column layout by reading the header row (row 3 in the newer
+        files, but tolerate any of the three known layouts).
 
         Historical layout:
           A Conf | B EInvDate | C Creator | D Commission | E Dir | F Total | G %
           H AgcyINR | I CreatorFee | J BillEntity | K Brand | L Campaign
           M RO# | N Over | O InvRecv | P PayClr | Q EInv# | R PayRecv | S Comments
 
-        FY 26-27 layout (has extra Deliverables col before RO#):
+        FY 26-27 layout (extra Deliverables col before RO#):
           ... L Campaign | M Deliverables | N RO# | O Over | P InvRecv | Q PayClr |
           R EInv# | S PayRecv | T Comments
-        """
-        # Detect: if the cell at (R3, col M=index 12) already names Deliverables,
-        # we are in the FY 26-27 layout. Otherwise historical.
-        header_M = ws.cell(row=3, column=13).value or ''  # column M
-        layout_has_deliverables = isinstance(header_M, str) and 'deliverable' in header_M.lower()
 
-        count = 0
+        FY 26-27 "invoicing tracker" layout (no Commission col; detected by
+        Deliverables sitting at column L):
+          A Conf | B EInvDate | C Creator | D Dir | E Total | F % | G AgcyINR
+          H CreatorFee | I BillEntity | J Brand | K Campaign | L Deliverables
+          M RO# | N Over | O InvRecv | P PayClr | Q EInv# | R PayRecv | S Comments
+          Multi-creator campaigns appear as RO sub-rows (TCH/x/152/A, /B, …)
+          whose brand/campaign cells are blank — they inherit from the group's
+          first row so all sub-rows link to the same Campaign.
+        """
+        header_L = str(ws.cell(row=3, column=12).value or '')   # column L
+        header_M = str(ws.cell(row=3, column=13).value or '')   # column M
+        if 'deliverable' in header_L.lower():
+            layout = 'tracker'
+        elif 'deliverable' in header_M.lower():
+            layout = 'fy2627'
+        else:
+            layout = 'historical'
+
+        # Already-imported deals (by RO # / E-Invoice #) are skipped so the
+        # command can be re-run on overlapping workbooks without duplicating.
+        def _key(v):
+            return ' '.join(str(v or '').split()).lower()
+
+        existing_ro = {
+            _key(v) for v in CommercialDeal.objects.values_list('ro_number', flat=True)
+            if v and _key(v) not in ('', 'na')
+        }
+        existing_einv = {
+            _key(v) for v in CommercialDeal.objects.values_list('e_invoice_number', flat=True) if v
+        }
+
+        # RO numbers like "TCH/2526/152/A" / "TCH/2526/155 B" mark sub-rows of
+        # one multi-creator campaign; the base ("TCH/2526/152") groups them.
+        ro_base_re = re.compile(r'^(.*?\d+)\s*[/ ]\s*([A-Za-z])$')
+
+        parsed = []
         for row in ws.iter_rows(min_row=5, values_only=True):
             if not any(row):
                 continue
-            confirmation = _to_date(row[0])
-            invoice_date = _to_date(row[1])
-            cname_raw = (str(row[2]).strip() if row[2] else '')
-            if not cname_raw and not confirmation and not row[5]:
+
+            def cell(i):
+                return row[i] if len(row) > i else None
+
+            if layout == 'tracker':
+                d = {
+                    'confirmation': _to_date(cell(0)),
+                    'invoice_date': _to_date(cell(1)),
+                    'cname_raw': str(cell(2) or '').strip(),
+                    'agency_commission': '',
+                    'direction_raw': str(cell(3) or ''),
+                    'total_fee': _to_decimal(cell(4)),
+                    'agency_pct': _to_pct(cell(5)),
+                    'agency_inr': _to_decimal(cell(6)),
+                    'creator_fee': _to_decimal(cell(7)),
+                    'billing_entity': str(cell(8) or '')[:120],
+                    'brand': str(cell(9) or '').strip()[:200],
+                    'campaign_name': str(cell(10) or ''),
+                    'deliverables': str(cell(11) or '')[:255],
+                    'ro_number': str(cell(12) or '')[:80],
+                    'campaign_over': _to_yn(cell(13)),
+                    'invoice_received': _to_yn(cell(14)),
+                    'payment_cleared': _to_yn(cell(15)),
+                    'e_invoice_no': str(cell(16) or '')[:80],
+                    'payment_received': _to_yn(cell(17)),
+                    'comments': str(cell(18) or ''),
+                }
+                if not d['cname_raw'] and not d['confirmation'] and not cell(4):
+                    continue
+            else:
+                if not str(cell(2) or '').strip() and not _to_date(cell(0)) and not cell(5):
+                    continue
+                ro = 13 if layout == 'fy2627' else 12
+                d = {
+                    'confirmation': _to_date(cell(0)),
+                    'invoice_date': _to_date(cell(1)),
+                    'cname_raw': str(cell(2) or '').strip(),
+                    'agency_commission': str(cell(3) or '')[:120],
+                    'direction_raw': str(cell(4) or ''),
+                    'total_fee': _to_decimal(cell(5)),
+                    'agency_pct': _to_pct(cell(6)),
+                    'agency_inr': _to_decimal(cell(7)),
+                    'creator_fee': _to_decimal(cell(8)),
+                    'billing_entity': str(cell(9) or '')[:120],
+                    'brand': str(cell(10) or '').strip()[:200],
+                    'campaign_name': str(cell(11) or ''),
+                    'deliverables': str(cell(12) or '')[:255] if layout == 'fy2627' else '',
+                    'ro_number': str(cell(ro) or '')[:80],
+                    'campaign_over': _to_yn(cell(ro + 1)),
+                    'invoice_received': _to_yn(cell(ro + 2)),
+                    'payment_cleared': _to_yn(cell(ro + 3)),
+                    'e_invoice_no': str(cell(ro + 4) or '')[:80],
+                    'payment_received': _to_yn(cell(ro + 5)),
+                    'comments': str(cell(ro + 6) or ''),
+                }
+            parsed.append(d)
+
+        # Inherit brand / campaign across RO sub-row groups (tracker layout):
+        # blank cells on /B, /C … rows mean "same campaign as the first row".
+        if layout == 'tracker':
+            first_of_group: dict[str, dict] = {}
+            for d in parsed:
+                m = ro_base_re.match(d['ro_number'].strip())
+                if not m:
+                    continue
+                base = _key(m.group(1))
+                head = first_of_group.setdefault(base, d)
+                if d is head:
+                    # A grouped campaign with no recorded name still needs one
+                    # row to link the group; derive "<brand> · <Mon YYYY>".
+                    if not d['campaign_name'].strip() and d['brand']:
+                        anchor = d['invoice_date'] or d['confirmation']
+                        suffix = anchor.strftime(' · %b %Y') if anchor else ''
+                        d['campaign_name'] = f"{d['brand']}{suffix}"
+                    continue
+                if not d['brand']:
+                    d['brand'] = head['brand']
+                if not d['campaign_name'].strip():
+                    d['campaign_name'] = head['campaign_name']
+                if not d['billing_entity'].strip():
+                    d['billing_entity'] = head['billing_entity']
+                # One invoice covers the whole group — the workbook's own
+                # summary counts sub-row billing under the head's invoice month.
+                if not d['e_invoice_no'] and head['e_invoice_no']:
+                    d['e_invoice_no'] = head['e_invoice_no']
+
+        count = skipped = 0
+        for d in parsed:
+            if (_key(d['ro_number']) in existing_ro
+                    or (d['e_invoice_no'] and _key(d['e_invoice_no']) in existing_einv)):
+                skipped += 1
                 continue
 
-            agency_commission = str(row[3] or '')[:120]
-            direction_raw = str(row[4] or '').strip().lower()
+            direction_raw = d['direction_raw'].strip().lower()
             direction = (
                 'Inbound' if direction_raw == 'inbound' else
                 'Outbound' if direction_raw == 'outbound' else
                 'MarkUp' if 'mark' in direction_raw else 'Outbound'
             )
-            total_fee = _to_decimal(row[5])
-            agency_pct = _to_pct(row[6])
-            agency_inr = _to_decimal(row[7])
-            creator_fee = _to_decimal(row[8])
-            billing_entity = str(row[9] or '')[:120]
-            brand = str(row[10] or '')[:200]
-            campaign = str(row[11] or '')[:255]
-
-            if layout_has_deliverables:
-                deliverables = str(row[12] or '')[:255]
-                ro = 13
-            else:
-                deliverables = ''
-                ro = 12
-
-            ro_number = str(row[ro] or '')[:80] if len(row) > ro else ''
-            campaign_over = _to_yn(row[ro + 1]) if len(row) > ro + 1 else ''
-            invoice_received = _to_yn(row[ro + 2]) if len(row) > ro + 2 else ''
-            payment_cleared = _to_yn(row[ro + 3]) if len(row) > ro + 3 else ''
-            e_invoice_no = str(row[ro + 4] or '')[:80] if len(row) > ro + 4 else ''
-            payment_received = _to_yn(row[ro + 5]) if len(row) > ro + 5 else ''
-            comments = str(row[ro + 6] or '') if len(row) > ro + 6 else ''
-
-            creator = _resolve_creator(cname_raw, default_relationship='NonTCH') if cname_raw else None
+            creator = _resolve_creator(d['cname_raw'], default_relationship='NonTCH') if d['cname_raw'] else None
 
             CommercialDeal.objects.create(
-                confirmation_date=confirmation,
-                e_invoice_date=invoice_date,
+                confirmation_date=d['confirmation'],
+                e_invoice_date=d['invoice_date'],
                 creator=creator,
-                creator_name_raw='' if creator else cname_raw,
-                agency_commission_agreed=agency_commission,
+                creator_name_raw='' if creator else d['cname_raw'],
+                agency_commission_agreed=d['agency_commission'],
                 direction=direction,
-                total_fee=total_fee,
-                agency_fee_pct=agency_pct,
-                agency_fee_inr=agency_inr,
-                creator_fee=creator_fee,
-                billing_entity=billing_entity,
-                brand=brand,
-                campaign=campaign,
-                deliverables=deliverables,
-                ro_number=ro_number,
-                campaign_over=campaign_over,
-                invoice_received=invoice_received,
-                payment_cleared=payment_cleared,
-                e_invoice_number=e_invoice_no,
-                payment_received=payment_received,
-                comments=comments,
+                total_fee=d['total_fee'],
+                agency_fee_pct=d['agency_pct'],
+                agency_fee_inr=d['agency_inr'],
+                creator_fee=d['creator_fee'],
+                billing_entity=d['billing_entity'],
+                brand=d['brand'],
+                campaign=_resolve_campaign(d['campaign_name'], d['brand']),
+                deliverables=d['deliverables'],
+                ro_number=d['ro_number'],
+                campaign_over=d['campaign_over'],
+                invoice_received=d['invoice_received'],
+                payment_cleared=d['payment_cleared'],
+                e_invoice_number=d['e_invoice_no'],
+                payment_received=d['payment_received'],
+                comments=d['comments'],
             )
             count += 1
-        self.stdout.write(f'  deals: {count}  (layout: {"FY26-27" if layout_has_deliverables else "historical"})')
+
+        # Campaign status is derived from its deals' campaign_over flags.
+        for campaign in Campaign.objects.all():
+            campaign.refresh_status()
+        self.stdout.write(
+            f'  deals: {count} created, {skipped} skipped as already present  (layout: {layout})'
+        )
 
     def _import_employee_reports(self, ws):
         """Cols: A=SNo, B=WeekEnding, C=Employee, D=Outreach, E=PaidConf,

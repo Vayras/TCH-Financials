@@ -75,6 +75,18 @@ export type Contracting = {
 	renewal_note: string;
 };
 
+export type Campaign = {
+	id: number;
+	name: string;
+	brand: string;
+	status: 'Active' | 'Over';
+	start_date: string | null;
+	end_date: string | null;
+	notes: string;
+	deal_count: number;
+	created_at: string;
+};
+
 export type CreatorShare = {
 	id?: number;
 	creator: number | null;
@@ -105,7 +117,9 @@ export type Deal = {
 	billing_entity: string;
 	brand: string;
 	brand_poc: string;
-	campaign: string;
+	campaign: string | null;
+	campaign_id: number | null;
+	campaign_status: '' | 'Active' | 'Over';
 	deliverables: string;
 	ro_number: string;
 	campaign_over: string;
@@ -177,18 +191,27 @@ export type EmployeeReport = {
 	action_points: string;
 };
 
+export type OverviewCampaignRow = {
+	campaign_id: number | null;
+	name: string;
+	brand: string;
+	status: '' | 'Active' | 'Over';
+	creators: string[];
+	deal_count: number;
+	by_month: Record<string, string>;
+	by_quarter: Record<string, string>;
+	total: string;
+	profit: string;
+};
+
 export type Overview = {
 	fy: string;
 	fy_start: number;
 	months: { key: string; label: string }[];
 	quarters: { key: string; label: string }[];
-	bucket_order: string[];
-	creator_counts: Record<string, number>;
-	total_active_creators: number;
-	rows: Record<
-		string,
-		{ label: string; by_month: Record<string, string>; by_quarter: Record<string, string>; total: string }
-	>;
+	campaign_counts: Record<string, number>;
+	total_campaigns: number;
+	rows: OverviewCampaignRow[];
 	totals: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
 	emw_billing: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
 	profits: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
@@ -219,6 +242,8 @@ export type EntityRow = {
 	deal_count: number;
 	total_billing: string;
 	total_profit: string;
+	campaign_count: number;
+	campaigns: string[];
 	creator_count: number;
 	creators: string[];
 	top_brands: string[];
@@ -280,6 +305,8 @@ export type AlertItem = {
 	title: string;
 	detail: string;
 	action: string;
+	// Stable identity across recomputes — what /alerts/dismiss/ keys on.
+	key: string;
 	meta: Record<string, string | number | boolean | null>;
 };
 
@@ -300,4 +327,6 @@ export type AlertsPayload = {
 	docs: AlertItem[];
 	seasonal: AlertItem[];
 	counts: { urgent: number; bd: number; health: number; docs: number; seasonal: number };
+	// How many computed alerts were suppressed by dismissals this load.
+	dismissed_count: number;
 };

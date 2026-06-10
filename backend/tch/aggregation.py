@@ -1,5 +1,6 @@
-"""Aggregation logic that derives Current Overview and Quarterly Exclusives
-from the CommercialDeal table — the single source of truth."""
+"""Aggregation logic that derives the campaign-centric Current Overview and
+related summaries from the CommercialDeal table — the single source of truth.
+Campaigns are the primary dimension; creators are a supporting one."""
 
 from __future__ import annotations
 
@@ -9,7 +10,9 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Iterable
 
-from .models import CommercialDeal, Creator, ContractingCompliance, CreatorDocument
+from .models import (
+    AlertDismissal, CommercialDeal, Creator, ContractingCompliance, CreatorDocument,
+)
 
 
 # Indian fiscal year: April -> March.
@@ -67,6 +70,23 @@ def invoice_period(e_invoice_number: str | None) -> date | None:
         return None
     year = fy_start if month >= 4 else fy_start + 1
     return date(year, month, 1)
+
+
+def billing_period(deal: CommercialDeal) -> date | None:
+    """The billing month a deal belongs to — the single source of truth shared
+    with the Campaign Tracking page's "Invoice date" lens.
+
+    The E-Invoice No is authoritative (it wins when it disagrees with
+    e_invoice_date); when it's blank or unparseable we fall back to the month
+    of e_invoice_date. None means the deal isn't invoiced yet and belongs to
+    no fiscal year.
+    """
+    period = invoice_period(deal.e_invoice_number)
+    if period is not None:
+        return period
+    if deal.e_invoice_date:
+        return deal.e_invoice_date.replace(day=1)
+    return None
 
 
 def fy_label(fy_start: int) -> str:
@@ -142,22 +162,26 @@ def _zero() -> Decimal:
 
 
 def overview(fy_start: int) -> dict:
-    """Return the entire Current Overview payload for a fiscal year.
+    """Return the entire campaign-centric Current Overview payload for a
+    fiscal year.
 
     Structure:
       {
         "fy": "FY 26-27",
         "months": [{ "key": "2026-04", "label": "April 2026" }, ...],
         "quarters": [{ "key": "Q1", "label": "Q1 (Apr-Jun)" }, ...],
-        "rows": {
-          "Exclusive": {"label": "...", "by_month": {"2026-04": 12345.00, ...},
-                        "by_quarter": {...}, "total": 12345.00},
+        "rows": [  # one row per campaign with billing in this FY, by billing desc
+          {"campaign_id": 3, "name": "...", "brand": "...", "status": "Active",
+           "creators": ["..."], "deal_count": 2,
+           "by_month": {"2026-04": "12345.00", ...}, "by_quarter": {...},
+           "total": "12345.00", "profit": "2345.00"},
           ...
-        },
+        ],
+        "campaign_counts": { "Active": n, "Over": n },
+        "total_campaigns": n,
         "totals": { "by_month": {...}, "by_quarter": {...}, "total": ... },
         "emw_billing": { ... by_month, by_quarter, total ... },
         "profits":     { ... by_month, by_quarter, total ... },
-        "reimbursements": { ... },
         "emw_pct":     { by_month, by_quarter, total }   # fractions 0..1
         "profit_pct":  { by_month, by_quarter, total }
       }
@@ -165,13 +189,13 @@ def overview(fy_start: int) -> dict:
     start = date(fy_start, 4, 1)
     end = date(fy_start + 1, 4, 1)
 
-    # FY membership is decided by the E-Invoice No (invoice_period), not
-    # confirmation_date — fetch all and bucket in Python. Deals without a
-    # parseable invoice number are gathered into a separate "Not yet invoiced"
-    # summary (they belong to no FY until invoiced).
+    # FY membership is decided by billing_period (E-Invoice No, falling back
+    # to e_invoice_date), not confirmation_date — fetch all and bucket in
+    # Python. Deals with neither are gathered into a separate "Not yet
+    # invoiced" summary (they belong to no FY until invoiced).
     deals = (
         CommercialDeal.objects
-        .select_related('creator')
+        .select_related('creator', 'campaign')
         .prefetch_related('creator_shares__creator')
         .all()
     )
@@ -198,24 +222,17 @@ def overview(fy_start: int) -> dict:
         {'key': 'Q4', 'label': 'Q4 (Jan-Mar)'},
     ]
 
-    rows = {
-        b: {
-            'label': BUCKET_LABEL[b],
-            'by_month': defaultdict(_zero),
-            'by_quarter': defaultdict(_zero),
-            'total': Decimal('0'),
-        }
-        for b in BUCKET_ORDER
-    }
+    # key: campaign_id (None for deals without a campaign)
+    rows: dict[int | None, dict] = {}
     emw = {'by_month': defaultdict(_zero), 'by_quarter': defaultdict(_zero), 'total': Decimal('0')}
     profits = {'by_month': defaultdict(_zero), 'by_quarter': defaultdict(_zero), 'total': Decimal('0')}
     totals = {'by_month': defaultdict(_zero), 'by_quarter': defaultdict(_zero), 'total': Decimal('0')}
     not_invoiced = {'count': 0, 'total_fee': Decimal('0'), 'profit': Decimal('0')}
 
     for deal in deals:
-        period = invoice_period(deal.e_invoice_number)
+        period = billing_period(deal)
         if period is None:
-            # No E-Invoice No yet — belongs to no FY; track separately.
+            # Not invoiced yet — belongs to no FY; track separately.
             not_invoiced['count'] += 1
             not_invoiced['total_fee'] += deal.total_fee or Decimal('0')
             not_invoiced['profit'] += deal.agency_fee_inr or Decimal('0')
@@ -230,24 +247,40 @@ def overview(fy_start: int) -> dict:
             be = deal.billing_entity.upper()
             is_emw = 'EMW' in be or 'ELEMENTS MEDIAWORK' in be
 
-        # Attribute each creator's share to their own relationship bucket.
+        row = rows.setdefault(deal.campaign_id, {
+            'campaign_id': deal.campaign_id,
+            'name': deal.campaign.name if deal.campaign_id else '(No Campaign)',
+            'brand': deal.campaign.brand if deal.campaign_id else '',
+            'status': deal.campaign.status if deal.campaign_id else '',
+            'creator_names': set(),
+            'deal_count': 0,
+            'by_month': defaultdict(_zero),
+            'by_quarter': defaultdict(_zero),
+            'total': Decimal('0'),
+            'profit': Decimal('0'),
+        })
+        fee = deal.total_fee or Decimal('0')
+        profit = deal.agency_fee_inr or Decimal('0')
+        row['deal_count'] += 1
+        row['by_month'][mk] += fee
+        row['by_quarter'][qk] += fee
+        row['total'] += fee
+        row['profit'] += profit
+        # Creators stay visible as a supporting dimension on each campaign.
         for c in creator_splits(deal):
-            bucket = c['relationship'] if c['relationship'] in rows else 'NonTCH'
-            fee = c['fee']
-            profit = c['profit']
-            rows[bucket]['by_month'][mk] += fee
-            rows[bucket]['by_quarter'][qk] += fee
-            rows[bucket]['total'] += fee
-            totals['by_month'][mk] += fee
-            totals['by_quarter'][qk] += fee
-            totals['total'] += fee
-            profits['by_month'][mk] += profit
-            profits['by_quarter'][qk] += profit
-            profits['total'] += profit
-            if is_emw:
-                emw['by_month'][mk] += fee
-                emw['by_quarter'][qk] += fee
-                emw['total'] += fee
+            if c['name']:
+                row['creator_names'].add(c['name'])
+
+        totals['by_month'][mk] += fee
+        totals['by_quarter'][qk] += fee
+        totals['total'] += fee
+        profits['by_month'][mk] += profit
+        profits['by_quarter'][qk] += profit
+        profits['total'] += profit
+        if is_emw:
+            emw['by_month'][mk] += fee
+            emw['by_quarter'][qk] += fee
+            emw['total'] += fee
 
     def pct_of(num, denom) -> Decimal:
         return (num / denom) if denom else Decimal('0')
@@ -266,32 +299,35 @@ def overview(fy_start: int) -> dict:
     def plain(d):
         return {k: str(v) for k, v in d.items()}
 
-    payload_rows = {}
-    for b in BUCKET_ORDER:
-        r = rows[b]
-        payload_rows[b] = {
-            'label': r['label'],
+    payload_rows = []
+    for r in rows.values():
+        payload_rows.append({
+            'campaign_id': r['campaign_id'],
+            'name': r['name'],
+            'brand': r['brand'],
+            'status': r['status'],
+            'creators': sorted(r['creator_names']),
+            'deal_count': r['deal_count'],
             'by_month': plain(r['by_month']),
             'by_quarter': plain(r['by_quarter']),
             'total': str(r['total']),
-        }
+            'profit': str(r['profit']),
+        })
+    payload_rows.sort(key=lambda x: Decimal(x['total']), reverse=True)
 
-    # Creator counts by relationship (active = status 'Active' or no status field).
-    creator_counts = {}
-    total_active = 0
-    for rel_key in BUCKET_ORDER:
-        cnt = Creator.objects.filter(relationship=rel_key, status='Active').count()
-        creator_counts[rel_key] = cnt
-        total_active += cnt
+    # Campaign counts by status, among campaigns billed in this FY.
+    campaign_counts = {'Active': 0, 'Over': 0}
+    for r in payload_rows:
+        if r['status'] in campaign_counts:
+            campaign_counts[r['status']] += 1
 
     return {
         'fy': fy_label(fy_start),
         'fy_start': fy_start,
         'months': months_meta,
         'quarters': quarters_meta,
-        'bucket_order': BUCKET_ORDER,
-        'creator_counts': creator_counts,
-        'total_active_creators': total_active,
+        'campaign_counts': campaign_counts,
+        'total_campaigns': len([r for r in payload_rows if r['campaign_id'] is not None]),
         'rows': payload_rows,
         'totals': {
             'by_month': plain(totals['by_month']),
@@ -342,10 +378,10 @@ def entity_summary(fy_start: int, entity_filter: str = '', quarter: str = '', mo
                 break
     target_month: int | None = int(month) if month else None
 
-    # FY membership comes from the E-Invoice No (see invoice_period).
+    # FY membership comes from the billing month (see billing_period).
     deals = (
         CommercialDeal.objects
-        .select_related('creator')
+        .select_related('creator', 'campaign')
         .prefetch_related('creator_shares__creator')
         .all()
     )
@@ -355,7 +391,7 @@ def entity_summary(fy_start: int, entity_filter: str = '', quarter: str = '', mo
 
     entities: dict[str, dict] = {}
     for deal in deals:
-        period = invoice_period(deal.e_invoice_number)
+        period = billing_period(deal)
         if period is None or not (start <= period < end):
             continue
         if quarter_months and period.month not in quarter_months:
@@ -371,6 +407,7 @@ def entity_summary(fy_start: int, entity_filter: str = '', quarter: str = '', mo
                 'deal_count': 0,
                 'total_billing': Decimal('0'),
                 'total_profit': Decimal('0'),
+                'campaign_names': [],
                 'creator_names': [],
                 'brands': [],
             }
@@ -378,7 +415,9 @@ def entity_summary(fy_start: int, entity_filter: str = '', quarter: str = '', mo
         e['deal_count'] += 1
         e['total_billing'] += deal.total_fee or Decimal('0')
         e['total_profit'] += deal.agency_fee_inr or Decimal('0')
-        # All creators on the campaign (split-aware) count toward this entity.
+        if deal.campaign_id:
+            e['campaign_names'].append(deal.campaign.name)
+        # All creators on the campaign (split-aware) stay as supporting context.
         for c in creator_splits(deal):
             if c['name']:
                 e['creator_names'].append(c['name'])
@@ -388,12 +427,15 @@ def entity_summary(fy_start: int, entity_filter: str = '', quarter: str = '', mo
     rows = []
     for data in entities.values():
         brand_top = [b for b, _ in Counter(data['brands']).most_common(5)]
+        campaign_list = sorted(set(data['campaign_names']))
         creator_list = sorted(set(data['creator_names']))
         rows.append({
             'entity': data['entity'],
             'deal_count': data['deal_count'],
             'total_billing': str(data['total_billing']),
             'total_profit': str(data['total_profit']),
+            'campaign_count': len(campaign_list),
+            'campaigns': campaign_list,
             'creator_count': len(creator_list),
             'creators': creator_list,
             'top_brands': brand_top,
@@ -432,10 +474,10 @@ def creator_insights(fy_start: int) -> dict:
     start = date(fy_start, 4, 1)
     end = date(fy_start + 1, 4, 1)
 
-    # FY membership comes from the E-Invoice No (see invoice_period).
+    # FY membership comes from the billing month (see billing_period).
     deals = (
         CommercialDeal.objects
-        .select_related('creator')
+        .select_related('creator', 'campaign')
         .prefetch_related('creator_shares__creator')
         .all()
     )
@@ -448,7 +490,7 @@ def creator_insights(fy_start: int) -> dict:
     # key by creator_id when present, else by creator_name_raw fallback
     agg: dict[tuple, dict] = {}
     for d in deals:
-        period = invoice_period(d.e_invoice_number)
+        period = billing_period(d)
         if period is None or not (start <= period < end):
             continue
         mk = f"{period.year:04d}-{period.month:02d}"
@@ -505,8 +547,8 @@ def creator_insights(fy_start: int) -> dict:
                 a['brands'].append(d.brand)
             if d.deliverables:
                 a['deliverables'].append(d.deliverables)
-            if d.campaign:
-                a['campaigns'].append(d.campaign)
+            if d.campaign_id:
+                a['campaigns'].append(d.campaign.name)
             if d.billing_entity:
                 a['billing_entities'].append(d.billing_entity)
             if d.payment_received == 'Y':
@@ -580,7 +622,7 @@ def quarterly_exclusives(fy_start: int) -> list[dict]:
 
     # A campaign can include exclusive creators among its splits even if the
     # primary creator isn't exclusive, so scan all deals and pick the exclusive
-    # contributions. FY membership and the quarter come from the E-Invoice No.
+    # contributions. FY membership and the quarter come from the billing month.
     deals = (
         CommercialDeal.objects
         .select_related('creator')
@@ -591,7 +633,7 @@ def quarterly_exclusives(fy_start: int) -> list[dict]:
     # key: (creator_id, creator_name, quarter) -> agg
     agg: dict[tuple, dict] = {}
     for d in deals:
-        period = invoice_period(d.e_invoice_number)
+        period = billing_period(d)
         if period is None or not (start <= period < end):
             continue
         qk = ''
@@ -708,6 +750,30 @@ def _next_occurrence(today: date, month: int, day: int) -> date:
     return candidate
 
 
+def alert_key(item: dict) -> str:
+    """Stable identity of an alert across recomputes, used for dismissals.
+
+    Built from the alert kind plus whatever in its meta pins down the
+    underlying fact — never the title, which embeds moving parts like age in
+    days and would silently un-dismiss every alert each day.
+    """
+    meta = item.get('meta') or {}
+    kind = item['kind']
+    if kind in ('invoice_overdue', 'payment_overdue'):
+        ident = f"deal:{meta.get('deal_id')}"
+    elif kind in ('inactive_creator', 'missing_documents', 'renewal_due'):
+        ident = f"creator:{meta.get('creator_id')}"
+    elif kind == 'billing_drop':
+        ident = f"creator:{meta.get('creator_id')}:{meta.get('quarter')}"
+    elif kind in ('brand_dormant', 'brand_hot'):
+        ident = f"brand:{meta.get('brand')}"
+    elif kind == 'seasonal':
+        ident = f"date:{meta.get('date')}"
+    else:
+        ident = item.get('title', '')
+    return f"{kind}|{ident}"
+
+
 def alerts(today: date | None = None) -> dict:
     """Compute the four alert boards rendered on the Alerts page.
 
@@ -728,7 +794,7 @@ def alerts(today: date | None = None) -> dict:
 
     deals_qs = (
         CommercialDeal.objects
-        .select_related('creator')
+        .select_related('creator', 'campaign')
         .prefetch_related('creator_shares__creator')
         .all()
     )
@@ -785,14 +851,14 @@ def alerts(today: date | None = None) -> dict:
             age = _days_between(d.confirmation_date, today)
             if age >= INVOICE_OVERDUE_DAYS:
                 who = d.creator.name if d.creator_id else (d.creator_name_raw or '(no creator)')
-                brand = d.brand or '(no brand)'
+                campaign = d.campaign_name or f"{d.brand or '(no brand)'} × {who}"
                 urgent.append({
                     'kind': 'invoice_overdue',
                     'severity': 'high' if age >= 60 else 'med',
-                    'title': f"{brand} × {who} — Invoice not raised, {age} days",
-                    'detail': f"Campaign marked over. Total fee ₹ {d.total_fee}. Billing entity: {d.billing_entity or '—'}.",
+                    'title': f"{campaign} — Invoice not raised, {age} days",
+                    'detail': f"Campaign marked over. Brand {d.brand or '—'} · {who}. Total fee ₹ {d.total_fee}. Billing entity: {d.billing_entity or '—'}.",
                     'action': 'Raise invoice',
-                    'meta': {'deal_id': d.id, 'age_days': age, 'brand': d.brand},
+                    'meta': {'deal_id': d.id, 'campaign_id': d.campaign_id, 'campaign': d.campaign_name, 'age_days': age, 'brand': d.brand},
                 })
 
     # (c) Payment overdue — invoice raised but payment not received
@@ -804,14 +870,14 @@ def alerts(today: date | None = None) -> dict:
             age = _days_between(anchor, today)
             if age >= PAYMENT_OVERDUE_DAYS:
                 who = d.creator.name if d.creator_id else (d.creator_name_raw or '(no creator)')
-                brand = d.brand or '(no brand)'
+                campaign = d.campaign_name or (d.brand or '(no brand)')
                 urgent.append({
                     'kind': 'payment_overdue',
                     'severity': 'high' if age >= 60 else 'med',
-                    'title': f"{brand} invoice overdue — {age} days",
-                    'detail': f"{who}. ₹ {d.total_fee} via {d.billing_entity or '—'}. Invoice dated {anchor.isoformat()}.",
+                    'title': f"{campaign} — Payment overdue, {age} days",
+                    'detail': f"Brand {d.brand or '—'} · {who}. ₹ {d.total_fee} via {d.billing_entity or '—'}. Invoice dated {anchor.isoformat()}.",
                     'action': 'Escalate to finance',
-                    'meta': {'deal_id': d.id, 'age_days': age, 'brand': d.brand},
+                    'meta': {'deal_id': d.id, 'campaign_id': d.campaign_id, 'campaign': d.campaign_name, 'age_days': age, 'brand': d.brand},
                 })
 
     # (d) Contract renewal due
@@ -938,7 +1004,9 @@ def alerts(today: date | None = None) -> dict:
                 'title': f"{prev['name']} — Billing dropped {drop_pct}% QoQ",
                 'detail': f"{prev_qk}: ₹ {prev_bill}. {cur_qk}: ₹ {cur_bill}.",
                 'action': 'Review pipeline',
-                'meta': {'creator_id': cid, 'drop_pct': drop_pct},
+                # quarter makes the dismissal key per-quarter, so a dismissed
+                # drop alert can fire again next quarter.
+                'meta': {'creator_id': cid, 'drop_pct': drop_pct, 'quarter': f"{fy_now}-{cur_qk}"},
             })
 
     # ---- Documents missing ----
@@ -985,6 +1053,30 @@ def alerts(today: date | None = None) -> dict:
     health.sort(key=sort_key)
     docs.sort(key=lambda it: (sev_rank.get(it['severity'], 9), it['title']))
 
+    # Stamp each alert with its stable key and drop the ones the user has
+    # dismissed (see AlertDismissal). The key embeds whatever makes the alert
+    # recur, so dismissals are sticky for the same underlying fact but the
+    # alert returns when the fact changes (new quarter, next year's occurrence).
+    dismissed = set(AlertDismissal.objects.values_list('key', flat=True))
+    dismissed_hits = 0
+
+    def _keep(items: list[dict]) -> list[dict]:
+        nonlocal dismissed_hits
+        kept = []
+        for it in items:
+            it['key'] = alert_key(it)
+            if it['key'] in dismissed:
+                dismissed_hits += 1
+            else:
+                kept.append(it)
+        return kept
+
+    urgent = _keep(urgent)
+    bd = _keep(bd)
+    health = _keep(health)
+    docs = _keep(docs)
+    seasonal = _keep(seasonal)
+
     return {
         'generated_at': today.isoformat(),
         'thresholds': {
@@ -1008,4 +1100,5 @@ def alerts(today: date | None = None) -> dict:
             'docs': len(docs),
             'seasonal': len(seasonal),
         },
+        'dismissed_count': dismissed_hits,
     }

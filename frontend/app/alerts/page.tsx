@@ -79,6 +79,7 @@ function filterLabel(f: FilterKey): string {
 export default function AlertsPage() {
 	const [pageState, setPageState] = React.useState<State>({ kind: 'loading' });
 	const [activeSection, setActiveSection] = React.useState<FilterKey>('all');
+	const [busy, setBusy] = React.useState(false);
 
 	const load = React.useCallback(async () => {
 		setPageState({ kind: 'loading' });
@@ -92,6 +93,47 @@ export default function AlertsPage() {
 
 	React.useEffect(() => {
 		load();
+	}, [load]);
+
+	// Dismiss alerts by key: persist server-side, drop from local state without
+	// a full reload (alerts are recomputed on every GET, so the next load stays
+	// consistent with what we removed here).
+	const dismiss = React.useCallback(async (keys: string[]) => {
+		if (keys.length === 0) return;
+		setBusy(true);
+		try {
+			await api.post('/alerts/dismiss/', { keys });
+			const gone = new Set(keys);
+			setPageState((prev) => {
+				if (prev.kind !== 'ok') return prev;
+				const d = prev.data;
+				const sections = (['urgent', 'bd', 'health', 'docs', 'seasonal'] as const).map(
+					(k) => [k, d[k].filter((it) => !gone.has(it.key))] as const
+				);
+				const next = { ...d, dismissed_count: d.dismissed_count + keys.length };
+				for (const [k, items] of sections) {
+					next[k] = items;
+					next.counts = { ...next.counts, [k]: items.length };
+				}
+				return { kind: 'ok', data: next };
+			});
+		} catch (e) {
+			setPageState({ kind: 'error', message: (e as Error).message });
+		} finally {
+			setBusy(false);
+		}
+	}, []);
+
+	const restoreAll = React.useCallback(async () => {
+		setBusy(true);
+		try {
+			await api.post('/alerts/restore/', {});
+			await load();
+		} catch (e) {
+			setPageState({ kind: 'error', message: (e as Error).message });
+		} finally {
+			setBusy(false);
+		}
 	}, [load]);
 
 	const alerts = pageState.kind === 'ok' ? pageState.data : null;
@@ -158,6 +200,26 @@ export default function AlertsPage() {
 						<span className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
 							Generated {alerts.generated_at}
 						</span>
+					)}
+					{alerts && alerts.dismissed_count > 0 && (
+						<Button variant="ghost" disabled={busy} onClick={restoreAll}>
+							Restore {alerts.dismissed_count} dismissed
+						</Button>
+					)}
+					{alerts && (
+						<Button
+							variant="ghost"
+							disabled={busy}
+							onClick={() =>
+								dismiss(
+									ORDER.filter((k) => shouldShow(k))
+										.flatMap((k) => listFor(k))
+										.map((it) => it.key)
+								)
+							}
+						>
+							<Icon name="x" size={14} /> Clear {activeSection === 'all' ? 'all' : filterLabel(activeSection)}
+						</Button>
 					)}
 					<Button variant="ghost" onClick={load}>
 						<Icon name="refresh" size={14} /> Refresh
@@ -315,8 +377,8 @@ export default function AlertsPage() {
 													>
 														{items.map((it) => (
 															<li
-																key={it.kind + '|' + it.title}
-																className="px-4 py-3 hover:bg-[var(--n-bg-soft)] transition-colors"
+																key={it.key}
+																className="group px-4 py-3 hover:bg-[var(--n-bg-soft)] transition-colors"
 															>
 																<div className="flex items-start gap-2.5">
 																	<span
@@ -358,6 +420,16 @@ export default function AlertsPage() {
 																			{it.action}
 																		</div>
 																	</div>
+																	<button
+																		type="button"
+																		title="Dismiss this alert"
+																		disabled={busy}
+																		onClick={() => dismiss([it.key])}
+																		className="shrink-0 rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[var(--n-bg)]"
+																		style={{ color: 'var(--n-fg-subtle)' }}
+																	>
+																		<Icon name="x" size={13} />
+																	</button>
 																</div>
 															</li>
 														))}

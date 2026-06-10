@@ -91,6 +91,35 @@ class ContractingCompliance(models.Model):
         return f"Contracting<{self.creator.name}>"
 
 
+class Campaign(models.Model):
+    """First-class campaign. Deals belong to a campaign; billing, status and
+    creator involvement roll up from the deals."""
+
+    STATUS_CHOICES = [('Active', 'Active'), ('Over', 'Over')]
+
+    name = models.CharField(max_length=255, unique=True)
+    brand = models.CharField(max_length=200, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Active')
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self) -> str:
+        return self.name
+
+    def refresh_status(self) -> None:
+        """A campaign is Over once every deal on it is marked campaign_over."""
+        flags = list(self.deals.values_list('campaign_over', flat=True))
+        new_status = 'Over' if flags and all(f == 'Y' for f in flags) else 'Active'
+        if new_status != self.status:
+            self.status = new_status
+            self.save(update_fields=['status'])
+
+
 class CommercialDeal(models.Model):
     DIRECTION = [
         ('Inbound', 'Inbound'),
@@ -122,7 +151,9 @@ class CommercialDeal(models.Model):
     brand = models.CharField(max_length=200, blank=True)
     brand_poc = models.CharField(max_length=200, blank=True,
                                  help_text="Brand-side point of contact (name / detail)")
-    campaign = models.CharField(max_length=255, blank=True)
+    campaign = models.ForeignKey(
+        Campaign, on_delete=models.SET_NULL, related_name='deals', null=True, blank=True
+    )
     deliverables = models.CharField(max_length=255, blank=True)
     ro_number = models.CharField(max_length=80, blank=True)
     campaign_over = models.CharField(max_length=1, choices=YN, blank=True)
@@ -179,6 +210,10 @@ class CommercialDeal(models.Model):
     @property
     def effective_creator_name(self) -> str:
         return self.creator.name if self.creator_id else self.creator_name_raw
+
+    @property
+    def campaign_name(self) -> str:
+        return self.campaign.name if self.campaign_id else ''
 
 
 class DealCreatorShare(models.Model):
@@ -295,3 +330,19 @@ class EmployeeWeeklyReport(models.Model):
 
     class Meta:
         ordering = ['-week_ending', 'employee_name']
+
+
+class AlertDismissal(models.Model):
+    """A dismissed ('cleared') alert on the Alerts page.
+
+    Alerts are recomputed from live data on every load, so clearing one means
+    remembering its stable key here and filtering it out of the payload. Keys
+    embed what makes the alert recur (deal id, creator id, brand, quarter or
+    occurrence date), so e.g. a dismissed seasonal moment comes back next year
+    and a dismissed QoQ drop can fire again next quarter.
+    """
+    key = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"AlertDismissal<{self.key}>"

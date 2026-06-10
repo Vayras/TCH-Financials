@@ -8,11 +8,9 @@ import Icon from '@/components/ui/Icon';
 import { cn } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 
-const BUCKET_DOT: Record<string, string> = {
-	Exclusive: 'bg-[#a371d3]',
-	Dropping: 'bg-[#d9730d]',
-	Friend: 'bg-[#0f7b6c]',
-	NonTCH: 'bg-[#9b9a97]'
+const STATUS_DOT: Record<string, string> = {
+	Active: 'bg-[#0f7b6c]',
+	Over: 'bg-[#9b9a97]'
 };
 
 function fyLabelFor(start: number): string {
@@ -78,7 +76,7 @@ export default function OverviewPage() {
 					Current Overview
 				</h1>
 				<p className="text-[15px] max-w-[640px]" style={{ color: 'var(--n-fg-muted)' }}>
-					Total billing by bucket, derived live from Commercial Tracking. Each deal lands in the
+					Total billing by campaign, derived live from Campaign Tracking. Each deal lands in the
 						fiscal year and month of its E-Invoice No (e.g. TCH/2526/Dec01 → Dec, FY 25-26). Add a deal there and the
 					numbers below recompute on the next load.
 				</p>
@@ -86,8 +84,8 @@ export default function OverviewPage() {
 
 			{data && (
 				<>
-					{/* Creator Status Cards */}
-					<div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+					{/* Campaign Status Cards */}
+					<div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
 						<div
 							className="rounded p-3"
 							style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
@@ -96,30 +94,30 @@ export default function OverviewPage() {
 								className="text-[11.5px] font-medium uppercase"
 								style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
 							>
-								Active Creators
+								Campaigns This FY
 							</div>
 							<div
 								className="text-[28px] font-bold tabular-nums mt-1"
 								style={{ color: 'var(--n-fg)' }}
 							>
-								{data.total_active_creators}
+								{data.total_campaigns}
 							</div>
 						</div>
-						{data.bucket_order.map((b) => (
+						{(['Active', 'Over'] as const).map((s) => (
 							<div
-								key={b}
+								key={s}
 								className="rounded p-3"
 								style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
 							>
 								<div className="text-[11.5px] font-medium uppercase flex items-center gap-1.5" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
-									<span className={cn('h-1.5 w-1.5 rounded-full', BUCKET_DOT[b] ?? '')} />
-									{b === 'NonTCH' ? 'Non TCH' : b}
+									<span className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT[s] ?? '')} />
+									{s === 'Active' ? 'Active Campaigns' : 'Campaigns Over'}
 								</div>
 								<div
 									className="text-[22px] font-semibold tabular-nums mt-1"
 									style={{ color: 'var(--n-fg)' }}
 								>
-									{data.creator_counts[b] ?? 0}
+									{data.campaign_counts[s] ?? 0}
 								</div>
 							</div>
 						))}
@@ -248,7 +246,7 @@ export default function OverviewPage() {
 							<table className="grid-table with-sticky-first">
 								<thead>
 									<tr>
-										<th className="w-[220px]">{data.fy} Billing</th>
+										<th className="w-[220px]">{data.fy} · Campaign</th>
 										{cols.map((c) => (
 											<th key={c.key} className="num">
 												{c.label}
@@ -258,21 +256,26 @@ export default function OverviewPage() {
 									</tr>
 								</thead>
 								<tbody>
-									{data.bucket_order.map((b) => {
-										const row = data.rows[b];
+									{data.rows.map((row) => {
 										const bySel = view === 'month' ? row.by_month : row.by_quarter;
 										return (
-											<tr key={b}>
+											<tr key={row.campaign_id ?? 'none'}>
 												<td>
 													<span className="inline-flex items-center gap-2">
 														<span
 															className={cn(
-																'h-1.5 w-1.5 rounded-full',
-																BUCKET_DOT[b] ?? ''
+																'h-1.5 w-1.5 rounded-full shrink-0',
+																STATUS_DOT[row.status] ?? 'bg-[#d9730d]'
 															)}
+															title={row.status || 'No campaign'}
 														/>
-														<span className="font-medium" style={{ color: 'var(--n-fg)' }}>
-															{row.label}
+														<span className="min-w-0">
+															<span className="font-medium block truncate max-w-[200px]" style={{ color: 'var(--n-fg)' }} title={row.name}>
+																{row.name}
+															</span>
+															<span className="text-[12px] block truncate max-w-[200px]" style={{ color: 'var(--n-fg-subtle)' }}>
+																{[row.brand, row.creators.join(', ')].filter(Boolean).join(' · ')}
+															</span>
 														</span>
 													</span>
 												</td>
@@ -385,9 +388,10 @@ export default function OverviewPage() {
 					)}
 
 					<div className="text-[13px]" style={{ color: 'var(--n-fg-subtle)' }}>
-						Buckets are derived from each creator&apos;s relationship (Exclusive / Friend / Dropping
-						/ Non-TCH). A deal&apos;s month and fiscal year come from its E-Invoice No. EMW billing
-						is the subset of deals where the billing entity contains &quot;EMW&quot;.
+						Each row is a campaign; its status dot is green while active and grey once over
+						(derived from the campaign&apos;s deals). Creators appear under the campaign name as a
+						supporting dimension. A deal&apos;s month and fiscal year come from its E-Invoice No.
+						EMW billing is the subset of deals where the billing entity contains &quot;EMW&quot;.
 					</div>
 				</>
 			) : null}

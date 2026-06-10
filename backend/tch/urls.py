@@ -2,14 +2,15 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
-    CreatorViewSet, ContractingComplianceViewSet,
+    CampaignViewSet, CreatorViewSet, ContractingComplianceViewSet,
     CommercialDealViewSet, EmployeeWeeklyReportViewSet, DropOffViewSet,
     CreatorDocumentViewSet, SocialMediaSnapshotViewSet, EventInviteViewSet,
     overview_view, quarterly_exclusives_view, entity_summary_view,
-    creator_insights_view, alerts_view,
+    creator_insights_view, alerts_view, alerts_dismiss_view, alerts_restore_view,
 )
 
 router = DefaultRouter()
+router.register(r'campaigns', CampaignViewSet)
 router.register(r'creators', CreatorViewSet)
 router.register(r'contracting', ContractingComplianceViewSet)
 router.register(r'deals', CommercialDealViewSet)
@@ -25,5 +26,7 @@ urlpatterns = [
     path('entity-summary/', entity_summary_view),
     path('creator-insights/', creator_insights_view),
     path('alerts/', alerts_view),
+    path('alerts/dismiss/', alerts_dismiss_view),
+    path('alerts/restore/', alerts_restore_view),
     path('', include(router.urls)),
 ]

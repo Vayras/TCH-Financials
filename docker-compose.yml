@@ -26,6 +26,9 @@ services:
     environment:
       SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret}
       DEBUG: ${DJANGO_DEBUG:-1}
+      # When DATABASE_URL is set (e.g. Supabase), it overrides the PG* vars
+      # below and the bundled db service is ignored.
+      DATABASE_URL: ${DATABASE_URL:-}
       PGHOST: db
       PGPORT: 5432
       PGDATABASE: ${POSTGRES_DB:-tch_financials}

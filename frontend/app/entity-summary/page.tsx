@@ -256,6 +256,7 @@ export default function EntitySummaryPage() {
 									<th className="num">Total Billing</th>
 									<th className="num">TCH Profit</th>
 									<th className="num">Profit %</th>
+									<th className="num">Campaigns</th>
 									<th className="num">Creators</th>
 									<th>Top Brands</th>
 								</tr>
@@ -298,6 +299,9 @@ export default function EntitySummaryPage() {
 												{profitPct(row)}
 											</td>
 											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>
+												{row.campaign_count}
+											</td>
+											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>
 												{row.creator_count}
 											</td>
 											<td className="text-[13px]" style={{ color: 'var(--n-fg-muted)' }}>
@@ -307,7 +311,7 @@ export default function EntitySummaryPage() {
 										{expandedEntity === row.entity && (
 											<tr style={{ background: 'var(--n-bg-soft)' }}>
 												<td />
-												<td colSpan={7} className="py-3 px-4">
+												<td colSpan={8} className="py-3 px-4">
 													<div
 														className="text-[11.5px] font-medium uppercase mb-2"
 														style={{
@@ -315,11 +319,35 @@ export default function EntitySummaryPage() {
 															letterSpacing: '0.04em'
 														}}
 													>
-														Creators billed under this entity
+														Campaigns billed under this entity
+													</div>
+													<div className="flex flex-wrap gap-1.5">
+														{row.campaigns.map((c) => (
+															<Tag key={c} tone="accent">
+																{c}
+															</Tag>
+														))}
+														{row.campaigns.length === 0 && (
+															<span
+																className="text-[13px]"
+																style={{ color: 'var(--n-fg-subtle)' }}
+															>
+																No linked campaigns
+															</span>
+														)}
+													</div>
+													<div
+														className="text-[11.5px] font-medium uppercase mb-2 mt-3"
+														style={{
+															color: 'var(--n-fg-subtle)',
+															letterSpacing: '0.04em'
+														}}
+													>
+														Creators involved
 													</div>
 													<div className="flex flex-wrap gap-1.5">
 														{row.creators.map((c) => (
-															<Tag key={c} tone="accent">
+															<Tag key={c} tone="neutral">
 																{c}
 															</Tag>
 														))}
@@ -340,7 +368,7 @@ export default function EntitySummaryPage() {
 								{data.entities.length === 0 ? (
 									<tr>
 										<td
-											colSpan={8}
+											colSpan={9}
 											className="text-center py-8"
 											style={{ color: 'var(--n-fg-subtle)' }}
 										>
@@ -368,14 +396,14 @@ export default function EntitySummaryPage() {
 													).toFixed(1)}%`
 												: '—'}
 										</td>
-										<td colSpan={2} />
+										<td colSpan={3} />
 									</tr>
 								)}
 							</tbody>
 						</table>
 					</div>
 					<div className="tbl-caption">
-						<span>Tip · click a row to expand creators linked to that billing entity.</span>
+						<span>Tip · click a row to expand campaigns and creators linked to that billing entity.</span>
 					</div>
 				</div>
 			) : null}
