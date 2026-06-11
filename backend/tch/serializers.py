@@ -150,11 +150,16 @@ class CommercialDealSerializer(serializers.ModelSerializer):
             'deliverables': 'Deliverables',
             'ro_number': 'RO Number',
             'campaign_over': 'Campaign Over',
-            'invoice_received': 'Invoice Received',
-            'payment_cleared': 'Payment Cleared by TCH',
-            'e_invoice_number': 'E-Invoice #',
-            'payment_received': 'Payment Received by TCH',
         }
+        # Invoice/payment tracking only applies once the campaign is over —
+        # ongoing campaigns have nothing to invoice yet.
+        if value_of('campaign_over') == 'Y':
+            required_fields.update({
+                'invoice_received': 'Invoice Received',
+                'payment_cleared': 'Payment Cleared by TCH',
+                'e_invoice_number': 'E-Invoice #',
+                'payment_received': 'Payment Received by TCH',
+            })
         missing = [label for field, label in required_fields.items() if value_of(field) in (None, '')]
         if missing:
             raise serializers.ValidationError({
