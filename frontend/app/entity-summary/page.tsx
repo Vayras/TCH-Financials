@@ -35,15 +35,19 @@ export default function EntitySummaryPage() {
 		async (filter: string = entityFilter, per: string = period) => {
 			setLoading(true);
 			setError(null);
+			let shown = false;
 			try {
 				const params = new URLSearchParams({ fy: String(fyStart) });
 				if (filter) params.set('entity', filter);
 				if (per.startsWith('Q')) params.set('quarter', per);
 				else if (per !== 'FY') params.set('month', per);
-				const fresh = await api.get<EntitySummary>(`/entity-summary/?${params}`);
-				setData(fresh);
+				await api.getSWR<EntitySummary>(`/entity-summary/?${params}`, (d) => {
+					shown = true;
+					setData(d);
+					setLoading(false);
+				});
 			} catch (e) {
-				setError((e as Error).message);
+				if (!shown) setError((e as Error).message);
 			} finally {
 				setLoading(false);
 			}

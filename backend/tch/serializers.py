@@ -29,6 +29,9 @@ class CreatorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Creator
         fields = '__all__'
+        # version is echoed back by clients for the optimistic-lock check and
+        # bumped server-side; it is never written from the payload directly.
+        read_only_fields = ['version']
 
 
 class CampaignSerializer(serializers.ModelSerializer):
@@ -38,9 +41,9 @@ class CampaignSerializer(serializers.ModelSerializer):
         model = Campaign
         fields = [
             'id', 'name', 'brand', 'status', 'start_date', 'end_date',
-            'notes', 'deal_count', 'created_at',
+            'notes', 'deal_count', 'created_at', 'version',
         ]
-        read_only_fields = ['created_at']
+        read_only_fields = ['created_at', 'version']
 
     def get_deal_count(self, obj):
         # Set by the viewset's Count annotation; fall back for fresh instances.
@@ -54,6 +57,7 @@ class ContractingComplianceSerializer(serializers.ModelSerializer):
     class Meta:
         model = ContractingCompliance
         fields = '__all__'
+        read_only_fields = ['version']
 
 
 class DealCreatorShareSerializer(serializers.ModelSerializer):
@@ -100,6 +104,7 @@ class CommercialDealSerializer(serializers.ModelSerializer):
     class Meta:
         model = CommercialDeal
         fields = '__all__'
+        read_only_fields = ['version']
         extra_kwargs = {
             'agency_fee_inr': {'required': False},
             'creator_fee': {'required': False},
@@ -213,6 +218,7 @@ class EmployeeWeeklyReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeeWeeklyReport
         fields = '__all__'
+        read_only_fields = ['version']
 
 
 class DropOffSerializer(serializers.ModelSerializer):
@@ -221,6 +227,7 @@ class DropOffSerializer(serializers.ModelSerializer):
     class Meta:
         model = DropOff
         fields = '__all__'
+        read_only_fields = ['version']
 
     def get_creator_name(self, obj):
         return obj.effective_creator_name
@@ -232,6 +239,7 @@ class SocialMediaSnapshotSerializer(serializers.ModelSerializer):
     class Meta:
         model = SocialMediaSnapshot
         fields = '__all__'
+        read_only_fields = ['version']
 
 
 class EventInviteSerializer(serializers.ModelSerializer):
@@ -240,3 +248,4 @@ class EventInviteSerializer(serializers.ModelSerializer):
     class Meta:
         model = EventInvite
         fields = '__all__'
+        read_only_fields = ['version']

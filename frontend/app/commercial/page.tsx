@@ -25,7 +25,7 @@ import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { api, type Deal, type Creator, type Campaign } from '@/lib/api';
+import { api, ConflictError, type Deal, type Creator, type Campaign } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
@@ -448,21 +448,27 @@ export default function CommercialPage() {
 
 	const load = React.useCallback(async () => {
 		setLoading(true);
+		let shown = false;
 		try {
-			const [d, c, camps] = await Promise.all([
-				api.get<Deal[]>('/deals/'),
-				api.get<Creator[]>('/creators/'),
-				api.get<Campaign[]>('/campaigns/')
+			// fy scopes the payload server-side to the selected fiscal year
+			// (plus not-yet-invoiced deals for the backfill banner) — the page
+			// never shows other years, so don't download them. Each feed
+			// renders from cache instantly and updates when the network lands.
+			await Promise.all([
+				api.getSWR<Deal[]>(`/deals/?fy=${fyStart}`, (d) => {
+					shown = true;
+					setRows(d);
+					setLoading(false);
+				}),
+				api.getSWR<Creator[]>('/creators/', setCreators),
+				api.getSWR<Campaign[]>('/campaigns/', setCampaigns)
 			]);
-			setRows(d);
-			setCreators(c);
-			setCampaigns(camps);
 		} catch (e) {
-			setError((e as Error).message);
+			if (!shown) setError((e as Error).message);
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [fyStart]);
 
 	React.useEffect(() => {
 		load();
@@ -655,7 +661,7 @@ export default function CommercialPage() {
 		};
 		try {
 			if (editing) {
-				await api.patch(`/deals/${editing.id}/`, payload);
+				await api.patch(`/deals/${editing.id}/`, { ...payload, version: editing.version });
 			} else {
 				await api.post('/deals/', payload);
 			}
@@ -663,6 +669,10 @@ export default function CommercialPage() {
 			await load();
 		} catch (e) {
 			alert((e as Error).message);
+			if (e instanceof ConflictError) {
+				setOpen(false);
+				await load();
+			}
 		}
 	}
 

@@ -28,8 +28,12 @@ export default function OverviewPage() {
 		setLoading(true);
 		setError(null);
 		try {
-			const fresh = await api.get<Overview>(`/overview/?fy=${fyStart}`);
-			setData(fresh);
+			// Cached payload renders instantly; the fresh one replaces it when
+			// the network answers.
+			await api.getSWR<Overview>(`/overview/?fy=${fyStart}`, (d) => {
+				setData(d);
+				setLoading(false);
+			});
 		} catch (e) {
 			setError((e as Error).message);
 		} finally {

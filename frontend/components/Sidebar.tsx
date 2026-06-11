@@ -6,6 +6,57 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Icon from '@/components/ui/Icon';
 import { FiscalYearProvider, useFiscalYear, FY_OPTIONS, fyLabel } from '@/lib/fiscal-year';
+import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
+
+function UserFooter({ collapsed }: { collapsed: boolean }) {
+	const [email, setEmail] = React.useState<string>('');
+
+	React.useEffect(() => {
+		if (!isSupabaseConfigured()) return;
+		const supabase = getSupabase();
+		supabase.auth.getSession().then(({ data }) => setEmail(data.session?.user.email ?? ''));
+		const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+			setEmail(session?.user.email ?? '');
+		});
+		return () => sub.subscription.unsubscribe();
+	}, []);
+
+	if (!isSupabaseConfigured()) return null;
+
+	async function signOut() {
+		await getSupabase().auth.signOut();
+		window.location.assign('/login');
+	}
+
+	return (
+		<div
+			className="shrink-0 px-3 py-2.5 flex items-center gap-2"
+			style={{ borderTop: '1px solid var(--n-border)' }}
+		>
+			{!collapsed && (
+				<span
+					className="text-[12px] truncate flex-1"
+					style={{ color: 'var(--n-fg-subtle)' }}
+					title={email}
+				>
+					{email}
+				</span>
+			)}
+			<button
+				type="button"
+				onClick={signOut}
+				aria-label="Sign out"
+				title="Sign out"
+				className="h-6 w-6 inline-flex items-center justify-center rounded transition-colors shrink-0"
+				style={{ color: 'var(--n-fg-subtle)' }}
+				onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--n-bg-hover)')}
+				onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+			>
+				<Icon name="log-out" size={14} />
+			</button>
+		</div>
+	);
+}
 
 function GlobalFySelect() {
 	const { fyStart, setFyStart } = useFiscalYear();
@@ -140,6 +191,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 					</div>
 				</nav>
 
+				<UserFooter collapsed={collapsed} />
 			</aside>
 
 			<div className="flex-1 min-w-0 flex flex-col">

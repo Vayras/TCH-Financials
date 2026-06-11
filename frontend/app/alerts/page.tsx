@@ -83,11 +83,16 @@ export default function AlertsPage() {
 
 	const load = React.useCallback(async () => {
 		setPageState({ kind: 'loading' });
+		let shown = false;
 		try {
-			const fresh = await api.get<AlertsPayload>('/alerts/');
-			setPageState({ kind: 'ok', data: fresh });
+			await api.getSWR<AlertsPayload>('/alerts/', (d) => {
+				shown = true;
+				setPageState({ kind: 'ok', data: d });
+			});
 		} catch (e) {
-			setPageState({ kind: 'error', message: (e as Error).message });
+			// Keep the cached payload on screen if we showed one; a failed
+			// refresh shouldn't blank a working page.
+			if (!shown) setPageState({ kind: 'error', message: (e as Error).message });
 		}
 	}, []);
 

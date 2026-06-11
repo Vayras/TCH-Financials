@@ -35,6 +35,9 @@ services:
       PGUSER: ${POSTGRES_USER:-tch}
       PGPASSWORD: ${POSTGRES_PASSWORD:-tch}
       SEED_FILE: /data/source.xlsx
+      # Supabase Auth — when set, the API requires a Supabase access token.
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
     volumes:
       - ./data:/data:ro
       - backend_state:/app/.state
@@ -46,6 +49,8 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-/api}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-${SUPABASE_URL:-}}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
     restart: unless-stopped
     depends_on:
       - backend

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { api, type Creator, type CreatorDocument } from '@/lib/api';
+import { api, ConflictError, type Creator, type CreatorDocument } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import Input from '@/components/ui/Input';
@@ -194,11 +194,15 @@ export default function CreatorsPage() {
 
 	const load = React.useCallback(async () => {
 		setLoading(true);
+		let shown = false;
 		try {
-			const fresh = await api.get<Creator[]>('/creators/');
-			setRows(fresh);
+			await api.getSWR<Creator[]>('/creators/', (d) => {
+				shown = true;
+				setRows(d);
+				setLoading(false);
+			});
 		} catch (e) {
-			setError((e as Error).message);
+			if (!shown) setError((e as Error).message);
 		} finally {
 			setLoading(false);
 		}
@@ -237,7 +241,10 @@ export default function CreatorsPage() {
 		try {
 			const payload = { ...form, doj: form.doj || null };
 			if (editing) {
-				await api.patch(`/creators/${editing.id}/`, payload);
+				// version powers the optimistic-lock check: a concurrent edit
+				// by someone else makes the server answer 409 instead of
+				// overwriting their change.
+				await api.patch(`/creators/${editing.id}/`, { ...payload, version: editing.version });
 			} else {
 				await api.post('/creators/', payload);
 			}
@@ -245,6 +252,10 @@ export default function CreatorsPage() {
 			await load();
 		} catch (e) {
 			alert((e as Error).message);
+			if (e instanceof ConflictError) {
+				setAddOpen(false);
+				await load();
+			}
 		}
 	}
 

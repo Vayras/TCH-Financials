@@ -10,7 +10,19 @@ from decimal import Decimal
 from django.db import models
 
 
-class Creator(models.Model):
+class VersionedModel(models.Model):
+    """Optimistic-locking support: every user-editable row carries a version
+    that increments on each update. Clients send back the version they loaded;
+    a mismatch means someone else saved in between and the API answers 409
+    instead of silently overwriting their change."""
+
+    version = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        abstract = True
+
+
+class Creator(VersionedModel):
     SOURCE_CHOICES = [('EMW', 'EMW'), ('TCH', 'TCH'), ('OTHER', 'Other')]
     STAGE_CHOICES = [
         ('Lead', 'Lead'),
@@ -75,7 +87,7 @@ class CreatorDocument(models.Model):
         return f"Document<{self.creator.name}/{self.doc_type}>"
 
 
-class ContractingCompliance(models.Model):
+class ContractingCompliance(VersionedModel):
     YN = [('Y', 'Y'), ('N', 'N'), ('', '')]
 
     creator = models.OneToOneField(Creator, on_delete=models.CASCADE, related_name='contracting')
@@ -91,7 +103,7 @@ class ContractingCompliance(models.Model):
         return f"Contracting<{self.creator.name}>"
 
 
-class Campaign(models.Model):
+class Campaign(VersionedModel):
     """First-class campaign. Deals belong to a campaign; billing, status and
     creator involvement roll up from the deals."""
 
@@ -120,7 +132,7 @@ class Campaign(models.Model):
             self.save(update_fields=['status'])
 
 
-class CommercialDeal(models.Model):
+class CommercialDeal(VersionedModel):
     DIRECTION = [
         ('Inbound', 'Inbound'),
         ('Outbound', 'Outbound'),
@@ -244,7 +256,7 @@ class DealCreatorShare(models.Model):
         return self.creator.name if self.creator_id else self.creator_name_raw
 
 
-class DropOff(models.Model):
+class DropOff(VersionedModel):
     """Log of creators who left TCH."""
 
     creator = models.ForeignKey(
@@ -266,7 +278,7 @@ class DropOff(models.Model):
         return self.creator.name if self.creator_id else self.creator_name_raw
 
 
-class SocialMediaSnapshot(models.Model):
+class SocialMediaSnapshot(VersionedModel):
     """Tracks a creator's social media stats at a point in time."""
     SNAPSHOT_TYPES = [
         ('Baseline', 'Baseline (Day 0)'),
@@ -293,7 +305,7 @@ class SocialMediaSnapshot(models.Model):
         return f"Snapshot<{self.creator.name}/{self.snapshot_type}/{self.snapshot_date}>"
 
 
-class EventInvite(models.Model):
+class EventInvite(VersionedModel):
     """Tracks event invitations sent to creators and their responses."""
     RESPONSE_CHOICES = [
         ('Accepted', 'Accepted'),
@@ -317,7 +329,7 @@ class EventInvite(models.Model):
         return f"Event<{self.creator.name}/{self.event_name}>"
 
 
-class EmployeeWeeklyReport(models.Model):
+class EmployeeWeeklyReport(VersionedModel):
     week_ending = models.DateField(null=True, blank=True)
     employee_name = models.CharField(max_length=120)
     new_outreach = models.IntegerField(default=0)

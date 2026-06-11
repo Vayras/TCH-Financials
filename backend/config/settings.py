@@ -24,6 +24,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    # Compress responses (JSON payloads shrink ~85-90%); must sit high in the
+    # stack so it wraps everything below.
+    'django.middleware.gzip.GZipMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -106,11 +109,24 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': [],
-    'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.AllowAny'],
-    'DEFAULT_PAGINATION_CLASS': None,
-}
+# Supabase Auth — when SUPABASE_URL (or the legacy SUPABASE_JWT_SECRET) is
+# configured, every API endpoint requires a valid Supabase access token.
+# Leave both unset to run the API open (local development without auth).
+SUPABASE_URL = config('SUPABASE_URL', default='')
+SUPABASE_JWT_SECRET = config('SUPABASE_JWT_SECRET', default='')
+
+if SUPABASE_URL or SUPABASE_JWT_SECRET:
+    REST_FRAMEWORK = {
+        'DEFAULT_AUTHENTICATION_CLASSES': ['tch.auth.SupabaseJWTAuthentication'],
+        'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated'],
+        'DEFAULT_PAGINATION_CLASS': None,
+    }
+else:
+    REST_FRAMEWORK = {
+        'DEFAULT_AUTHENTICATION_CLASSES': [],
+        'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.AllowAny'],
+        'DEFAULT_PAGINATION_CLASS': None,
+    }
 
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True

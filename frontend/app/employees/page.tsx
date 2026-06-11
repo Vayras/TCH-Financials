@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Collapse from '@mui/material/Collapse';
-import { api, type EmployeeReport } from '@/lib/api';
+import { api, ConflictError, type EmployeeReport } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
@@ -47,11 +47,15 @@ export default function EmployeesPage() {
 
 	const load = React.useCallback(async () => {
 		setLoading(true);
+		let shown = false;
 		try {
-			const fresh = await api.get<EmployeeReport[]>('/employee-reports/');
-			setRows(fresh);
+			await api.getSWR<EmployeeReport[]>('/employee-reports/', (d) => {
+				shown = true;
+				setRows(d);
+				setLoading(false);
+			});
 		} catch (e) {
-			setError((e as Error).message);
+			if (!shown) setError((e as Error).message);
 		} finally {
 			setLoading(false);
 		}
@@ -94,7 +98,7 @@ export default function EmployeesPage() {
 		};
 		try {
 			if (editing) {
-				await api.patch(`/employee-reports/${editing.id}/`, payload);
+				await api.patch(`/employee-reports/${editing.id}/`, { ...payload, version: editing.version });
 			} else {
 				await api.post('/employee-reports/', payload);
 			}
@@ -102,6 +106,10 @@ export default function EmployeesPage() {
 			await load();
 		} catch (e) {
 			alert((e as Error).message);
+			if (e instanceof ConflictError) {
+				setOpen(false);
+				await load();
+			}
 		}
 	}
 
