@@ -12,7 +12,11 @@ type AuthStatus = 'loading' | 'authed' | 'anon';
  * bounces to /login when there is none. With Supabase unconfigured the app
  * runs open, matching the backend's behaviour. */
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
-	const pathname = usePathname() ?? '/';
+	// trailingSlash: true (next.config.ts) means routes arrive as '/login/' —
+	// normalize before comparing or the login page treats itself as protected
+	// and loops on the redirect screen.
+	const rawPathname = usePathname() ?? '/';
+	const pathname = rawPathname.replace(/\/+$/, '') || '/';
 	const router = useRouter();
 	const configured = isSupabaseConfigured();
 	const [status, setStatus] = React.useState<AuthStatus>(configured ? 'loading' : 'authed');

@@ -401,6 +401,10 @@ export default function CommercialPage() {
 	const [month, setMonth] = React.useState('All');
 	const { fyStart } = useFiscalYear();
 	const [entityFilter, setEntityFilter] = React.useState('All');
+	const [creatorFilter, setCreatorFilter] = React.useState('All');
+	// Which date attributes a deal to a period: the billing/invoice date
+	// (default, matches the Overview) or the confirmation date (issue #7).
+	const [dateBasis, setDateBasis] = React.useState<'invoice' | 'confirmation'>('invoice');
 	const [form, setForm] = React.useState<DealForm>(EMPTY_FORM);
 	// Default to the campaign card/grid layout (issue #7); table is opt-in.
 	const [viewMode, setViewMode] = React.useState<ViewMode>(() => {
@@ -455,7 +459,7 @@ export default function CommercialPage() {
 			// never shows other years, so don't download them. Each feed
 			// renders from cache instantly and updates when the network lands.
 			await Promise.all([
-				api.getSWR<Deal[]>(`/deals/?fy=${fyStart}`, (d) => {
+				api.getSWR<Deal[]>(`/deals/?fy=${fyStart}&basis=${dateBasis}`, (d) => {
 					shown = true;
 					setRows(d);
 					setLoading(false);
@@ -468,7 +472,7 @@ export default function CommercialPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, [fyStart]);
+	}, [fyStart, dateBasis]);
 
 	React.useEffect(() => {
 		load();
@@ -682,6 +686,14 @@ export default function CommercialPage() {
 		await load();
 	}
 
+	// Distinct creator names across the loaded deals (primary + split rows) —
+	// powers the creator filter; a multi-creator deal appears under every name.
+	const creatorNames = React.useMemo(() => {
+		const set = new Set<string>();
+		for (const r of rows) for (const n of creatorNamesOf(r)) if (n.trim()) set.add(n.trim());
+		return Array.from(set).sort((a, b) => a.localeCompare(b));
+	}, [rows]);
+
 	// Distinct billing entities across all deals — powers the entity filter and
 	// the Add/Edit Deal dropdown so billing under one company stays consistent.
 	const entities = React.useMemo(() => {
@@ -694,7 +706,7 @@ export default function CommercialPage() {
 	}, [rows]);
 
 	const filtersActive =
-		entityFilter !== 'All' || quarter !== 'All' || month !== 'All' || dirFilter !== 'All' || q.trim() !== '';
+		entityFilter !== 'All' || creatorFilter !== 'All' || quarter !== 'All' || month !== 'All' || dirFilter !== 'All' || q.trim() !== '';
 
 	// Periods are offered only once they've started: a quarter/month appears in
 	// the dropdowns when its calendar position is in the past or is the running
@@ -727,10 +739,14 @@ export default function CommercialPage() {
 		}
 	}, [availQuarters, monthsForQuarter, quarter, month]);
 
-	// The date a deal is tracked on: the billing month (E-Invoice No, falling
-	// back to invoice date) — the same rule the Overview uses, so the two pages
-	// always agree.
-	const trackDate = React.useCallback((r: Deal) => billingPeriodOf(r), []);
+	// The date a deal is tracked on. Default is the billing month (E-Invoice
+	// No, falling back to invoice date) — the same rule the Overview uses, so
+	// the two pages always agree. The confirmation-date lens re-buckets every
+	// period filter and total by when the deal was confirmed instead.
+	const trackDate = React.useCallback(
+		(r: Deal) => (dateBasis === 'invoice' ? billingPeriodOf(r) : r.confirmation_date || null),
+		[dateBasis]
+	);
 
 	// Deals that can't be placed in a fiscal year because they lack the tracking
 	// date — surfaced for ops to backfill rather than silently dropped.
@@ -738,9 +754,10 @@ export default function CommercialPage() {
 		return rows.filter((r) => {
 			if (dirFilter !== 'All' && r.direction !== dirFilter) return false;
 			if (entityFilter !== 'All' && (r.billing_entity || '').trim() !== entityFilter) return false;
+			if (creatorFilter !== 'All' && !creatorNamesOf(r).includes(creatorFilter)) return false;
 			return !trackDate(r);
 		});
-	}, [rows, dirFilter, entityFilter, trackDate]);
+	}, [rows, dirFilter, entityFilter, creatorFilter, trackDate]);
 
 	const filtered = React.useMemo(() => {
 		const needle = q.trim().toLowerCase();
@@ -748,6 +765,7 @@ export default function CommercialPage() {
 			if (dirFilter !== 'All' && r.direction !== dirFilter) return false;
 			if (entityFilter !== 'All' && (r.billing_entity || '').trim() !== entityFilter)
 				return false;
+			if (creatorFilter !== 'All' && !creatorNamesOf(r).includes(creatorFilter)) return false;
 			const d = trackDate(r);
 			// Scope strictly to the site-wide fiscal year by the tracking date. Rows
 			// with no such date can't be attributed to a fiscal year and are hidden
@@ -776,10 +794,11 @@ export default function CommercialPage() {
 			if (!bd) return -1;
 			return bd.localeCompare(ad);
 		});
-	}, [rows, q, dirFilter, entityFilter, fyStart, quarter, month, trackDate]);
+	}, [rows, q, dirFilter, entityFilter, creatorFilter, fyStart, quarter, month, trackDate]);
 
 	function resetFilters() {
 		setEntityFilter('All');
+		setCreatorFilter('All');
 		setQuarter('All');
 		setMonth('All');
 		setDirFilter('All');
@@ -1036,6 +1055,19 @@ export default function CommercialPage() {
 					<TextField
 						select
 						size="small"
+						label="Creator"
+						value={creatorFilter}
+						onChange={(e) => setCreatorFilter(e.target.value)}
+						sx={{ flex: '0 1 200px', minWidth: 150 }}
+					>
+						<MenuItem value="All">All creators</MenuItem>
+						{creatorNames.map((n) => (
+							<MenuItem key={n} value={n}>{n}</MenuItem>
+						))}
+					</TextField>
+					<TextField
+						select
+						size="small"
 						label="Billing Entity"
 						value={entityFilter}
 						onChange={(e) => setEntityFilter(e.target.value)}
@@ -1045,6 +1077,17 @@ export default function CommercialPage() {
 						{entities.map((e) => (
 							<MenuItem key={e} value={e}>{e}</MenuItem>
 						))}
+					</TextField>
+					<TextField
+						select
+						size="small"
+						label="Track by"
+						value={dateBasis}
+						onChange={(e) => setDateBasis(e.target.value as 'invoice' | 'confirmation')}
+						sx={{ flex: '0 1 170px', minWidth: 150 }}
+					>
+						<MenuItem value="invoice">Invoice date</MenuItem>
+						<MenuItem value="confirmation">Confirmation date</MenuItem>
 					</TextField>
 					<TextField
 						select
@@ -1146,7 +1189,8 @@ export default function CommercialPage() {
 				{missingDate.length > 0 && (
 					<Alert severity="warning" sx={{ '& .MuiAlert-message': { fontSize: 13 } }}>
 						{missingDate.length} deal{missingDate.length === 1 ? '' : 's'} {missingDate.length === 1 ? 'has' : 'have'} no{' '}
-						E-Invoice No or invoice date and {missingDate.length === 1 ? "isn't" : "aren't"} counted in any
+						{dateBasis === 'invoice' ? 'E-Invoice No or invoice date' : 'confirmation date'} and{' '}
+						{missingDate.length === 1 ? "isn't" : "aren't"} counted in any
 						period — backfill {missingDate.length === 1 ? 'it' : 'them'} to include {missingDate.length === 1 ? 'it' : 'them'} in billing totals.
 					</Alert>
 				)}

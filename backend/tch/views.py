@@ -126,10 +126,12 @@ class CommercialDealViewSet(OptimisticLockMixin, viewsets.ModelViewSet):
 
         FY membership follows billing_period() — the E-Invoice No token with
         e_invoice_date fallback — the same rule the Overview and Campaign
-        pages use. The billing period lives inside a free-text field, so the
-        filter runs in Python; it still cuts the serialized payload to the
-        year actually shown. Deals with no derivable period are always
-        included: the UI surfaces them for backfill instead of hiding them.
+        pages use. With ?basis=confirmation it buckets by confirmation_date
+        instead (the Campaign page's alternate tracking lens). The billing
+        period lives inside a free-text field, so the filter runs in Python;
+        it still cuts the serialized payload to the year actually shown.
+        Deals with no derivable date are always included: the UI surfaces
+        them for backfill instead of hiding them.
         """
         fy = request.query_params.get('fy')
         try:
@@ -138,9 +140,13 @@ class CommercialDealViewSet(OptimisticLockMixin, viewsets.ModelViewSet):
             fy_start = None
         queryset = self.filter_queryset(self.get_queryset())
         if fy_start is not None:
+            if request.query_params.get('basis') == 'confirmation':
+                period_of = lambda d: d.confirmation_date
+            else:
+                period_of = billing_period
             rows = [
                 d for d in queryset
-                if (period := billing_period(d)) is None or fiscal_year_of(period) == fy_start
+                if (period := period_of(d)) is None or fiscal_year_of(period) == fy_start
             ]
         else:
             rows = queryset
