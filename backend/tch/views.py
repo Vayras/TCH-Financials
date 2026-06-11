@@ -124,14 +124,15 @@ class CommercialDealViewSet(OptimisticLockMixin, viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         """List deals, optionally scoped to one fiscal year (?fy=2025).
 
-        FY membership follows billing_period() — the E-Invoice No token with
-        e_invoice_date fallback — the same rule the Overview and Campaign
-        pages use. With ?basis=confirmation it buckets by confirmation_date
-        instead (the Campaign page's alternate tracking lens). The billing
-        period lives inside a free-text field, so the filter runs in Python;
-        it still cuts the serialized payload to the year actually shown.
-        Deals with no derivable date are always included: the UI surfaces
-        them for backfill instead of hiding them.
+        A deal belongs to the FY when either lens places it there: its
+        billing period (E-Invoice No token with e_invoice_date fallback —
+        the Overview's rule) or its confirmation date. The union is what the
+        Campaign page needs to show invoiced vs confirmed billing side by
+        side and to support both tracking lenses from one payload. The
+        billing period lives inside a free-text field, so the filter runs in
+        Python; it still cuts the serialized payload to the year actually
+        shown. Deals with no date on either lens are always included: the UI
+        surfaces them for backfill instead of hiding them.
         """
         fy = request.query_params.get('fy')
         try:
@@ -140,14 +141,16 @@ class CommercialDealViewSet(OptimisticLockMixin, viewsets.ModelViewSet):
             fy_start = None
         queryset = self.filter_queryset(self.get_queryset())
         if fy_start is not None:
-            if request.query_params.get('basis') == 'confirmation':
-                period_of = lambda d: d.confirmation_date
-            else:
-                period_of = billing_period
-            rows = [
-                d for d in queryset
-                if (period := period_of(d)) is None or fiscal_year_of(period) == fy_start
-            ]
+            def in_fy(d):
+                period = billing_period(d)
+                confirmed = d.confirmation_date
+                if period is None and confirmed is None:
+                    return True
+                return (
+                    (period is not None and fiscal_year_of(period) == fy_start)
+                    or (confirmed is not None and fiscal_year_of(confirmed) == fy_start)
+                )
+            rows = [d for d in queryset if in_fy(d)]
         else:
             rows = queryset
         serializer = self.get_serializer(rows, many=True)

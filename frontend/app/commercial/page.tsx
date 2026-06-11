@@ -459,7 +459,7 @@ export default function CommercialPage() {
 			// never shows other years, so don't download them. Each feed
 			// renders from cache instantly and updates when the network lands.
 			await Promise.all([
-				api.getSWR<Deal[]>(`/deals/?fy=${fyStart}&basis=${dateBasis}`, (d) => {
+				api.getSWR<Deal[]>(`/deals/?fy=${fyStart}`, (d) => {
 					shown = true;
 					setRows(d);
 					setLoading(false);
@@ -472,7 +472,7 @@ export default function CommercialPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, [fyStart, dateBasis]);
+	}, [fyStart]);
 
 	React.useEffect(() => {
 		load();
@@ -759,24 +759,15 @@ export default function CommercialPage() {
 		});
 	}, [rows, dirFilter, entityFilter, creatorFilter, trackDate]);
 
-	const filtered = React.useMemo(() => {
-		const needle = q.trim().toLowerCase();
-		const list = rows.filter((r) => {
+	// Non-period filters (direction, entity, creator, search) — shared between
+	// the visible list and the invoiced/confirmed billing summary so the two
+	// always describe the same slice of deals.
+	const matchesFacets = React.useCallback(
+		(r: Deal) => {
 			if (dirFilter !== 'All' && r.direction !== dirFilter) return false;
-			if (entityFilter !== 'All' && (r.billing_entity || '').trim() !== entityFilter)
-				return false;
+			if (entityFilter !== 'All' && (r.billing_entity || '').trim() !== entityFilter) return false;
 			if (creatorFilter !== 'All' && !creatorNamesOf(r).includes(creatorFilter)) return false;
-			const d = trackDate(r);
-			// Scope strictly to the site-wide fiscal year by the tracking date. Rows
-			// with no such date can't be attributed to a fiscal year and are hidden
-			// (see the backfill banner for the count).
-			if (!d || fyStartOf(d) !== fyStart) return false;
-			const mm = d.split('-')[1];
-			if (month !== 'All') {
-				if (mm !== month) return false;
-			} else if (quarter !== 'All' && quarterOfMonth(mm) !== quarter) {
-				return false;
-			}
+			const needle = q.trim().toLowerCase();
 			if (!needle) return true;
 			return (
 				creatorNamesOf(r).some((n) => n.toLowerCase().includes(needle)) ||
@@ -785,6 +776,29 @@ export default function CommercialPage() {
 				r.billing_entity?.toLowerCase().includes(needle) ||
 				r.ro_number?.toLowerCase().includes(needle)
 			);
+		},
+		[dirFilter, entityFilter, creatorFilter, q]
+	);
+
+	// Does a date fall inside the selected FY + quarter/month scope?
+	const inPeriod = React.useCallback(
+		(d: string | null) => {
+			if (!d || fyStartOf(d) !== fyStart) return false;
+			const mm = d.split('-')[1];
+			if (month !== 'All') return mm === month;
+			if (quarter !== 'All') return quarterOfMonth(mm) === quarter;
+			return true;
+		},
+		[fyStart, quarter, month]
+	);
+
+	const filtered = React.useMemo(() => {
+		const list = rows.filter((r) => {
+			if (!matchesFacets(r)) return false;
+			// Scope strictly to the selected period by the tracking date. Rows
+			// with no such date can't be attributed to a fiscal year and are
+			// hidden (see the backfill banner for the count).
+			return inPeriod(trackDate(r));
 		});
 		return list.slice().sort((a, b) => {
 			const ad = trackDate(a);
@@ -794,7 +808,24 @@ export default function CommercialPage() {
 			if (!bd) return -1;
 			return bd.localeCompare(ad);
 		});
-	}, [rows, q, dirFilter, entityFilter, creatorFilter, fyStart, quarter, month, trackDate]);
+	}, [rows, matchesFacets, inPeriod, trackDate]);
+
+	// Headline billing pair: "Total Billing" is every deal *confirmed* in the
+	// selected period (committed pipeline, invoiced or not); "Invoiced Billing"
+	// is every deal *invoiced* in it (recognized revenue). A deal can appear in
+	// both, or in just one when confirmation and invoice fall in different
+	// periods.
+	const billingSummary = React.useMemo(() => {
+		let invoiced = 0;
+		let confirmed = 0;
+		for (const r of rows) {
+			if (!matchesFacets(r)) continue;
+			const fee = Number(r.total_fee) || 0;
+			if (inPeriod(billingPeriodOf(r))) invoiced += fee;
+			if (inPeriod(r.confirmation_date || null)) confirmed += fee;
+		}
+		return { invoiced, confirmed };
+	}, [rows, matchesFacets, inPeriod]);
 
 	function resetFilters() {
 		setEntityFilter('All');
@@ -1003,19 +1034,8 @@ export default function CommercialPage() {
 				</Box>
 
 				<Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(3, minmax(0, 1fr))', lg: 'repeat(5, minmax(0, 1fr))' }, gap: 1 }}>
-					<MetricCard
-						label="Shown"
-						value={
-							<>
-								{totals.count} deal{totals.count === 1 ? '' : 's'}{' '}
-								<Box component="span" sx={{ color: 'var(--n-fg-muted)', fontWeight: 400, fontSize: 15 }}>
-									across
-								</Box>{' '}
-								{totals.campaignCount} campaign{totals.campaignCount === 1 ? '' : 's'}
-							</>
-						}
-					/>
-					<MetricCard label="Total Billing" value={`₹ ${inr(totals.total)}`} />
+					<MetricCard label="Invoiced Billing" value={`₹ ${inr(billingSummary.invoiced)}`} />
+					<MetricCard label="Total Billing" value={`₹ ${inr(billingSummary.confirmed)}`} />
 					<MetricCard label="Avg Deal Size" value={totals.count > 0 ? `₹ ${inr(totals.avg)}` : '—'} />
 					<MetricCard label="TCH Profit" value={`₹ ${inr(totals.profit)}`} dotColor="#0f7b6c" />
 					<MetricCard label="Profit Ratio" value={totals.total > 0 ? `${((totals.profit / totals.total) * 100).toFixed(1)}%` : '—'} />
