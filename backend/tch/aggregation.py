@@ -161,9 +161,13 @@ def _zero() -> Decimal:
     return Decimal('0')
 
 
-def overview(fy_start: int) -> dict:
+def overview(fy_start: int, month: str = '', creator_id: int | None = None) -> dict:
     """Return the entire campaign-centric Current Overview payload for a
     fiscal year.
+
+    Optional month ('01'..'12') narrows to deals billed in that calendar
+    month of the FY; creator_id narrows to deals the creator appears on
+    (directly or via a split share).
 
     Structure:
       {
@@ -228,16 +232,30 @@ def overview(fy_start: int) -> dict:
     profits = {'by_month': defaultdict(_zero), 'by_quarter': defaultdict(_zero), 'total': Decimal('0')}
     totals = {'by_month': defaultdict(_zero), 'by_quarter': defaultdict(_zero), 'total': Decimal('0')}
     not_invoiced = {'count': 0, 'total_fee': Decimal('0'), 'profit': Decimal('0')}
+    # Campaigns with at least one un-invoiced deal: still being worked, so
+    # they count as Active even though they have no FY billing row yet.
+    pending_campaign_ids: set[int] = set()
+
+    def involves_creator(deal) -> bool:
+        if deal.creator_id == creator_id:
+            return True
+        return any(s.creator_id == creator_id for s in deal.creator_shares.all())
 
     for deal in deals:
+        if creator_id and not involves_creator(deal):
+            continue
         period = billing_period(deal)
         if period is None:
             # Not invoiced yet — belongs to no FY; track separately.
             not_invoiced['count'] += 1
             not_invoiced['total_fee'] += deal.total_fee or Decimal('0')
             not_invoiced['profit'] += deal.agency_fee_inr or Decimal('0')
+            if deal.campaign_id:
+                pending_campaign_ids.add(deal.campaign_id)
             continue
         if not (start <= period < end):
+            continue
+        if month and period.month != int(month):
             continue
 
         mk = month_key(period)
@@ -315,11 +333,17 @@ def overview(fy_start: int) -> dict:
         })
     payload_rows.sort(key=lambda x: Decimal(x['total']), reverse=True)
 
-    # Campaign counts by status, among campaigns billed in this FY.
-    campaign_counts = {'Active': 0, 'Over': 0}
-    for r in payload_rows:
-        if r['status'] in campaign_counts:
-            campaign_counts[r['status']] += 1
+    # Campaign counts by status. Beyond campaigns billed in this FY, any
+    # campaign with an un-invoiced deal is still in flight, so it tallies
+    # as Active (and never as Over) even without an FY billing row.
+    active_ids = {r['campaign_id'] for r in payload_rows
+                  if r['campaign_id'] and r['status'] == 'Active'}
+    over_ids = {r['campaign_id'] for r in payload_rows
+                if r['campaign_id'] and r['status'] == 'Over'}
+    campaign_counts = {
+        'Active': len(active_ids | pending_campaign_ids),
+        'Over': len(over_ids - pending_campaign_ids),
+    }
 
     return {
         'fy': fy_label(fy_start),
