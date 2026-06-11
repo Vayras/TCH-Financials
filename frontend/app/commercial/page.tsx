@@ -591,7 +591,6 @@ export default function CommercialPage() {
 	function requiredCampaignFields(): string[] {
 		const required: { label: string; value: string }[] = [
 			{ label: 'Confirmation Date', value: form.confirmation_date },
-			{ label: 'E-Invoice Date', value: form.e_invoice_date },
 			{ label: 'Direction', value: form.direction },
 			{ label: 'Creator', value: form.creator },
 			{ label: 'TCH POC', value: form.tch_poc },
@@ -1733,7 +1732,7 @@ export default function CommercialPage() {
 						<TextField label="Confirmation Date" type="date" size="small" fullWidth value={form.confirmation_date} onChange={(e) => set('confirmation_date', e.target.value)} error={isMissing('confirmation_date')} helperText={reqHelper('confirmation_date')} sx={muiInputSx} slotProps={{ inputLabel: { shrink: true } }} />
 					</div>
 					<div>
-						<TextField label="E-Invoice Date" type="date" size="small" fullWidth value={form.e_invoice_date} onChange={(e) => set('e_invoice_date', e.target.value)} error={isMissing('e_invoice_date')} helperText={reqHelper('e_invoice_date')} sx={muiInputSx} slotProps={{ inputLabel: { shrink: true } }} />
+						<TextField label="E-Invoice Date" type="date" size="small" fullWidth value={form.e_invoice_date} onChange={(e) => set('e_invoice_date', e.target.value)} helperText=" " sx={muiInputSx} slotProps={{ inputLabel: { shrink: true } }} />
 					</div>
 					<div>
 						<TextField select label="Direction" size="small" fullWidth value={form.direction} onChange={(e) => {

@@ -137,7 +137,6 @@ class CommercialDealSerializer(serializers.ModelSerializer):
 
         required_fields = {
             'confirmation_date': 'Confirmation Date',
-            'e_invoice_date': 'E-Invoice Date',
             'direction': 'Direction',
             'tch_poc': 'TCH POC',
             'total_fee': 'Total Fee',
