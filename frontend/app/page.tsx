@@ -1,12 +1,29 @@
 'use client';
 
 import * as React from 'react';
-import { api, type Overview } from '@/lib/api';
+import { api, type Overview, type Creator } from '@/lib/api';
 import { inr, pct } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
+import Select from '@/components/ui/Select';
 import { cn } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
+
+// FY order Apr..Mar; values match the backend's ?month= calendar months.
+const MONTH_OPTIONS = [
+	{ value: '4', label: 'April' },
+	{ value: '5', label: 'May' },
+	{ value: '6', label: 'June' },
+	{ value: '7', label: 'July' },
+	{ value: '8', label: 'August' },
+	{ value: '9', label: 'September' },
+	{ value: '10', label: 'October' },
+	{ value: '11', label: 'November' },
+	{ value: '12', label: 'December' },
+	{ value: '1', label: 'January' },
+	{ value: '2', label: 'February' },
+	{ value: '3', label: 'March' }
+];
 
 const STATUS_DOT: Record<string, string> = {
 	Active: 'bg-[#0f7b6c]',
@@ -23,14 +40,20 @@ export default function OverviewPage() {
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
 	const [view, setView] = React.useState<'month' | 'quarter'>('month');
+	const [month, setMonth] = React.useState('');
+	const [creator, setCreator] = React.useState('');
+	const [creators, setCreators] = React.useState<Creator[]>([]);
 
 	const load = React.useCallback(async () => {
 		setLoading(true);
 		setError(null);
 		try {
+			const params = new URLSearchParams({ fy: String(fyStart) });
+			if (month) params.set('month', month);
+			if (creator) params.set('creator', creator);
 			// Cached payload renders instantly; the fresh one replaces it when
 			// the network answers.
-			await api.getSWR<Overview>(`/overview/?fy=${fyStart}`, (d) => {
+			await api.getSWR<Overview>(`/overview/?${params}`, (d) => {
 				setData(d);
 				setLoading(false);
 			});
@@ -39,13 +62,22 @@ export default function OverviewPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, [fyStart]);
+	}, [fyStart, month, creator]);
 
 	React.useEffect(() => {
 		load();
 	}, [load]);
 
-	const cols = data ? (view === 'month' ? data.months : data.quarters) : [];
+	React.useEffect(() => {
+		api.getSWR<Creator[]>('/creators/', setCreators).catch(() => {});
+	}, []);
+
+	const allCols = data ? (view === 'month' ? data.months : data.quarters) : [];
+	// With a month picked the other columns are all zero — show just that one.
+	const cols =
+		month && view === 'month'
+			? allCols.filter((c) => Number(c.key.split('-')[1]) === Number(month))
+			: allCols;
 	const src = data
 		? view === 'month'
 			? {
@@ -224,6 +256,34 @@ export default function OverviewPage() {
 						Quarter
 					</button>
 				</div>
+
+				<div className="w-[150px]">
+					<Select
+						value={month}
+						onChange={(e) => setMonth(e.target.value)}
+						options={MONTH_OPTIONS}
+						placeholder="All months"
+					/>
+				</div>
+				<div className="w-[200px]">
+					<Select
+						value={creator}
+						onChange={(e) => setCreator(e.target.value)}
+						options={creators.map((c) => ({ value: String(c.id), label: c.name }))}
+						placeholder="All creators"
+					/>
+				</div>
+				{(month || creator) && (
+					<Button
+						variant="ghost"
+						onClick={() => {
+							setMonth('');
+							setCreator('');
+						}}
+					>
+						Clear
+					</Button>
+				)}
 
 				<div className="ml-auto flex items-center gap-2">
 					<Button variant="ghost" onClick={load}>

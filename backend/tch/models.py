@@ -70,6 +70,8 @@ class CreatorDocument(models.Model):
         ('Agreement', 'Agreement'),
         ('Bank', 'Bank Details'),
         ('PAN', 'PAN'),
+        ('Aadhar', 'Aadhar'),
+        ('Cheque', 'Cancelled Cheque'),
         ('GST', 'GST'),
         ('Other', 'Other'),
     ]

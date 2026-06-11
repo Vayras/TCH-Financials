@@ -2,7 +2,10 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { api, ConflictError, type Creator, type CreatorDocument } from '@/lib/api';
+import { api, ConflictError, type Creator, type CreatorDocument, type Deal } from '@/lib/api';
+import { useFiscalYear } from '@/lib/fiscal-year';
+import { inr } from '@/lib/utils';
+import { downloadDocument } from '@/lib/files';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import Input from '@/components/ui/Input';
@@ -42,9 +45,22 @@ const DOC_TYPES = [
 	{ value: 'Agreement', label: 'Agreement' },
 	{ value: 'Bank', label: 'Bank Details' },
 	{ value: 'PAN', label: 'PAN' },
+	{ value: 'Aadhar', label: 'Aadhar' },
+	{ value: 'Cheque', label: 'Cancelled Cheque' },
 	{ value: 'GST', label: 'GST' },
 	{ value: 'Other', label: 'Other' }
 ];
+
+// Attachment slots offered while creating a creator. Contract only applies
+// to creators TCH contracts with — not Non TCH / Friends of TCH.
+const ATTACHMENT_SLOTS = [
+	{ docType: 'Agreement', label: 'Contract', contractOnly: true },
+	{ docType: 'PAN', label: 'PAN Card', contractOnly: false },
+	{ docType: 'Aadhar', label: 'Aadhar Card', contractOnly: false },
+	{ docType: 'Cheque', label: 'Cancelled Cheque', contractOnly: false }
+] as const;
+
+const NO_CONTRACT_RELATIONSHIPS = ['NonTCH', 'Friend'];
 
 function formatDocDate(s: string): string {
 	const d = new Date(s);
@@ -98,7 +114,9 @@ function statusTone(status: string) {
 }
 
 export default function CreatorsPage() {
+	const { fyStart } = useFiscalYear();
 	const [rows, setRows] = React.useState<Creator[]>([]);
+	const [deals, setDeals] = React.useState<Deal[]>([]);
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
 	const [addOpen, setAddOpen] = React.useState(false);
@@ -107,6 +125,7 @@ export default function CreatorsPage() {
 	const [relFilter, setRelFilter] = React.useState('All');
 	const [statusFilter, setStatusFilter] = React.useState('All');
 	const [form, setForm] = React.useState<CreatorForm>(EMPTY_FORM);
+	const [attachments, setAttachments] = React.useState<Record<string, File | null>>({});
 
 	// Documents modal state
 	const [docsCreator, setDocsCreator] = React.useState<Creator | null>(null);
@@ -172,21 +191,9 @@ export default function CreatorsPage() {
 		}
 	}
 
-	// Force a save-to-disk. The file is served cross-origin (API host), so the
-	// <a download> attribute is ignored — fetch as a blob and download that.
 	async function downloadDoc(d: CreatorDocument) {
 		try {
-			const res = await fetch(d.file);
-			if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-			const blob = await res.blob();
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = d.label || d.file.split('/').pop() || 'document';
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			URL.revokeObjectURL(url);
+			await downloadDocument(d);
 		} catch (e) {
 			alert((e as Error).message);
 		}
@@ -196,17 +203,22 @@ export default function CreatorsPage() {
 		setLoading(true);
 		let shown = false;
 		try {
-			await api.getSWR<Creator[]>('/creators/', (d) => {
-				shown = true;
-				setRows(d);
-				setLoading(false);
-			});
+			await Promise.all([
+				api.getSWR<Creator[]>('/creators/', (d) => {
+					shown = true;
+					setRows(d);
+					setLoading(false);
+				}),
+				// FY-scoped deals power the per-creator activity columns, so
+				// switching the fiscal year visibly refreshes the table.
+				api.getSWR<Deal[]>(`/deals/?fy=${fyStart}`, setDeals)
+			]);
 		} catch (e) {
 			if (!shown) setError((e as Error).message);
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [fyStart]);
 
 	React.useEffect(() => {
 		load();
@@ -215,6 +227,7 @@ export default function CreatorsPage() {
 	function startAdd() {
 		setEditing(null);
 		setForm(EMPTY_FORM);
+		setAttachments({});
 		setAddOpen(true);
 	}
 
@@ -246,7 +259,18 @@ export default function CreatorsPage() {
 				// overwriting their change.
 				await api.patch(`/creators/${editing.id}/`, { ...payload, version: editing.version });
 			} else {
-				await api.post('/creators/', payload);
+				const created = await api.post<Creator>('/creators/', payload);
+				const noContract = NO_CONTRACT_RELATIONSHIPS.includes(form.relationship);
+				for (const slot of ATTACHMENT_SLOTS) {
+					const file = attachments[slot.docType];
+					if (!file || (slot.contractOnly && noContract)) continue;
+					const fd = new FormData();
+					fd.append('creator', String(created.id));
+					fd.append('doc_type', slot.docType);
+					fd.append('label', slot.label);
+					fd.append('file', file);
+					await api.upload<CreatorDocument>('/creator-documents/', fd);
+				}
 			}
 			setAddOpen(false);
 			await load();
@@ -291,6 +315,28 @@ export default function CreatorsPage() {
 		}),
 		[rows]
 	);
+
+	// Per-creator activity in the selected FY: deal count and billing. Split
+	// deals attribute each share to its own creator; single-creator deals
+	// attribute the whole fee.
+	const fyStats = React.useMemo(() => {
+		const stats = new Map<number, { deals: number; billing: number }>();
+		const add = (creatorId: number | null, fee: number) => {
+			if (!creatorId) return;
+			const s = stats.get(creatorId) ?? { deals: 0, billing: 0 };
+			s.deals += 1;
+			s.billing += fee;
+			stats.set(creatorId, s);
+		};
+		for (const d of deals) {
+			if (d.creator_shares.length > 0) {
+				for (const s of d.creator_shares) add(s.creator, Number(s.total_fee) || 0);
+			} else {
+				add(d.creator, Number(d.total_fee) || 0);
+			}
+		}
+		return stats;
+	}, [deals]);
 
 	const set = <K extends keyof CreatorForm>(k: K, v: CreatorForm[K]) =>
 		setForm((f) => ({ ...f, [k]: v }));
@@ -467,6 +513,8 @@ export default function CreatorsPage() {
 										<th>Stage</th>
 										<th>Relationship</th>
 										<th>Status</th>
+										<th className="num">Deals (FY)</th>
+										<th className="num">Billing (FY)</th>
 										<th>Location</th>
 										<th>Ops Mgr</th>
 										<th>DOJ</th>
@@ -482,9 +530,9 @@ export default function CreatorsPage() {
 											</td>
 											<td className="font-medium">
 												<Link
-													href={`/insights?focus=${encodeURIComponent(r.name)}`}
+													href={`/creators/${r.id}`}
 													className="inline-link"
-													title={`View ${r.name}'s insights`}
+													title={`View ${r.name}'s details`}
 												>
 													{r.name}
 												</Link>
@@ -507,6 +555,12 @@ export default function CreatorsPage() {
 												<Tag tone={statusTone(r.status ?? 'Active')}>
 													{r.status ?? 'Active'}
 												</Tag>
+											</td>
+											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>
+												{fyStats.get(r.id)?.deals ?? 0}
+											</td>
+											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>
+												{inr(String(fyStats.get(r.id)?.billing ?? 0)) || '—'}
 											</td>
 											<td style={{ color: 'var(--n-fg-muted)' }}>{r.location}</td>
 											<td style={{ color: 'var(--n-fg)' }}>{r.ops_manager}</td>
@@ -546,7 +600,7 @@ export default function CreatorsPage() {
 									{filtered.length === 0 && (
 										<tr>
 											<td
-												colSpan={12}
+												colSpan={14}
 												className="text-center py-8"
 												style={{ color: 'var(--n-fg-subtle)' }}
 											>
@@ -678,6 +732,35 @@ export default function CreatorsPage() {
 							onChange={(e) => set('notes', e.target.value)}
 						/>
 					</div>
+					{!editing && (
+						<div className="col-span-2 space-y-2 pt-2" style={{ borderTop: '1px solid var(--n-border)' }}>
+							<div
+								className="text-[11.5px] font-medium uppercase"
+								style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
+							>
+								Attachments
+							</div>
+							{ATTACHMENT_SLOTS.filter(
+								(s) => !(s.contractOnly && NO_CONTRACT_RELATIONSHIPS.includes(form.relationship))
+							).map((slot) => (
+								<div key={slot.docType}>
+									<Label>{slot.label}</Label>
+									<input
+										type="file"
+										onChange={(e) =>
+											setAttachments((a) => ({ ...a, [slot.docType]: e.target.files?.[0] ?? null }))
+										}
+										className="block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
+									/>
+								</div>
+							))}
+							{NO_CONTRACT_RELATIONSHIPS.includes(form.relationship) && (
+								<div className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
+									No contract needed for {form.relationship === 'NonTCH' ? 'Non TCH' : 'Friend'} creators.
+								</div>
+							)}
+						</div>
+					)}
 				</div>
 			</Dialog>
 

@@ -604,12 +604,18 @@ export default function CommercialPage() {
 			{ label: 'Campaign', value: form.campaign },
 			{ label: 'Deliverables', value: form.deliverables },
 			{ label: 'RO Number', value: form.ro_number },
-			{ label: 'Campaign Over', value: form.campaign_over },
-			{ label: 'Invoice Received', value: form.invoice_received },
-			{ label: 'Payment Cleared by TCH', value: form.payment_cleared },
-			{ label: 'E-Invoice #', value: form.e_invoice_number },
-			{ label: 'Payment Received by TCH', value: form.payment_received }
+			{ label: 'Campaign Over', value: form.campaign_over }
 		];
+		// Invoice/payment tracking only applies once the campaign is over —
+		// ongoing campaigns have nothing to invoice yet.
+		if (form.campaign_over === 'Y') {
+			required.push(
+				{ label: 'Invoice Received', value: form.invoice_received },
+				{ label: 'Payment Cleared by TCH', value: form.payment_cleared },
+				{ label: 'E-Invoice #', value: form.e_invoice_number },
+				{ label: 'Payment Received by TCH', value: form.payment_received }
+			);
+		}
 		const missing = required.filter((f) => !String(f.value ?? '').trim()).map((f) => f.label);
 		shares.forEach((s, i) => {
 			if (!s.creator) missing.push(`Split creator ${i + 2}`);
@@ -874,8 +880,14 @@ export default function CommercialPage() {
 		setFormError(null);
 		setForm((f) => ({ ...f, [k]: v }));
 	};
+	// Required only once the campaign is over (mirrors requiredCampaignFields).
+	const postCampaignFields: (keyof DealForm)[] = [
+		'invoice_received', 'payment_cleared', 'e_invoice_number', 'payment_received'
+	];
+	const fieldRequired = (k: keyof DealForm) =>
+		!postCampaignFields.includes(k) || form.campaign_over === 'Y';
 	const isMissing = (k: keyof DealForm) =>
-		validationAttempted && !String(form[k] ?? '').trim();
+		validationAttempted && fieldRequired(k) && !String(form[k] ?? '').trim();
 	const reqHelper = (k: keyof DealForm) => (isMissing(k) ? 'Required' : ' ');
 	const muiInputSx = {
 		'& .MuiInputBase-root': { bgcolor: 'var(--n-bg-soft)', fontSize: 14 },
