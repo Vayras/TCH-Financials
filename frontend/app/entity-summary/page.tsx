@@ -8,11 +8,16 @@ import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
-import { useFiscalYear } from '@/lib/fiscal-year';
+import { useFiscalYear, FY_OPTIONS } from '@/lib/fiscal-year';
 
 function fyLabelFor(start: number): string {
 	return `FY ${start % 100}-${(start + 1) % 100}`;
 }
+
+// Page-local FY choices include years before the global selector's range so
+// past revenue per agency/brand can be compared without switching the whole
+// app's fiscal year.
+const FY_CHOICES = [FY_OPTIONS[0] - 2, FY_OPTIONS[0] - 1, ...FY_OPTIONS];
 
 function profitPct(row: EntityRow): string {
 	const billing = Number(row.total_billing);
@@ -23,6 +28,9 @@ function profitPct(row: EntityRow): string {
 
 export default function EntitySummaryPage() {
 	const { fyStart } = useFiscalYear();
+	// Local FY override — null means "follow the global fiscal year".
+	const [fyOverride, setFyOverride] = React.useState<number | null>(null);
+	const fy = fyOverride ?? fyStart;
 	const [entityFilter, setEntityFilter] = React.useState('');
 	const [searchInput, setSearchInput] = React.useState('');
 	const [data, setData] = React.useState<EntitySummary | null>(null);
@@ -37,7 +45,7 @@ export default function EntitySummaryPage() {
 			setError(null);
 			let shown = false;
 			try {
-				const params = new URLSearchParams({ fy: String(fyStart) });
+				const params = new URLSearchParams({ fy: String(fy) });
 				if (filter) params.set('entity', filter);
 				if (per.startsWith('Q')) params.set('quarter', per);
 				else if (per !== 'FY') params.set('month', per);
@@ -52,13 +60,13 @@ export default function EntitySummaryPage() {
 				setLoading(false);
 			}
 		},
-		[fyStart, entityFilter, period]
+		[fy, entityFilter, period]
 	);
 
 	React.useEffect(() => {
 		load(entityFilter, period);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [fyStart, period]);
+	}, [fy, period]);
 
 	function applyFilter() {
 		const next = searchInput.trim();
@@ -83,7 +91,7 @@ export default function EntitySummaryPage() {
 					className="text-[12px] font-medium uppercase"
 					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
 				>
-					Workspace · Entity Summary · {fyLabelFor(fyStart)}
+					Workspace · Entity Summary · {fyLabelFor(fy)}
 				</div>
 				<h1
 					className="page-title text-[40px] leading-[1.15] font-bold"
@@ -125,6 +133,13 @@ export default function EntitySummaryPage() {
 						Clear
 					</Button>
 				)}
+				<div className="min-w-[130px]">
+					<Select
+						value={String(fy)}
+						onChange={(e) => setFyOverride(Number(e.target.value))}
+						options={FY_CHOICES.map((y) => ({ value: String(y), label: fyLabelFor(y) }))}
+					/>
+				</div>
 				<div className="min-w-[160px]">
 					<Select
 						value={period}
