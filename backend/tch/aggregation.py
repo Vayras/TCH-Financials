@@ -161,9 +161,11 @@ def _zero() -> Decimal:
     return Decimal('0')
 
 
-def overview(fy_start: int) -> dict:
+def overview(fy_start: int, creator_name: str = '') -> dict:
     """Return the entire campaign-centric Current Overview payload for a
-    fiscal year.
+    fiscal year. When ``creator_name`` is given, every figure is scoped to that
+    creator's share of the deals they appear on (campaigns they aren't on drop
+    out entirely).
 
     Structure:
       {
@@ -193,7 +195,7 @@ def overview(fy_start: int) -> dict:
     # to e_invoice_date), not confirmation_date — fetch all and bucket in
     # Python. Deals with neither are gathered into a separate "Not yet
     # invoiced" summary (they belong to no FY until invoiced).
-    deals = (
+    deals = list(
         CommercialDeal.objects
         .select_related('creator', 'campaign')
         .prefetch_related('creator_shares__creator')
@@ -230,12 +232,23 @@ def overview(fy_start: int) -> dict:
     not_invoiced = {'count': 0, 'total_fee': Decimal('0'), 'profit': Decimal('0')}
 
     for deal in deals:
+        # Scope to one creator's share when filtering; the whole deal otherwise.
+        if creator_name:
+            matches = [c for c in creator_splits(deal) if c['name'] == creator_name]
+            if not matches:
+                continue
+            deal_fee = sum((c['fee'] for c in matches), Decimal('0'))
+            deal_profit = sum((c['profit'] for c in matches), Decimal('0'))
+        else:
+            deal_fee = deal.total_fee or Decimal('0')
+            deal_profit = deal.agency_fee_inr or Decimal('0')
+
         period = billing_period(deal)
         if period is None:
             # Not invoiced yet — belongs to no FY; track separately.
             not_invoiced['count'] += 1
-            not_invoiced['total_fee'] += deal.total_fee or Decimal('0')
-            not_invoiced['profit'] += deal.agency_fee_inr or Decimal('0')
+            not_invoiced['total_fee'] += deal_fee
+            not_invoiced['profit'] += deal_profit
             continue
         if not (start <= period < end):
             continue
@@ -259,8 +272,8 @@ def overview(fy_start: int) -> dict:
             'total': Decimal('0'),
             'profit': Decimal('0'),
         })
-        fee = deal.total_fee or Decimal('0')
-        profit = deal.agency_fee_inr or Decimal('0')
+        fee = deal_fee
+        profit = deal_profit
         row['deal_count'] += 1
         row['by_month'][mk] += fee
         row['by_quarter'][qk] += fee
@@ -315,11 +328,28 @@ def overview(fy_start: int) -> dict:
         })
     payload_rows.sort(key=lambda x: Decimal(x['total']), reverse=True)
 
-    # Campaign counts by status, among campaigns billed in this FY.
+    # Campaign counts include every campaign with a deal in this FY by either
+    # lens — billed (E-Invoice/invoice date) OR confirmed — not just invoiced
+    # ones. An ongoing campaign whose invoices aren't raised yet still has a
+    # confirmation date in the FY, so it tallies as Active instead of vanishing.
+    campaign_status_in_fy: dict[int, str] = {}
+    for deal in deals:
+        if deal.campaign_id is None:
+            continue
+        if creator_name and not any(c['name'] == creator_name for c in creator_splits(deal)):
+            continue
+        period = billing_period(deal)
+        conf = deal.confirmation_date
+        in_fy = (period is not None and start <= period < end) or (
+            conf is not None and start <= conf < end
+        )
+        if in_fy:
+            campaign_status_in_fy[deal.campaign_id] = deal.campaign.status
+
     campaign_counts = {'Active': 0, 'Over': 0}
-    for r in payload_rows:
-        if r['status'] in campaign_counts:
-            campaign_counts[r['status']] += 1
+    for status in campaign_status_in_fy.values():
+        if status in campaign_counts:
+            campaign_counts[status] += 1
 
     return {
         'fy': fy_label(fy_start),
@@ -327,7 +357,7 @@ def overview(fy_start: int) -> dict:
         'months': months_meta,
         'quarters': quarters_meta,
         'campaign_counts': campaign_counts,
-        'total_campaigns': len([r for r in payload_rows if r['campaign_id'] is not None]),
+        'total_campaigns': len(campaign_status_in_fy),
         'rows': payload_rows,
         'totals': {
             'by_month': plain(totals['by_month']),

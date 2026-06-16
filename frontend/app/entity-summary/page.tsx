@@ -14,6 +14,10 @@ function fyLabelFor(start: number): string {
 	return `FY ${start % 100}-${(start + 1) % 100}`;
 }
 
+// Years offered by this page's own picker — wider than the global selector so
+// past fiscal years can be compared here without changing the site-wide FY.
+const FY_PICKER_YEARS = [2023, 2024, 2025, 2026, 2027];
+
 function profitPct(row: EntityRow): string {
 	const billing = Number(row.total_billing);
 	const profit = Number(row.total_profit);
@@ -23,6 +27,13 @@ function profitPct(row: EntityRow): string {
 
 export default function EntitySummaryPage() {
 	const { fyStart } = useFiscalYear();
+	// Local fiscal-year override for this page's comparison picker. Defaults to
+	// the global FY and follows it when the global selector changes, but can be
+	// pointed at any past year independently.
+	const [fy, setFy] = React.useState(fyStart);
+	React.useEffect(() => {
+		setFy(fyStart);
+	}, [fyStart]);
 	const [entityFilter, setEntityFilter] = React.useState('');
 	const [searchInput, setSearchInput] = React.useState('');
 	const [data, setData] = React.useState<EntitySummary | null>(null);
@@ -37,7 +48,7 @@ export default function EntitySummaryPage() {
 			setError(null);
 			let shown = false;
 			try {
-				const params = new URLSearchParams({ fy: String(fyStart) });
+				const params = new URLSearchParams({ fy: String(fy) });
 				if (filter) params.set('entity', filter);
 				if (per.startsWith('Q')) params.set('quarter', per);
 				else if (per !== 'FY') params.set('month', per);
@@ -52,13 +63,13 @@ export default function EntitySummaryPage() {
 				setLoading(false);
 			}
 		},
-		[fyStart, entityFilter, period]
+		[fy, entityFilter, period]
 	);
 
 	React.useEffect(() => {
 		load(entityFilter, period);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [fyStart, period]);
+	}, [fy, period]);
 
 	function applyFilter() {
 		const next = searchInput.trim();
@@ -83,7 +94,7 @@ export default function EntitySummaryPage() {
 					className="text-[12px] font-medium uppercase"
 					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
 				>
-					Workspace · Entity Summary · {fyLabelFor(fyStart)}
+					Workspace · Entity Summary · {fyLabelFor(fy)}
 				</div>
 				<h1
 					className="page-title text-[40px] leading-[1.15] font-bold"
@@ -125,6 +136,13 @@ export default function EntitySummaryPage() {
 						Clear
 					</Button>
 				)}
+				<div className="min-w-[130px]">
+					<Select
+						value={String(fy)}
+						onChange={(e) => setFy(Number(e.target.value))}
+						options={FY_PICKER_YEARS.map((y) => ({ value: String(y), label: fyLabelFor(y) }))}
+					/>
+				</div>
 				<div className="min-w-[160px]">
 					<Select
 						value={period}

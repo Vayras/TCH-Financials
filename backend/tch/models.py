@@ -67,9 +67,11 @@ def creator_document_path(instance, filename: str) -> str:
 
 class CreatorDocument(models.Model):
     DOC_TYPES = [
-        ('Agreement', 'Agreement'),
+        ('Agreement', 'Contract / Agreement'),
+        ('PAN', 'PAN Card'),
+        ('Aadhaar', 'Aadhaar Card'),
+        ('Cheque', 'Cancelled Cheque'),
         ('Bank', 'Bank Details'),
-        ('PAN', 'PAN'),
         ('GST', 'GST'),
         ('Other', 'Other'),
     ]

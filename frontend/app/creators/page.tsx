@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import { api, ConflictError, type Creator, type CreatorDocument } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
@@ -10,7 +9,22 @@ import Select from '@/components/ui/Select';
 import Label from '@/components/ui/Label';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
-import { cn } from '@/lib/utils';
+import { cn, inr } from '@/lib/utils';
+import { useFiscalYear } from '@/lib/fiscal-year';
+
+function fyLabelFor(start: number): string {
+	return `FY ${start % 100}-${(start + 1) % 100}`;
+}
+
+// Per-creator activity for the selected fiscal year, keyed by creator id.
+type CreatorFyStat = { deals: number; billing: string; profit: string };
+type CreatorInsightRow = {
+	creator_id: number | null;
+	total_count: number;
+	total_billing: string;
+	total_profit: string;
+};
+type CreatorInsights = { fy_start: number; creators: CreatorInsightRow[] };
 
 const REL = [
 	{ value: 'Exclusive', label: 'Exclusive' },
@@ -39,12 +53,24 @@ const REL_FILTERS = ['All', 'Exclusive', 'Friend', 'Dropping', 'NonTCH'];
 const STATUS_FILTERS = ['All', 'Active', 'Inactive'];
 
 const DOC_TYPES = [
-	{ value: 'Agreement', label: 'Agreement' },
+	{ value: 'Agreement', label: 'Contract / Agreement' },
+	{ value: 'PAN', label: 'PAN Card' },
+	{ value: 'Aadhaar', label: 'Aadhaar Card' },
+	{ value: 'Cheque', label: 'Cancelled Cheque' },
 	{ value: 'Bank', label: 'Bank Details' },
-	{ value: 'PAN', label: 'PAN' },
 	{ value: 'GST', label: 'GST' },
 	{ value: 'Other', label: 'Other' }
 ];
+
+// Attachment slots shown in the Add Creator popup. Contract is only relevant
+// for creators TCH actually contracts; Non-TCH / Friends have no agreement.
+const ATTACH_SLOTS: { key: string; label: string; contract?: boolean }[] = [
+	{ key: 'Agreement', label: 'Contract / Agreement', contract: true },
+	{ key: 'PAN', label: 'PAN Card' },
+	{ key: 'Aadhaar', label: 'Aadhaar Card' },
+	{ key: 'Cheque', label: 'Cancelled Cheque' }
+];
+const NO_CONTRACT_RELATIONSHIPS = ['NonTCH', 'Friend'];
 
 function formatDocDate(s: string): string {
 	const d = new Date(s);
@@ -98,7 +124,11 @@ function statusTone(status: string) {
 }
 
 export default function CreatorsPage() {
+	const { fyStart } = useFiscalYear();
 	const [rows, setRows] = React.useState<Creator[]>([]);
+	// FY-scoped deals/billing per creator, refreshed whenever the fiscal year
+	// changes via the global selector.
+	const [fyStats, setFyStats] = React.useState<Map<number, CreatorFyStat>>(new Map());
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
 	const [addOpen, setAddOpen] = React.useState(false);
@@ -107,6 +137,10 @@ export default function CreatorsPage() {
 	const [relFilter, setRelFilter] = React.useState('All');
 	const [statusFilter, setStatusFilter] = React.useState('All');
 	const [form, setForm] = React.useState<CreatorForm>(EMPTY_FORM);
+	// Files chosen in the Add Creator popup, keyed by doc_type. Uploaded right
+	// after the creator is created.
+	const [attachments, setAttachments] = React.useState<Record<string, File | null>>({});
+	const [attachError, setAttachError] = React.useState<string | null>(null);
 
 	// Documents modal state
 	const [docsCreator, setDocsCreator] = React.useState<Creator | null>(null);
@@ -212,9 +246,38 @@ export default function CreatorsPage() {
 		load();
 	}, [load]);
 
+	// Pull per-creator FY activity (deals / billing / profit) for the selected
+	// year; rebuilds the lookup whenever the global fiscal year changes.
+	React.useEffect(() => {
+		let cancelled = false;
+		api.get<CreatorInsights>(`/creator-insights/?fy=${fyStart}`)
+			.then((d) => {
+				if (cancelled) return;
+				const m = new Map<number, CreatorFyStat>();
+				for (const r of d.creators) {
+					if (r.creator_id != null) {
+						m.set(r.creator_id, {
+							deals: r.total_count,
+							billing: r.total_billing,
+							profit: r.total_profit
+						});
+					}
+				}
+				setFyStats(m);
+			})
+			.catch(() => {
+				if (!cancelled) setFyStats(new Map());
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [fyStart]);
+
 	function startAdd() {
 		setEditing(null);
 		setForm(EMPTY_FORM);
+		setAttachments({});
+		setAttachError(null);
 		setAddOpen(true);
 	}
 
@@ -246,7 +309,35 @@ export default function CreatorsPage() {
 				// overwriting their change.
 				await api.patch(`/creators/${editing.id}/`, { ...payload, version: editing.version });
 			} else {
-				await api.post('/creators/', payload);
+				const created = await api.post<Creator>('/creators/', payload);
+				// Upload any attachments picked in the popup. The contract slot is
+				// skipped for Non-TCH / Friends (no agreement on file for them).
+				const noContract = NO_CONTRACT_RELATIONSHIPS.includes(form.relationship);
+				const pending = ATTACH_SLOTS.filter(
+					(s) => attachments[s.key] && !(s.contract && noContract)
+				);
+				const failed: string[] = [];
+				for (const slot of pending) {
+					try {
+						const fd = new FormData();
+						fd.append('creator', String(created.id));
+						fd.append('doc_type', slot.key);
+						fd.append('label', slot.label);
+						fd.append('file', attachments[slot.key] as File);
+						await api.upload<CreatorDocument>('/creator-documents/', fd);
+					} catch {
+						failed.push(slot.label);
+					}
+				}
+				if (failed.length > 0) {
+					// The creator was created; only some files failed. Keep the
+					// dialog open so they can retry via the Docs modal instead.
+					setAttachError(
+						`Creator saved, but these attachments failed to upload: ${failed.join(', ')}. Use “Docs” to retry.`
+					);
+					await load();
+					return;
+				}
 			}
 			setAddOpen(false);
 			await load();
@@ -467,6 +558,12 @@ export default function CreatorsPage() {
 										<th>Stage</th>
 										<th>Relationship</th>
 										<th>Status</th>
+										<th className="num" title={`Deals invoiced in ${fyLabelFor(fyStart)}`}>
+											Deals · {fyLabelFor(fyStart)}
+										</th>
+										<th className="num" title={`Billing invoiced in ${fyLabelFor(fyStart)}`}>
+											Billing · {fyLabelFor(fyStart)}
+										</th>
 										<th>Location</th>
 										<th>Ops Mgr</th>
 										<th>DOJ</th>
@@ -481,13 +578,14 @@ export default function CreatorsPage() {
 												{i + 1}
 											</td>
 											<td className="font-medium">
-												<Link
-													href={`/insights?focus=${encodeURIComponent(r.name)}`}
-													className="inline-link"
-													title={`View ${r.name}'s insights`}
+												<button
+													type="button"
+													onClick={() => startEdit(r)}
+													className="inline-link text-left"
+													title={`View / edit ${r.name}`}
 												>
 													{r.name}
-												</Link>
+												</button>
 											</td>
 											<td style={{ color: 'var(--n-fg-muted)' }}>{r.category}</td>
 											<td>
@@ -507,6 +605,12 @@ export default function CreatorsPage() {
 												<Tag tone={statusTone(r.status ?? 'Active')}>
 													{r.status ?? 'Active'}
 												</Tag>
+											</td>
+											<td className="num tabular-nums" style={{ color: 'var(--n-fg-muted)' }}>
+												{fyStats.get(r.id)?.deals ?? '—'}
+											</td>
+											<td className="num tabular-nums" style={{ color: 'var(--n-fg)' }}>
+												{fyStats.has(r.id) ? inr(fyStats.get(r.id)!.billing) : '—'}
 											</td>
 											<td style={{ color: 'var(--n-fg-muted)' }}>{r.location}</td>
 											<td style={{ color: 'var(--n-fg)' }}>{r.ops_manager}</td>
@@ -546,7 +650,7 @@ export default function CreatorsPage() {
 									{filtered.length === 0 && (
 										<tr>
 											<td
-												colSpan={12}
+												colSpan={14}
 												className="text-center py-8"
 												style={{ color: 'var(--n-fg-subtle)' }}
 											>
@@ -678,6 +782,46 @@ export default function CreatorsPage() {
 							onChange={(e) => set('notes', e.target.value)}
 						/>
 					</div>
+
+					{!editing && (
+						<div className="col-span-2 rounded p-3 mt-1" style={{ background: 'var(--n-bg-soft)' }}>
+							<div
+								className="text-[11.5px] font-medium uppercase mb-2"
+								style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
+							>
+								Attachments (optional)
+							</div>
+							<div className="grid grid-cols-2 gap-3">
+								{ATTACH_SLOTS.filter(
+									(s) => !(s.contract && NO_CONTRACT_RELATIONSHIPS.includes(form.relationship))
+								).map((slot) => (
+									<div key={slot.key}>
+										<Label>{slot.label}</Label>
+										<input
+											type="file"
+											onChange={(e) =>
+												setAttachments((a) => ({ ...a, [slot.key]: e.target.files?.[0] ?? null }))
+											}
+											className="block w-full text-[12.5px] file:mr-2 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-2 file:py-1 file:text-[12.5px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
+										/>
+									</div>
+								))}
+							</div>
+							{NO_CONTRACT_RELATIONSHIPS.includes(form.relationship) && (
+								<div className="text-[11.5px] mt-2" style={{ color: 'var(--n-fg-subtle)' }}>
+									No contract for {form.relationship === 'NonTCH' ? 'Non-TCH' : 'Friend'} creators.
+								</div>
+							)}
+							{attachError && (
+								<div
+									className="text-[12px] rounded p-2 mt-2"
+									style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
+								>
+									{attachError}
+								</div>
+							)}
+						</div>
+					)}
 				</div>
 			</Dialog>
 

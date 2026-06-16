@@ -208,7 +208,8 @@ class EventInviteViewSet(OptimisticLockMixin, viewsets.ModelViewSet):
 def overview_view(request):
     fy = request.GET.get('fy')
     fy_start = int(fy) if fy else fiscal_year_of(date.today())
-    return Response(overview(fy_start))
+    creator = request.GET.get('creator', '')
+    return Response(overview(fy_start, creator))
 
 
 @api_view(['GET'])

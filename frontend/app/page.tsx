@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { api, type Overview } from '@/lib/api';
+import { api, type Overview, type Creator } from '@/lib/api';
 import { inr, pct } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
@@ -23,14 +23,21 @@ export default function OverviewPage() {
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
 	const [view, setView] = React.useState<'month' | 'quarter'>('month');
+	// Optional filters: narrow to a single month (client-side) and/or scope every
+	// figure to one creator (server-side via ?creator=).
+	const [monthFilter, setMonthFilter] = React.useState('All');
+	const [creatorFilter, setCreatorFilter] = React.useState('All');
+	const [creators, setCreators] = React.useState<Creator[]>([]);
 
 	const load = React.useCallback(async () => {
 		setLoading(true);
 		setError(null);
 		try {
+			const params = new URLSearchParams({ fy: String(fyStart) });
+			if (creatorFilter !== 'All') params.set('creator', creatorFilter);
 			// Cached payload renders instantly; the fresh one replaces it when
 			// the network answers.
-			await api.getSWR<Overview>(`/overview/?fy=${fyStart}`, (d) => {
+			await api.getSWR<Overview>(`/overview/?${params}`, (d) => {
 				setData(d);
 				setLoading(false);
 			});
@@ -39,15 +46,28 @@ export default function OverviewPage() {
 		} finally {
 			setLoading(false);
 		}
-	}, [fyStart]);
+	}, [fyStart, creatorFilter]);
 
 	React.useEffect(() => {
 		load();
 	}, [load]);
 
-	const cols = data ? (view === 'month' ? data.months : data.quarters) : [];
+	// Creator master list powers the filter dropdown (kept independent of the
+	// scoped overview payload, which only carries the filtered creator's rows).
+	React.useEffect(() => {
+		api.get<Creator[]>('/creators/')
+			.then(setCreators)
+			.catch(() => setCreators([]));
+	}, []);
+
+	// A selected month forces the month lens and narrows to that single column;
+	// otherwise honour the month/quarter toggle.
+	const monthActive = monthFilter !== 'All';
+	const effView: 'month' | 'quarter' = monthActive ? 'month' : view;
+	const allCols = data ? (effView === 'month' ? data.months : data.quarters) : [];
+	const cols = monthActive ? allCols.filter((c) => c.key === monthFilter) : allCols;
 	const src = data
-		? view === 'month'
+		? effView === 'month'
 			? {
 					totals: data.totals.by_month,
 					emw: data.emw_billing.by_month,
@@ -208,11 +228,12 @@ export default function OverviewPage() {
 				className="flex items-center gap-3 flex-wrap pb-3"
 				style={{ borderBottom: '1px solid var(--n-border)' }}
 			>
-				<div className="seg-toggle">
+				<div className="seg-toggle" title={monthActive ? 'Clear the month filter to switch to quarter view' : undefined}>
 					<button
 						type="button"
 						className={cn(view === 'month' && 'active')}
 						onClick={() => setView('month')}
+						disabled={monthActive}
 					>
 						Month
 					</button>
@@ -220,12 +241,52 @@ export default function OverviewPage() {
 						type="button"
 						className={cn(view === 'quarter' && 'active')}
 						onClick={() => setView('quarter')}
+						disabled={monthActive}
 					>
 						Quarter
 					</button>
 				</div>
 
+				<label className="flex items-center gap-1.5 text-[13px]" style={{ color: 'var(--n-fg-muted)' }}>
+					Month
+					<select
+						value={monthFilter}
+						onChange={(e) => setMonthFilter(e.target.value)}
+						className="h-8 rounded px-2 text-[13px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)]"
+					>
+						<option value="All">All months</option>
+						{(data?.months ?? []).map((m) => (
+							<option key={m.key} value={m.key}>{m.label}</option>
+						))}
+					</select>
+				</label>
+
+				<label className="flex items-center gap-1.5 text-[13px]" style={{ color: 'var(--n-fg-muted)' }}>
+					Creator
+					<select
+						value={creatorFilter}
+						onChange={(e) => setCreatorFilter(e.target.value)}
+						className="h-8 rounded px-2 text-[13px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)]"
+					>
+						<option value="All">All creators</option>
+						{creators.map((c) => (
+							<option key={c.id} value={c.name}>{c.name}</option>
+						))}
+					</select>
+				</label>
+
 				<div className="ml-auto flex items-center gap-2">
+					{(monthActive || creatorFilter !== 'All') && (
+						<Button
+							variant="ghost"
+							onClick={() => {
+								setMonthFilter('All');
+								setCreatorFilter('All');
+							}}
+						>
+							Clear filters
+						</Button>
+					)}
 					<Button variant="ghost" onClick={load}>
 						<Icon name="refresh" size={14} /> Refresh
 					</Button>
@@ -261,7 +322,7 @@ export default function OverviewPage() {
 								</thead>
 								<tbody>
 									{data.rows.map((row) => {
-										const bySel = view === 'month' ? row.by_month : row.by_quarter;
+										const bySel = effView === 'month' ? row.by_month : row.by_quarter;
 										return (
 											<tr key={row.campaign_id ?? 'none'}>
 												<td>

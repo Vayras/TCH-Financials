@@ -602,14 +602,20 @@ export default function CommercialPage() {
 			{ label: 'Brand', value: form.brand },
 			{ label: 'Brand POC', value: form.brand_poc },
 			{ label: 'Campaign', value: form.campaign },
-			{ label: 'Deliverables', value: form.deliverables },
-			{ label: 'RO Number', value: form.ro_number },
-			{ label: 'Campaign Over', value: form.campaign_over },
-			{ label: 'Invoice Received', value: form.invoice_received },
-			{ label: 'Payment Cleared by TCH', value: form.payment_cleared },
-			{ label: 'E-Invoice #', value: form.e_invoice_number },
-			{ label: 'Payment Received by TCH', value: form.payment_received }
+			{ label: 'Deliverables', value: form.deliverables }
 		];
+		// Completion / finance fields only become required once the campaign is
+		// marked Over. Ongoing campaigns have no RO, invoice or payment yet, so
+		// these stay optional while campaign_over is empty or 'N'.
+		if (form.campaign_over === 'Y') {
+			required.push(
+				{ label: 'RO Number', value: form.ro_number },
+				{ label: 'Invoice Received', value: form.invoice_received },
+				{ label: 'Payment Cleared by TCH', value: form.payment_cleared },
+				{ label: 'E-Invoice #', value: form.e_invoice_number },
+				{ label: 'Payment Received by TCH', value: form.payment_received }
+			);
+		}
 		const missing = required.filter((f) => !String(f.value ?? '').trim()).map((f) => f.label);
 		shares.forEach((s, i) => {
 			if (!s.creator) missing.push(`Split creator ${i + 2}`);
@@ -874,8 +880,22 @@ export default function CommercialPage() {
 		setFormError(null);
 		setForm((f) => ({ ...f, [k]: v }));
 	};
+	// Completion / finance fields are only required once the campaign is Over;
+	// "Campaign Over" is the toggle itself and is never required (empty = ongoing).
+	const COMPLETION_FIELD_KEYS: (keyof DealForm)[] = [
+		'ro_number',
+		'invoice_received',
+		'payment_cleared',
+		'e_invoice_number',
+		'payment_received'
+	];
+	const isFieldRequired = (k: keyof DealForm): boolean => {
+		if (k === 'campaign_over') return false;
+		if (COMPLETION_FIELD_KEYS.includes(k)) return form.campaign_over === 'Y';
+		return true;
+	};
 	const isMissing = (k: keyof DealForm) =>
-		validationAttempted && !String(form[k] ?? '').trim();
+		validationAttempted && isFieldRequired(k) && !String(form[k] ?? '').trim();
 	const reqHelper = (k: keyof DealForm) => (isMissing(k) ? 'Required' : ' ');
 	const muiInputSx = {
 		'& .MuiInputBase-root': { bgcolor: 'var(--n-bg-soft)', fontSize: 14 },
