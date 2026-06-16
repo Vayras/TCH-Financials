@@ -945,13 +945,59 @@ export default function CommercialPage() {
 		return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 	}, [filtered, groupBy]);
 
+	// One card per campaign: every deal sharing a campaign rolls into a single
+	// group so its creators are listed together instead of appearing as separate
+	// "campaigns". Deals with no campaign stay individual (keyed by deal id) so
+	// they aren't lumped into one anonymous bucket. Fees/profit sum across the
+	// campaign's deals; creator names are deduped in first-seen order.
+	const campaignGroups = React.useMemo(() => {
+		const map = new Map<string, {
+			key: string;
+			name: string;
+			brand: string;
+			status: '' | 'Active' | 'Over';
+			creatorNames: string[];
+			deals: Deal[];
+			total: number;
+			profit: number;
+		}>();
+		for (const r of filtered) {
+			const key = r.campaign_id != null ? `c${r.campaign_id}` : `d${r.id}`;
+			const name = r.campaign || r.brand || '—';
+			const group = map.get(key) ?? {
+				key,
+				name,
+				brand: r.brand,
+				status: r.campaign_status,
+				creatorNames: [],
+				deals: [],
+				total: 0,
+				profit: 0
+			};
+			group.deals.push(r);
+			group.total += Number(r.total_fee) || 0;
+			group.profit += Number(r.agency_fee_inr) || 0;
+			if (!group.brand) group.brand = r.brand;
+			for (const n of creatorNamesOf(r)) {
+				if (n && !group.creatorNames.includes(n)) group.creatorNames.push(n);
+			}
+			map.set(key, group);
+		}
+		return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+	}, [filtered]);
+
 	// Table grouping keeps one row per deal (no fee splitting / duplication): each
-	// deal sits under a single brand or combined-creator heading with a subtotal.
+	// deal sits under a single brand, campaign or combined-creator heading with a
+	// subtotal.
 	const tableGroups = React.useMemo(() => {
-		if (groupBy === 'campaign') return null;
 		const map = new Map<string, { key: string; name: string; deals: Deal[]; total: number; profit: number }>();
 		for (const r of filtered) {
-			const name = (groupBy === 'brand' ? r.brand : creatorNamesOf(r).join(', ')) || '—';
+			const name =
+				(groupBy === 'brand'
+					? r.brand
+					: groupBy === 'campaign'
+						? r.campaign
+						: creatorNamesOf(r).join(', ')) || '—';
 			const key = name.toLowerCase();
 			const group = map.get(key) ?? { key, name, deals: [], total: 0, profit: 0 };
 			group.deals.push(r);
@@ -988,9 +1034,11 @@ export default function CommercialPage() {
 			);
 		}
 		if (groupBy === 'campaign') {
+			// Grouped under a campaign header — surface the creators on each row.
+			const names = creatorNamesOf(r);
 			return (
 				<>
-					<div className="font-medium truncate" title={r.campaign || undefined} style={{ color: 'var(--n-fg)' }}>{r.campaign || '—'}</div>
+					<div className="font-medium truncate" title={names.join(', ') || undefined} style={{ color: 'var(--n-fg)' }}>{creatorLabel(names)}</div>
 					{r.brand && <div className="text-[12px] truncate" style={{ color: 'var(--n-fg-muted)' }}>{r.brand}</div>}
 				</>
 			);
@@ -1228,57 +1276,75 @@ export default function CommercialPage() {
 				) : viewMode === 'cards' && groupBy === 'campaign' ? (
 					<>
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-							{filtered.map((r) => {
-								const names = creatorNamesOf(r);
+							{campaignGroups.map((group) => {
+								const expanded = expandedCards[group.key] ?? false;
 								return (
 									<div
-										key={r.id}
-										role="button"
-										tabIndex={0}
-										onClick={() => setDetail(r)}
-										onKeyDown={(e) => {
-											if (e.key === 'Enter' || e.key === ' ') {
-												e.preventDefault();
-												setDetail(r);
-											}
-										}}
-										className="text-left rounded-lg p-4 space-y-3 cursor-pointer border border-[var(--n-border)] transition-colors duration-150 hover:border-[var(--n-accent)] focus:outline-none focus-visible:border-[var(--n-accent)]"
+										key={group.key}
+										className="rounded-lg p-4 space-y-3 border border-[var(--n-border)] transition-colors duration-150 hover:border-[var(--n-accent)]"
 										style={{ background: 'var(--n-bg)' }}
 									>
 										<div className="flex items-start justify-between gap-2">
 											<div className="min-w-0">
-												<div className="font-semibold text-[15px] truncate" style={{ color: 'var(--n-fg)' }}>{r.brand || '—'}</div>
-												<div className="text-[13px] mt-0.5 truncate" style={{ color: 'var(--n-fg-muted)' }}>{creatorLabel(names)}</div>
-											</div>
-											<Tag tone={dirTone(r.direction)}>{r.direction}</Tag>
-										</div>
-										{r.campaign && (
-											<div className="flex items-center gap-2 min-w-0">
-												<div className="text-[13px] truncate" style={{ color: 'var(--n-fg-muted)' }}>{r.campaign}</div>
-												{r.campaign_status && (
-													<Tag tone={r.campaign_status === 'Over' ? 'neutral' : 'yes'}>{r.campaign_status}</Tag>
+												<div className="font-semibold text-[15px] truncate" title={group.name} style={{ color: 'var(--n-fg)' }}>{group.name}</div>
+												{group.brand && group.brand !== group.name && (
+													<div className="text-[13px] mt-0.5 truncate" style={{ color: 'var(--n-fg-muted)' }}>{group.brand}</div>
 												)}
 											</div>
-										)}
+											{group.status && (
+												<Tag tone={group.status === 'Over' ? 'neutral' : 'yes'}>{group.status}</Tag>
+											)}
+										</div>
+										<div>
+											<div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
+												Creator{group.creatorNames.length === 1 ? '' : 's'}{group.creatorNames.length > 0 ? ` · ${group.creatorNames.length}` : ''}
+											</div>
+											<div className="text-[13px] mt-0.5" style={{ color: 'var(--n-fg)' }}>
+												{group.creatorNames.length > 0 ? group.creatorNames.join(', ') : '—'}
+											</div>
+										</div>
 										<div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
 											<div>
 												<div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Total Fee</div>
-												<div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{inr(r.total_fee)}</div>
+												<div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{inr(group.total)}</div>
 											</div>
 											<div>
 												<div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>TCH Profit</div>
-												<div className="font-semibold tabular-nums" style={{ color: '#1f6f43' }}>{inr(r.agency_fee_inr)}</div>
+												<div className="font-semibold tabular-nums" style={{ color: '#1f6f43' }}>{inr(group.profit)}</div>
 											</div>
 										</div>
 										<div className="flex items-center justify-between gap-2 pt-1">
-											<Tag tone="markup">{monthYearLabel(trackDate(r))}</Tag>
-											{names.length > 1 && <Tag tone="markup">{names.length} creators</Tag>}
+											<div className="text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>
+												{group.deals.length} deal{group.deals.length === 1 ? '' : 's'}
+											</div>
+											<button
+												type="button"
+												aria-label={expanded ? 'Collapse deals' : 'Expand deals'}
+												onClick={() => setExpandedCards((prev) => ({ ...prev, [group.key]: !expanded }))}
+												className="h-5 w-5 inline-flex items-center justify-center rounded-[3px] border border-[var(--n-border)] text-[var(--n-fg-muted)] hover:bg-[var(--n-accent)] hover:border-[var(--n-accent)] hover:text-white transition-colors"
+											>
+												<Icon name="chevron-right" size={13} className={expanded ? 'rotate-90 transition-transform' : 'transition-transform'} />
+											</button>
 										</div>
+										<Collapse in={expanded} timeout="auto" unmountOnExit>
+											<div className="space-y-2 pt-2 border-t" style={{ borderColor: 'var(--n-border)' }}>
+												{group.deals.map((r) => (
+													<div key={r.id} className="flex items-center gap-2 text-[13px]">
+														<div className="min-w-0 flex-1">
+															<div className="font-medium truncate" style={{ color: 'var(--n-fg)' }}>{creatorLabel(creatorNamesOf(r))}</div>
+															<div className="tabular-nums" style={{ color: 'var(--n-fg-muted)' }}>{inr(r.total_fee)} · {monthYearLabel(trackDate(r))}</div>
+														</div>
+														<Tag tone={dirTone(r.direction)}>{r.direction}</Tag>
+														<Button variant="primary" onClick={() => setDetail(r)}>View</Button>
+													</div>
+												))}
+											</div>
+										</Collapse>
 									</div>
 								);
 							})}
 						</div>
-						{filtered.length === 0 && (
+						{campaignGroups.length === 0 && (
 							<div className="text-[14px] py-8 text-center" style={{ color: 'var(--n-fg-subtle)' }}>
 								No campaigns match the current filters.
 							</div>
