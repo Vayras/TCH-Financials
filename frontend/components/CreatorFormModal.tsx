@@ -8,52 +8,8 @@ import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Label from '@/components/ui/Label';
 import Icon from '@/components/ui/Icon';
-
-export type AttachmentType = 'Contract' | 'PAN' | 'Aadhaar' | 'Cheque';
-export type CreatorAttachment = { doc_type: AttachmentType; file: File };
-
-export type CreatorForm = {
-	name: string;
-	niche: string;
-	relation: string;
-	status: string;
-	doj: Date;
-	url: string[];
-	location: string;
-	talent_manager: string;
-	attachments: CreatorAttachment[];
-};
-
-export const EMPTY_FORM: CreatorForm = {
-	name: '',
-	niche: '',
-	relation: '',
-	status: '',
-	doj: new Date('2002-09-12'),
-	url: [],
-	location: '',
-	talent_manager: '',
-	attachments: []
-};
-
-const REL = [
-	{ value: 'Exclusive', label: 'Exclusive' },
-	{ value: 'Non-Exclusive', label: 'Non-Exclusive' }
-];
-
-const STATUS = [
-	{ value: 'Active', label: 'Active' },
-	{ value: 'Inactive', label: 'Inactive' }
-];
-
-// Contract is only collected (and required) for Exclusive creators. It sits
-// last so the other slots don't shift when it appears.
-const ATTACH_SLOTS: { key: AttachmentType; label: string; exclusiveOnly?: boolean }[] = [
-	{ key: 'PAN', label: 'PAN Card' },
-	{ key: 'Aadhaar', label: 'Aadhaar Card' },
-	{ key: 'Cheque', label: 'Cancelled Cheque' },
-	{ key: 'Contract', label: 'Contract / Agreement', exclusiveOnly: true }
-];
+import type { AttachmentType, CreatorForm } from '@/types/creator';
+import { ATTACH_SLOTS, REL, STATUS } from '@/lib/creators';
 
 // react-hook-form works with input-native values: dates as yyyy-mm-dd
 // strings, files as FileList, and field arrays as objects. Convert to/from

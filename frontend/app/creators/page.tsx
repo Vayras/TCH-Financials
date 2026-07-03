@@ -9,40 +9,20 @@ import Select from '@/components/ui/Select';
 import Label from '@/components/ui/Label';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
-import { cn } from '@/lib/utils';
-import CreatorFormModal, { type CreatorForm, EMPTY_FORM } from '@/components/CreatorFormModal';
+import { cn, downloadFile, formatDocDate, formatDoj } from '@/lib/utils';
+import CreatorFormModal from '@/components/CreatorFormModal';
 import DataTable from '@/components/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
-
-const REL_FILTERS = ['All', 'Exclusive', 'Non-Exclusive'];
-const STATUS_FILTERS = ['All', 'Active', 'Inactive'];
-
-const DOC_TYPES = [
-	{ value: 'Contract', label: 'Contract' },
-	{ value: 'PAN', label: 'PAN Card' },
-	{ value: 'Aadhaar', label: 'Aadhaar Card' },
-	{ value: 'Cheque', label: 'Cancelled Cheque' },
-	{ value: 'Bank', label: 'Bank Details' },
-	{ value: 'GST', label: 'GST' },
-	{ value: 'Other', label: 'Other' }
-];
-
-function formatDocDate(s: string): string {
-	const d = new Date(s);
-	return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
-}
-
-function formatDoj(s: string | null): string {
-	if (!s) return '—';
-	return formatDocDate(s);
-}
-
-function relTone(rel: string) {
-	return rel === 'Exclusive' ? ('exclusive' as const) : ('friend' as const);
-}
-function statusTone(status: string) {
-	return status === 'Active' ? ('yes' as const) : ('no' as const);
-}
+import type { CreatorForm } from '@/types/creator';
+import {
+	DOC_TYPES,
+	EMPTY_FORM,
+	REL_FILTERS,
+	STATUS_FILTERS,
+	relTone,
+	statusTone,
+	uploadCreatorDocument
+} from '@/lib/creators';
 
 export default function CreatorsPage() {
 	const [rows, setRows] = React.useState<Creator[]>([]);
@@ -91,12 +71,7 @@ export default function CreatorsPage() {
 		if (!docsCreator || !docFile) return;
 		setUploading(true);
 		try {
-			const fd = new FormData();
-			fd.append('creator', String(docsCreator.id));
-			fd.append('doc_type', docType);
-			fd.append('label', docLabel);
-			fd.append('file', docFile);
-			await api.upload<CreatorDocument>('/creator-documents/', fd);
+			await uploadCreatorDocument(docsCreator.id, docType, docFile, docLabel);
 			setDocFile(null);
 			setDocLabel('');
 			if (fileInputRef.current) fileInputRef.current.value = '';
@@ -119,21 +94,9 @@ export default function CreatorsPage() {
 		}
 	}
 
-	// Force a save-to-disk. The file is served cross-origin (API host), so the
-	// <a download> attribute is ignored — fetch as a blob and download that.
 	async function downloadDoc(d: CreatorDocument) {
 		try {
-			const res = await fetch(d.file);
-			if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-			const blob = await res.blob();
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement('a');
-			a.href = url;
-			a.download = d.label || d.file.split('/').pop() || 'document';
-			document.body.appendChild(a);
-			a.click();
-			a.remove();
-			URL.revokeObjectURL(url);
+			await downloadFile(d.file, d.label || undefined);
 		} catch (e) {
 			alert((e as Error).message);
 		}
@@ -195,12 +158,7 @@ export default function CreatorsPage() {
 			const failed: string[] = [];
 			for (const a of form.attachments) {
 				try {
-					const fd = new FormData();
-					fd.append('creator', String(creatorId));
-					fd.append('doc_type', a.doc_type);
-					fd.append('label', a.file.name);
-					fd.append('file', a.file);
-					await api.upload<CreatorDocument>('/creator-documents/', fd);
+					await uploadCreatorDocument(creatorId, a.doc_type, a.file, a.file.name);
 				} catch {
 					failed.push(`${a.doc_type} (${a.file.name})`);
 				}
@@ -365,7 +323,7 @@ export default function CreatorsPage() {
 			<section className="space-y-6">
 				<header className="flex items-end justify-between flex-wrap gap-3">
 					<h1
-						className="page-title text-[40px] leading-[1.15] font-bold"
+						className="page-title text-[28px] leading-[1.2] font-bold"
 						style={{ color: 'var(--n-fg)' }}
 					>
 						Creator Database

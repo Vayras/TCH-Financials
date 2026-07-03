@@ -29,8 +29,8 @@ body {
 	background: var(--n-bg);
 	color: var(--n-fg);
 	font-family:
-		var(--font-inter),
-		'Inter',
+		var(--font-host-grotesk),
+		'Host Grotesk',
 		ui-sans-serif,
 		system-ui,
 		-apple-system,
@@ -39,6 +39,7 @@ body {
 		Helvetica,
 		Arial,
 		sans-serif;
+	font-size: 16px;
 	font-feature-settings: 'tnum' 1;
 	font-variant-ligatures: none;
 	-webkit-font-smoothing: antialiased;
@@ -46,11 +47,33 @@ body {
 	letter-spacing: 0;
 }
 
+/* Single-typeface scale: headings 28px bold over a 16px body. */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
 .page-title {
-	font-family: var(--font-source-serif), 'Source Serif 4', ui-serif, Georgia, 'Times New Roman', serif;
+	font-family: inherit;
+	font-size: 28px;
+	font-weight: 700;
 	letter-spacing: -0.005em;
 	line-height: 1.2;
 	font-feature-settings: normal;
+}
+
+/* MUI ships its own Roboto stack — make it inherit Host Grotesk instead. */
+[class*='Mui'] {
+	font-family: inherit;
+}
+
+/* Keep MUI form controls on the app's compact 14px form scale. */
+.MuiFormLabel-root,
+.MuiInputBase-root,
+.MuiMenuItem-root,
+.MuiAutocomplete-option {
+	font-size: 14px !important;
 }
 
 /* ---------- table card + horizontal scroll cue ---------- */

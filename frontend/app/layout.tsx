@@ -1,22 +1,16 @@
 import type { Metadata } from 'next';
-import { Inter, Source_Serif_4 } from 'next/font/google';
+import { Host_Grotesk } from 'next/font/google';
 import './globals.css';
 import AuthGuard from '@/components/AuthGuard';
 
 // Self-hosted via next/font: fonts are downloaded at build time and served
 // from our own origin with no render-blocking Google Fonts CSS request.
-const inter = Inter({
+// Host Grotesk is the single typeface for the whole app.
+const hostGrotesk = Host_Grotesk({
 	subsets: ['latin'],
 	weight: ['400', '500', '600', '700'],
 	display: 'swap',
-	variable: '--font-inter'
-});
-
-const sourceSerif = Source_Serif_4({
-	subsets: ['latin'],
-	weight: ['400', '600', '700'],
-	display: 'swap',
-	variable: '--font-source-serif'
+	variable: '--font-host-grotesk'
 });
 
 export const metadata: Metadata = {
@@ -26,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en" className={`${inter.variable} ${sourceSerif.variable}`}>
+		<html lang="en" className={hostGrotesk.variable}>
 			<head>
 				<meta name="text-scale" content="scale" />
 			</head>

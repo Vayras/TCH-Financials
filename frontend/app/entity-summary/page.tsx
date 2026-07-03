@@ -97,7 +97,7 @@ export default function EntitySummaryPage() {
 					Workspace · Entity Summary · {fyLabelFor(fy)}
 				</div>
 				<h1
-					className="page-title text-[40px] leading-[1.15] font-bold"
+					className="page-title text-[28px] leading-[1.2] font-bold"
 					style={{ color: 'var(--n-fg)' }}
 				>
 					Billing Entity Summary

@@ -162,7 +162,7 @@ export default function AlertsPage() {
 					Workspace · Alerts
 				</div>
 				<h1
-					className="page-title text-[40px] leading-[1.15] font-bold"
+					className="page-title text-[28px] leading-[1.2] font-bold"
 					style={{ color: 'var(--n-fg)' }}
 				>
 					Intelligence Alerts
