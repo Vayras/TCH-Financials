@@ -1,49 +1,4 @@
 services:
-  db:
-    image: postgres:17-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-tch_financials}
-      POSTGRES_USER: ${POSTGRES_USER:-tch}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tch}
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "${POSTGRES_HOST_PORT:-5434}:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tch} -d ${POSTGRES_DB:-tch_financials}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  backend:
-    build:
-      context: ./backend
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-secret}
-      DEBUG: ${DJANGO_DEBUG:-1}
-      # When DATABASE_URL is set (e.g. Supabase), it overrides the PG* vars
-      # below and the bundled db service is ignored.
-      DATABASE_URL: ${DATABASE_URL:-}
-      PGHOST: db
-      PGPORT: 5432
-      PGDATABASE: ${POSTGRES_DB:-tch_financials}
-      PGUSER: ${POSTGRES_USER:-tch}
-      PGPASSWORD: ${POSTGRES_PASSWORD:-tch}
-      SEED_FILE: /data/source.xlsx
-      # Supabase Auth — when set, the API requires a Supabase access token.
-      SUPABASE_URL: ${SUPABASE_URL:-}
-      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
-    volumes:
-      - ./data:/data:ro
-      - backend_state:/app/.state
-    ports:
-      - "8000:8000"
-
   frontend:
     build:
       context: ./frontend
@@ -52,13 +7,5 @@ services:
         NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-${SUPABASE_URL:-}}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
     restart: unless-stopped
-    depends_on:
-      - backend
-    environment:
-      API_PROXY_TARGET: ${API_PROXY_TARGET:-http://backend:8000}
     ports:
       - "${FRONTEND_HOST_PORT:-5050}:5000"
-
-volumes:
-  pgdata:
-  backend_state:

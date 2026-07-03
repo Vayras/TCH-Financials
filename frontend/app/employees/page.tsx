@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import Collapse from '@mui/material/Collapse';
 import { api, ConflictError, type EmployeeReport } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import Button from '@/components/ui/Button';
@@ -321,7 +320,7 @@ export default function EmployeesPage() {
 											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Outreach</div><div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{group.outreach}</div></div>
 											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Live</div><div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{group.live}</div></div>
 										</div>
-										<Collapse in={expanded} timeout="auto" unmountOnExit>
+										{expanded && (
 											<div className="space-y-2 pt-2 border-t" style={{ borderColor: 'var(--n-border)' }}>
 												{group.reports.map((r) => (
 													<div key={r.id} className="text-[13px] space-y-1">
@@ -333,7 +332,7 @@ export default function EmployeesPage() {
 													</div>
 												))}
 											</div>
-										</Collapse>
+										)}
 									</div>
 								);
 							})}

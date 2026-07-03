@@ -10,10 +10,6 @@ COPY . .
 ARG NEXT_PUBLIC_API_BASE=/api
 ENV NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE}
 
-# Baked into the Next.js rewrite at build time (see next.config.ts).
-ARG API_PROXY_TARGET=http://backend:8000
-ENV API_PROXY_TARGET=${API_PROXY_TARGET}
-
 # Supabase Auth — NEXT_PUBLIC_* values are inlined into the client bundle at
 # build time. Leave empty to build with auth disabled.
 ARG NEXT_PUBLIC_SUPABASE_URL=

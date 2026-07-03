@@ -1,13 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import Alert from '@mui/material/Alert';
-import Box from '@mui/material/Box';
-import InputAdornment from '@mui/material/InputAdornment';
-import MenuItem from '@mui/material/MenuItem';
-import MuiButton from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import { api, ConflictError, type Deal, type Creator, type Campaign } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
@@ -24,6 +17,7 @@ import {
 	normalisePctString
 } from '@/lib/deals';
 import Icon from '@/components/ui/Icon';
+import Button from '@/components/ui/Button';
 import MetricCard from '@/components/MetricCard';
 import { CampaignGroupCard, CreatorGroupCard } from '@/components/CampaignCards';
 import CampaignDetailModal from '@/components/CampaignDetailModal';
@@ -375,123 +369,70 @@ export default function CommercialPage() {
 
 	return (
 		<>
-			<Box component="section" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-				<Box component="header">
-					<Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: 2 }}>
-						<Typography component="h1" className="page-title" sx={{ color: 'var(--n-fg)', fontSize: 28, lineHeight: 1.2, fontWeight: 700 }}>
-							Campaign Tracking
-						</Typography>
-						<MuiButton variant="contained" onClick={startAdd} startIcon={<Icon name="plus" size={14} />} sx={{ bgcolor: 'var(--n-accent)', textTransform: 'none', '&:hover': { bgcolor: '#380e44' } }}>
-							Add Campaign
-						</MuiButton>
-					</Box>
-				</Box>
+			<section className="space-y-6">
+				<header className="flex items-end justify-between flex-wrap gap-3">
+					<h1 className="page-title text-[28px] leading-[1.2] font-bold" style={{ color: 'var(--n-fg)' }}>
+						Campaign Tracking
+					</h1>
+					<Button variant="primary" size="md" onClick={startAdd}>
+						<Icon name="plus" size={14} /> Add Campaign
+					</Button>
+				</header>
 
-				<Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1 }}>
+				<div className="grid grid-cols-2 gap-2">
 					<MetricCard label="Invoiced Billing" value={`₹ ${inr(billingSummary.invoiced)}`} />
 					<MetricCard label="Deals" value={totals.count} />
-				</Box>
+				</div>
 
-				<Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
-					<TextField
-						value={q}
-						onChange={(e) => setQ(e.target.value)}
-						placeholder="Search creator, brand, campaign…"
-						size="small"
-						sx={{ flex: '1 1 260px', minWidth: 220 }}
-						slotProps={{
-							input: {
-								startAdornment: (
-									<InputAdornment position="start">
-										<Icon name="search" size={14} />
-									</InputAdornment>
-								)
-							}
-						}}
-					/>
-					<TextField
-						select
-						size="small"
-						label="Deal Type"
-						value={dirFilter}
-						onChange={(e) => setDirFilter(e.target.value as DirFilter)}
-						sx={{ flex: '0 1 140px', minWidth: 120 }}
-					>
-						{(['All', 'Inbound', 'Outbound'] as DirFilter[]).map((d) => (
-							<MenuItem key={d} value={d}>
-								{d}
-							</MenuItem>
-						))}
-					</TextField>
-					<TextField
-						select
-						size="small"
-						label="Creator"
-						value={creatorFilter}
-						onChange={(e) => setCreatorFilter(e.target.value)}
-						sx={{ flex: '0 1 200px', minWidth: 150 }}
-					>
-						<MenuItem value="All">All creators</MenuItem>
-						{creatorNames.map((n) => (
-							<MenuItem key={n} value={n}>{n}</MenuItem>
-						))}
-					</TextField>
-					<TextField
-						select
-						size="small"
-						label="Months"
-						value={months}
-						onChange={(e) => {
-							const v = e.target.value;
-							setMonths(typeof v === 'string' ? (v ? v.split(',') : []) : v);
-						}}
-						sx={{ flex: '0 1 220px', minWidth: 170 }}
-						slotProps={{
-							select: {
-								multiple: true,
-								displayEmpty: true,
-								renderValue: (selected) => {
-									const sel = selected as string[];
-									if (sel.length === 0) return 'All months';
-									return sel
-										.slice()
-										.sort((a, b) => FY_MONTH_ORDER.indexOf(a) - FY_MONTH_ORDER.indexOf(b))
-										.map((mm) => MONTH_NAMES[Number(mm)])
-										.join(', ');
-								}
-							},
-							inputLabel: { shrink: true }
-						}}
-					>
-						{availMonths.map((mm) => (
-							<MenuItem key={mm} value={mm}>{MONTH_NAMES[Number(mm)]}</MenuItem>
-						))}
-					</TextField>
-					<TextField
-						select
-						size="small"
-						label="Group by"
-						value={groupBy}
-						onChange={(e) => setGroupBy(e.target.value as CardGroupBy)}
-						sx={{ flex: '0 1 140px', minWidth: 120 }}
-					>
-						<MenuItem value="campaign">Campaign</MenuItem>
-						<MenuItem value="creator">Creator</MenuItem>
-					</TextField>
-					{filtersActive && (
-						<MuiButton variant="text" onClick={resetFilters} sx={{ height: 40, textTransform: 'none' }}>
-							Reset filters
-						</MuiButton>
-					)}
-				</Box>
+				<div className="flex flex-wrap items-center gap-2">
+					<div className="relative flex-1 min-w-[260px]">
+						<span className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--n-fg-subtle)' }}>
+							<Icon name="search" size={14} />
+						</span>
+						<input
+							value={q}
+							onChange={(e) => setQ(e.target.value)}
+							placeholder="Search creator, brand, campaign…"
+							className="h-8 w-full rounded pl-8 pr-2 text-[14px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors placeholder:text-[var(--n-fg-subtle)]"
+						/>
+					</div>
+					<label className="flex flex-col gap-1 min-w-[120px] text-[11.5px] font-medium" style={{ color: 'var(--n-fg-subtle)' }}>
+						Deal Type
+						<select value={dirFilter} onChange={(e) => setDirFilter(e.target.value as DirFilter)} className="h-8 rounded px-2 text-[14px] font-normal bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)]">
+							{(['All', 'Inbound', 'Outbound'] as DirFilter[]).map((d) => <option key={d} value={d}>{d}</option>)}
+						</select>
+					</label>
+					<label className="flex flex-col gap-1 min-w-[170px] text-[11.5px] font-medium" style={{ color: 'var(--n-fg-subtle)' }}>
+						Creator
+						<select value={creatorFilter} onChange={(e) => setCreatorFilter(e.target.value)} className="h-8 rounded px-2 text-[14px] font-normal bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)]">
+							<option value="All">All creators</option>
+							{creatorNames.map((n) => <option key={n} value={n}>{n}</option>)}
+						</select>
+					</label>
+					<label className="flex flex-col gap-1 min-w-[150px] text-[11.5px] font-medium" style={{ color: 'var(--n-fg-subtle)' }}>
+						Month
+						<select value={months[0] ?? ''} onChange={(e) => setMonths(e.target.value ? [e.target.value] : [])} className="h-8 rounded px-2 text-[14px] font-normal bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)]">
+							<option value="">All months</option>
+							{availMonths.map((mm) => <option key={mm} value={mm}>{MONTH_NAMES[Number(mm)]}</option>)}
+						</select>
+					</label>
+					<label className="flex flex-col gap-1 min-w-[130px] text-[11.5px] font-medium" style={{ color: 'var(--n-fg-subtle)' }}>
+						Group by
+						<select value={groupBy} onChange={(e) => setGroupBy(e.target.value as CardGroupBy)} className="h-8 rounded px-2 text-[14px] font-normal bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)]">
+							<option value="campaign">Campaign</option>
+							<option value="creator">Creator</option>
+						</select>
+					</label>
+					{filtersActive && <Button variant="ghost" onClick={resetFilters}>Reset filters</Button>}
+				</div>
 
 				{missingDate.length > 0 && (
-					<Alert severity="warning" sx={{ '& .MuiAlert-message': { fontSize: 13 } }}>
+					<div className="text-[13px] rounded p-3" style={{ background: '#fffbeb', color: '#92400e', border: '1px solid #fde68a' }}>
 						{missingDate.length} deal{missingDate.length === 1 ? '' : 's'} {missingDate.length === 1 ? 'has' : 'have'} no{' '}
 						E-Invoice No or invoice date and{' '}
 						{missingDate.length === 1 ? "isn't" : "aren't"} counted in any
 						period — backfill {missingDate.length === 1 ? 'it' : 'them'} to include {missingDate.length === 1 ? 'it' : 'them'} in billing totals.
-					</Alert>
+					</div>
 				)}
 
 				{loading ? (
@@ -532,7 +473,7 @@ export default function CommercialPage() {
 						)}
 					</>
 				)}
-			</Box>
+			</section>
 
 			<CampaignDetailModal
 				deal={detail}

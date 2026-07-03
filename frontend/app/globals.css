@@ -63,19 +63,6 @@ h6,
 	font-feature-settings: normal;
 }
 
-/* MUI ships its own Roboto stack — make it inherit Host Grotesk instead. */
-[class*='Mui'] {
-	font-family: inherit;
-}
-
-/* Keep MUI form controls on the app's compact 14px form scale. */
-.MuiFormLabel-root,
-.MuiInputBase-root,
-.MuiMenuItem-root,
-.MuiAutocomplete-option {
-	font-size: 14px !important;
-}
-
 /* ---------- table card + horizontal scroll cue ---------- */
 
 .tbl-card {
@@ -293,25 +280,6 @@ thead .ct-sticky-r {
 	background-color: #f4f3f0;
 }
 
-.MuiInputLabel-root.Mui-focused {
-	color: var(--n-accent) !important;
-}
-
-.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
-	border-color: var(--n-accent) !important;
-}
-
-.MuiMenuItem-root.Mui-selected {
-	background-color: var(--n-accent-soft) !important;
-}
-
-.MuiMenuItem-root.Mui-selected:hover {
-	background-color: rgba(68, 17, 81, 0.2) !important;
-}
-
-.MuiCheckbox-root.Mui-checked {
-	color: var(--n-accent) !important;
-}
 
 input[type='date'] {
 	accent-color: var(--n-accent);
