@@ -9,51 +9,16 @@ import Select from '@/components/ui/Select';
 import Label from '@/components/ui/Label';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
-import { cn, inr } from '@/lib/utils';
-import { useFiscalYear } from '@/lib/fiscal-year';
+import { cn } from '@/lib/utils';
+import CreatorFormModal, { type CreatorForm, EMPTY_FORM } from '@/components/CreatorFormModal';
+import DataTable from '@/components/DataTable';
+import { type ColumnDef } from '@tanstack/react-table';
 
-function fyLabelFor(start: number): string {
-	return `FY ${start % 100}-${(start + 1) % 100}`;
-}
-
-// Per-creator activity for the selected fiscal year, keyed by creator id.
-type CreatorFyStat = { deals: number; billing: string; profit: string };
-type CreatorInsightRow = {
-	creator_id: number | null;
-	total_count: number;
-	total_billing: string;
-	total_profit: string;
-};
-type CreatorInsights = { fy_start: number; creators: CreatorInsightRow[] };
-
-const REL = [
-	{ value: 'Exclusive', label: 'Exclusive' },
-	{ value: 'Friend', label: 'Friend' },
-	{ value: 'Dropping', label: 'Dropping out soon' },
-	{ value: 'NonTCH', label: 'Non TCH' }
-];
-const STAGE = [
-	{ value: 'Lead', label: 'Lead' },
-	{ value: 'Discussing', label: 'Discussing' },
-	{ value: 'Closed', label: 'Closed' },
-	{ value: 'Dropped', label: 'Dropped' }
-];
-const SOURCE = [
-	{ value: 'EMW', label: 'EMW' },
-	{ value: 'TCH', label: 'TCH' },
-	{ value: 'OTHER', label: 'Other' }
-];
-
-const STATUS = [
-	{ value: 'Active', label: 'Active' },
-	{ value: 'Inactive', label: 'Inactive' }
-];
-
-const REL_FILTERS = ['All', 'Exclusive', 'Friend', 'Dropping', 'NonTCH'];
+const REL_FILTERS = ['All', 'Exclusive', 'Non-Exclusive'];
 const STATUS_FILTERS = ['All', 'Active', 'Inactive'];
 
 const DOC_TYPES = [
-	{ value: 'Agreement', label: 'Contract / Agreement' },
+	{ value: 'Contract', label: 'Contract' },
 	{ value: 'PAN', label: 'PAN Card' },
 	{ value: 'Aadhaar', label: 'Aadhaar Card' },
 	{ value: 'Cheque', label: 'Cancelled Cheque' },
@@ -62,73 +27,25 @@ const DOC_TYPES = [
 	{ value: 'Other', label: 'Other' }
 ];
 
-// Attachment slots shown in the Add Creator popup. Contract is only relevant
-// for creators TCH actually contracts; Non-TCH / Friends have no agreement.
-const ATTACH_SLOTS: { key: string; label: string; contract?: boolean }[] = [
-	{ key: 'Agreement', label: 'Contract / Agreement', contract: true },
-	{ key: 'PAN', label: 'PAN Card' },
-	{ key: 'Aadhaar', label: 'Aadhaar Card' },
-	{ key: 'Cheque', label: 'Cancelled Cheque' }
-];
-const NO_CONTRACT_RELATIONSHIPS = ['NonTCH', 'Friend'];
-
 function formatDocDate(s: string): string {
 	const d = new Date(s);
 	return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
-type CreatorForm = {
-	name: string;
-	category: string;
-	source: string;
-	stage: string;
-	relationship: string;
-	status: string;
-	doj: string;
-	doj_note: string;
-	profile_url: string;
-	location: string;
-	ops_manager: string;
-	notes: string;
-};
-
-const EMPTY_FORM: CreatorForm = {
-	name: '',
-	category: '',
-	source: '',
-	stage: '',
-	relationship: 'Friend',
-	status: 'Active',
-	doj: '',
-	doj_note: '',
-	profile_url: '',
-	location: '',
-	ops_manager: '',
-	notes: ''
-};
+function formatDoj(s: string | null): string {
+	if (!s) return '—';
+	return formatDocDate(s);
+}
 
 function relTone(rel: string) {
-	if (rel === 'Exclusive') return 'exclusive' as const;
-	if (rel === 'Dropping') return 'dropping' as const;
-	if (rel === 'NonTCH') return 'nontch' as const;
-	return 'friend' as const;
-}
-function stageTone(stage: string) {
-	if (stage === 'Closed') return 'yes' as const;
-	if (stage === 'Dropped') return 'no' as const;
-	if (stage === 'Discussing') return 'accent' as const;
-	return 'neutral' as const;
+	return rel === 'Exclusive' ? ('exclusive' as const) : ('friend' as const);
 }
 function statusTone(status: string) {
 	return status === 'Active' ? ('yes' as const) : ('no' as const);
 }
 
 export default function CreatorsPage() {
-	const { fyStart } = useFiscalYear();
 	const [rows, setRows] = React.useState<Creator[]>([]);
-	// FY-scoped deals/billing per creator, refreshed whenever the fiscal year
-	// changes via the global selector.
-	const [fyStats, setFyStats] = React.useState<Map<number, CreatorFyStat>>(new Map());
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
 	const [addOpen, setAddOpen] = React.useState(false);
@@ -136,17 +53,13 @@ export default function CreatorsPage() {
 	const [q, setQ] = React.useState('');
 	const [relFilter, setRelFilter] = React.useState('All');
 	const [statusFilter, setStatusFilter] = React.useState('All');
-	const [form, setForm] = React.useState<CreatorForm>(EMPTY_FORM);
-	// Files chosen in the Add Creator popup, keyed by doc_type. Uploaded right
-	// after the creator is created.
-	const [attachments, setAttachments] = React.useState<Record<string, File | null>>({});
 	const [attachError, setAttachError] = React.useState<string | null>(null);
 
 	// Documents modal state
 	const [docsCreator, setDocsCreator] = React.useState<Creator | null>(null);
 	const [docs, setDocs] = React.useState<CreatorDocument[]>([]);
 	const [docsLoading, setDocsLoading] = React.useState(false);
-	const [docType, setDocType] = React.useState('Agreement');
+	const [docType, setDocType] = React.useState('Other');
 	const [docLabel, setDocLabel] = React.useState('');
 	const [docFile, setDocFile] = React.useState<File | null>(null);
 	const [uploading, setUploading] = React.useState(false);
@@ -167,7 +80,7 @@ export default function CreatorsPage() {
 	function openDocs(c: Creator) {
 		setDocsCreator(c);
 		setDocs([]);
-		setDocType('Agreement');
+		setDocType('Other');
 		setDocLabel('');
 		setDocFile(null);
 		if (fileInputRef.current) fileInputRef.current.value = '';
@@ -246,98 +159,58 @@ export default function CreatorsPage() {
 		load();
 	}, [load]);
 
-	// Pull per-creator FY activity (deals / billing / profit) for the selected
-	// year; rebuilds the lookup whenever the global fiscal year changes.
-	React.useEffect(() => {
-		let cancelled = false;
-		api.get<CreatorInsights>(`/creator-insights/?fy=${fyStart}`)
-			.then((d) => {
-				if (cancelled) return;
-				const m = new Map<number, CreatorFyStat>();
-				for (const r of d.creators) {
-					if (r.creator_id != null) {
-						m.set(r.creator_id, {
-							deals: r.total_count,
-							billing: r.total_billing,
-							profit: r.total_profit
-						});
-					}
-				}
-				setFyStats(m);
-			})
-			.catch(() => {
-				if (!cancelled) setFyStats(new Map());
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [fyStart]);
-
 	function startAdd() {
 		setEditing(null);
-		setForm(EMPTY_FORM);
-		setAttachments({});
 		setAttachError(null);
 		setAddOpen(true);
 	}
 
 	function startEdit(r: Creator) {
 		setEditing(r);
-		setForm({
-			name: r.name,
-			category: r.category,
-			source: r.source,
-			stage: r.stage,
-			relationship: r.relationship,
-			status: r.status ?? 'Active',
-			doj: r.doj ?? '',
-			doj_note: r.doj_note,
-			profile_url: r.profile_url,
-			location: r.location,
-			ops_manager: r.ops_manager,
-			notes: r.notes
-		});
+		setAttachError(null);
 		setAddOpen(true);
 	}
 
-	async function submit() {
+	async function submit(form: CreatorForm) {
 		try {
-			const payload = { ...form, doj: form.doj || null };
+			const payload = {
+				name: form.name,
+				category: form.niche,
+				relationship: form.relation,
+				status: form.status,
+				doj: isNaN(form.doj.getTime()) ? null : form.doj.toISOString().slice(0, 10),
+				profile_url: form.url[0] ?? '',
+				location: form.location,
+				ops_manager: form.talent_manager
+			};
+			let creatorId: number;
 			if (editing) {
-				// version powers the optimistic-lock check: a concurrent edit
-				// by someone else makes the server answer 409 instead of
-				// overwriting their change.
 				await api.patch(`/creators/${editing.id}/`, { ...payload, version: editing.version });
+				creatorId = editing.id;
 			} else {
 				const created = await api.post<Creator>('/creators/', payload);
-				// Upload any attachments picked in the popup. The contract slot is
-				// skipped for Non-TCH / Friends (no agreement on file for them).
-				const noContract = NO_CONTRACT_RELATIONSHIPS.includes(form.relationship);
-				const pending = ATTACH_SLOTS.filter(
-					(s) => attachments[s.key] && !(s.contract && noContract)
+				creatorId = created.id;
+			}
+
+			const failed: string[] = [];
+			for (const a of form.attachments) {
+				try {
+					const fd = new FormData();
+					fd.append('creator', String(creatorId));
+					fd.append('doc_type', a.doc_type);
+					fd.append('label', a.file.name);
+					fd.append('file', a.file);
+					await api.upload<CreatorDocument>('/creator-documents/', fd);
+				} catch {
+					failed.push(`${a.doc_type} (${a.file.name})`);
+				}
+			}
+			if (failed.length > 0) {
+				setAttachError(
+					`Creator saved, but these attachments failed to upload: ${failed.join(', ')}. Use “Docs” to retry.`
 				);
-				const failed: string[] = [];
-				for (const slot of pending) {
-					try {
-						const fd = new FormData();
-						fd.append('creator', String(created.id));
-						fd.append('doc_type', slot.key);
-						fd.append('label', slot.label);
-						fd.append('file', attachments[slot.key] as File);
-						await api.upload<CreatorDocument>('/creator-documents/', fd);
-					} catch {
-						failed.push(slot.label);
-					}
-				}
-				if (failed.length > 0) {
-					// The creator was created; only some files failed. Keep the
-					// dialog open so they can retry via the Docs modal instead.
-					setAttachError(
-						`Creator saved, but these attachments failed to upload: ${failed.join(', ')}. Use “Docs” to retry.`
-					);
-					await load();
-					return;
-				}
+				await load();
+				return;
 			}
 			setAddOpen(false);
 			await load();
@@ -374,123 +247,133 @@ export default function CreatorsPage() {
 		});
 	}, [rows, q, relFilter, statusFilter]);
 
-	const counts = React.useMemo(
-		() => ({
-			exclusive: rows.filter((r) => r.relationship === 'Exclusive').length,
-			friend: rows.filter((r) => r.relationship === 'Friend').length,
-			dropping: rows.filter((r) => r.relationship === 'Dropping').length
-		}),
-		[rows]
+	const initialForm = React.useMemo<CreatorForm>(
+		() =>
+			editing
+				? {
+						name: editing.name,
+						niche: editing.category,
+						relation: editing.relationship,
+						status: editing.status ?? 'Active',
+						doj: editing.doj ? new Date(editing.doj) : EMPTY_FORM.doj,
+						url: editing.profile_url ? [editing.profile_url] : [],
+						location: editing.location,
+						talent_manager: editing.ops_manager,
+						attachments: []
+					}
+				: EMPTY_FORM,
+		[editing]
 	);
 
-	const set = <K extends keyof CreatorForm>(k: K, v: CreatorForm[K]) =>
-		setForm((f) => ({ ...f, [k]: v }));
+	const columns = React.useMemo<ColumnDef<Creator, unknown>[]>(
+		() => [
+			{
+				accessorKey: 'name',
+				header: 'Creator Name',
+				meta: { tdClassName: 'font-medium' },
+				cell: ({ row }) => (
+					<button
+						type="button"
+						onClick={() => startEdit(row.original)}
+						className="inline-link text-left"
+						title={`View / edit ${row.original.name}`}
+					>
+						{row.original.name}
+					</button>
+				)
+			},
+			{
+				accessorKey: 'category',
+				header: 'Niche',
+				meta: { tdStyle: { color: 'var(--n-fg-muted)' } }
+			},
+			{
+				accessorKey: 'relationship',
+				header: 'Relation',
+				cell: ({ row }) =>
+					row.original.relationship && (
+						<Tag tone={relTone(row.original.relationship)}>{row.original.relationship}</Tag>
+					)
+			},
+			{
+				accessorKey: 'status',
+				header: 'Status',
+				cell: ({ row }) => (
+					<Tag tone={statusTone(row.original.status ?? 'Active')}>
+						{row.original.status ?? 'Active'}
+					</Tag>
+				)
+			},
+			{
+				accessorKey: 'doj',
+				header: 'DOJ',
+				meta: { tdClassName: 'whitespace-nowrap', tdStyle: { color: 'var(--n-fg-muted)' } },
+				cell: ({ row }) => formatDoj(row.original.doj)
+			},
+			{
+				accessorKey: 'profile_url',
+				header: 'URL',
+				enableSorting: false,
+				cell: ({ row }) =>
+					row.original.profile_url && (
+						<a
+							className="inline-link text-[13px]"
+							href={row.original.profile_url}
+							target="_blank"
+							rel="noopener"
+						>
+							link ↗
+						</a>
+					)
+			},
+			{
+				accessorKey: 'location',
+				header: 'Location',
+				meta: { tdStyle: { color: 'var(--n-fg-muted)' } }
+			},
+			{
+				accessorKey: 'ops_manager',
+				header: 'Talent Manager',
+				meta: { tdStyle: { color: 'var(--n-fg)' } }
+			},
+			{
+				id: 'actions',
+				header: 'Actions',
+				enableSorting: false,
+				meta: { thClassName: 'w-[160px]' },
+				cell: ({ row }) => (
+					<div className="flex gap-1">
+						<Button variant="ghost" onClick={() => openDocs(row.original)}>
+							Docs
+						</Button>
+						<Button variant="ghost" onClick={() => startEdit(row.original)}>
+							Edit
+						</Button>
+						<Button variant="danger" onClick={() => remove(row.original)}>
+							Del
+						</Button>
+					</div>
+				)
+			}
+		],
+
+		[]
+	);
 
 	return (
 		<>
 			<section className="space-y-6">
-				<header className="space-y-2">
-					<div
-						className="text-[12px] font-medium uppercase"
-						style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
+				<header className="flex items-end justify-between flex-wrap gap-3">
+					<h1
+						className="page-title text-[40px] leading-[1.15] font-bold"
+						style={{ color: 'var(--n-fg)' }}
 					>
-						Workspace · Creators
-					</div>
-					<div className="flex items-end justify-between flex-wrap gap-3">
-						<div>
-							<h1
-								className="page-title text-[40px] leading-[1.15] font-bold"
-								style={{ color: 'var(--n-fg)' }}
-							>
-								Creator Pipeline
-							</h1>
-							<p
-								className="text-[15px] max-w-[640px] mt-2"
-								style={{ color: 'var(--n-fg-muted)' }}
-							>
-								Master list of all creators TCH works with — relationship status, source, and ops
-								owner.
-							</p>
-						</div>
-						<Button variant="primary" onClick={startAdd}>
-							<Icon name="plus" size={14} /> Add Creator
-						</Button>
-					</div>
+						Creator Database
+					</h1>
+					<Button variant="primary" onClick={startAdd}>
+						<Icon name="plus" size={14} /> Add Creator
+					</Button>
 				</header>
-
-				<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-					<div
-						className="rounded p-3"
-						style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-					>
-						<div
-							className="text-[11.5px] font-medium uppercase"
-							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-						>
-							Total Creators
-						</div>
-						<div
-							className="text-[22px] font-semibold tabular-nums mt-1"
-							style={{ color: 'var(--n-fg)' }}
-						>
-							{rows.length}
-						</div>
-					</div>
-					<div
-						className="rounded p-3"
-						style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-					>
-						<div
-							className="text-[11.5px] font-medium uppercase flex items-center gap-1.5"
-							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-						>
-							<span className="h-1.5 w-1.5 rounded-full bg-[#a371d3]" />
-							Exclusives
-						</div>
-						<div
-							className="text-[22px] font-semibold tabular-nums mt-1"
-							style={{ color: 'var(--n-fg)' }}
-						>
-							{counts.exclusive}
-						</div>
-					</div>
-					<div
-						className="rounded p-3"
-						style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-					>
-						<div
-							className="text-[11.5px] font-medium uppercase flex items-center gap-1.5"
-							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-						>
-							<span className="h-1.5 w-1.5 rounded-full bg-[#0f7b6c]" />
-							Friends
-						</div>
-						<div
-							className="text-[22px] font-semibold tabular-nums mt-1"
-							style={{ color: 'var(--n-fg)' }}
-						>
-							{counts.friend}
-						</div>
-					</div>
-					<div
-						className="rounded p-3"
-						style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-					>
-						<div
-							className="text-[11.5px] font-medium uppercase flex items-center gap-1.5"
-							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-						>
-							<span className="h-1.5 w-1.5 rounded-full bg-[#d9730d]" />
-							Dropping
-						</div>
-						<div
-							className="text-[22px] font-semibold tabular-nums mt-1"
-							style={{ color: 'var(--n-fg)' }}
-						>
-							{counts.dropping}
-						</div>
-					</div>
-				</div>
 
 				<div className="flex flex-wrap items-center gap-2">
 					<div className="relative flex-1 min-w-[260px]">
@@ -502,7 +385,7 @@ export default function CreatorsPage() {
 						</span>
 						<input
 							type="text"
-							placeholder="Search name, category, ops manager…"
+							placeholder="Search name, niche, talent manager…"
 							className="h-8 w-full rounded pl-8 pr-2 text-[14px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors placeholder:text-[var(--n-fg-subtle)]"
 							value={q}
 							onChange={(e) => setQ(e.target.value)}
@@ -516,7 +399,7 @@ export default function CreatorsPage() {
 								className={cn(relFilter === f && 'active')}
 								onClick={() => setRelFilter(f)}
 							>
-								{f === 'NonTCH' ? 'Non TCH' : f}
+								{f}
 							</button>
 						))}
 					</div>
@@ -546,284 +429,25 @@ export default function CreatorsPage() {
 						Error: {error}
 					</div>
 				) : (
-					<div className="tbl-card">
-						<div className="scroll-x">
-							<table className="grid-table">
-								<thead>
-									<tr>
-										<th className="w-8 num">#</th>
-										<th>Creator Name</th>
-										<th>Category / Niche</th>
-										<th>Source</th>
-										<th>Stage</th>
-										<th>Relationship</th>
-										<th>Status</th>
-										<th className="num" title={`Deals invoiced in ${fyLabelFor(fyStart)}`}>
-											Deals · {fyLabelFor(fyStart)}
-										</th>
-										<th className="num" title={`Billing invoiced in ${fyLabelFor(fyStart)}`}>
-											Billing · {fyLabelFor(fyStart)}
-										</th>
-										<th>Location</th>
-										<th>Ops Mgr</th>
-										<th>DOJ</th>
-										<th>Profile</th>
-										<th className="w-[160px]">Actions</th>
-									</tr>
-								</thead>
-								<tbody>
-									{filtered.map((r, i) => (
-										<tr key={r.id}>
-											<td className="num" style={{ color: 'var(--n-fg-subtle)' }}>
-												{i + 1}
-											</td>
-											<td className="font-medium">
-												<button
-													type="button"
-													onClick={() => startEdit(r)}
-													className="inline-link text-left"
-													title={`View / edit ${r.name}`}
-												>
-													{r.name}
-												</button>
-											</td>
-											<td style={{ color: 'var(--n-fg-muted)' }}>{r.category}</td>
-											<td>
-												{r.source && (
-													<Tag tone={r.source === 'EMW' ? 'emw' : 'neutral'}>{r.source}</Tag>
-												)}
-											</td>
-											<td>{r.stage && <Tag tone={stageTone(r.stage)}>{r.stage}</Tag>}</td>
-											<td>
-												{r.relationship && (
-													<Tag tone={relTone(r.relationship)}>
-														{r.relationship === 'NonTCH' ? 'Non TCH' : r.relationship}
-													</Tag>
-												)}
-											</td>
-											<td>
-												<Tag tone={statusTone(r.status ?? 'Active')}>
-													{r.status ?? 'Active'}
-												</Tag>
-											</td>
-											<td className="num tabular-nums" style={{ color: 'var(--n-fg-muted)' }}>
-												{fyStats.get(r.id)?.deals ?? '—'}
-											</td>
-											<td className="num tabular-nums" style={{ color: 'var(--n-fg)' }}>
-												{fyStats.has(r.id) ? inr(fyStats.get(r.id)!.billing) : '—'}
-											</td>
-											<td style={{ color: 'var(--n-fg-muted)' }}>{r.location}</td>
-											<td style={{ color: 'var(--n-fg)' }}>{r.ops_manager}</td>
-											<td
-												className="whitespace-nowrap"
-												style={{ color: 'var(--n-fg-muted)' }}
-											>
-												{r.doj ?? r.doj_note}
-											</td>
-											<td>
-												{r.profile_url && (
-													<a
-														className="inline-link text-[13px]"
-														href={r.profile_url}
-														target="_blank"
-														rel="noopener"
-													>
-														link ↗
-													</a>
-												)}
-											</td>
-											<td>
-												<div className="flex gap-1">
-													<Button variant="ghost" onClick={() => openDocs(r)}>
-														Docs
-													</Button>
-													<Button variant="ghost" onClick={() => startEdit(r)}>
-														Edit
-													</Button>
-													<Button variant="danger" onClick={() => remove(r)}>
-														Del
-													</Button>
-												</div>
-											</td>
-										</tr>
-									))}
-									{filtered.length === 0 && (
-										<tr>
-											<td
-												colSpan={14}
-												className="text-center py-8"
-												style={{ color: 'var(--n-fg-subtle)' }}
-											>
-												No creators match.
-											</td>
-										</tr>
-									)}
-								</tbody>
-							</table>
-						</div>
-						<div className="tbl-caption">
-							<span>Tip · scroll horizontally on narrow screens to see all columns.</span>
-						</div>
-					</div>
+					<DataTable
+						data={filtered}
+						columns={columns}
+						numbered
+						emptyMessage="No creators match."
+					/>
 				)}
 			</section>
 
-			<Dialog
+			<CreatorFormModal
 				open={addOpen}
 				onOpenChange={setAddOpen}
 				title={editing ? 'Edit Creator' : 'Add Creator'}
-				footer={
-					<>
-						<Button variant="outline" onClick={() => setAddOpen(false)}>
-							Cancel
-						</Button>
-						<Button variant="primary" onClick={submit}>
-							{editing ? 'Save' : 'Create'}
-						</Button>
-					</>
-				}
-			>
-				<div className="grid grid-cols-2 gap-3">
-					<div className="col-span-2">
-						<Label>Name</Label>
-						<Input
-							value={form.name}
-							onChange={(e) => set('name', e.target.value)}
-							placeholder="Saili Satwe"
-						/>
-					</div>
-					<div>
-						<Label>Category / Niche</Label>
-						<Input
-							value={form.category}
-							onChange={(e) => set('category', e.target.value)}
-							placeholder="Lifestyle / Fashion"
-						/>
-					</div>
-					<div>
-						<Label>Source</Label>
-						<Select
-							value={form.source}
-							onChange={(e) => set('source', e.target.value)}
-							options={SOURCE}
-							placeholder="—"
-						/>
-					</div>
-					<div>
-						<Label>Stage</Label>
-						<Select
-							value={form.stage}
-							onChange={(e) => set('stage', e.target.value)}
-							options={STAGE}
-							placeholder="—"
-						/>
-					</div>
-					<div>
-						<Label>Relationship</Label>
-						<Select
-							value={form.relationship}
-							onChange={(e) => set('relationship', e.target.value)}
-							options={REL}
-						/>
-					</div>
-					<div>
-						<Label>Status</Label>
-						<Select
-							value={form.status}
-							onChange={(e) => set('status', e.target.value)}
-							options={STATUS}
-						/>
-					</div>
-					<div>
-						<Label>DOJ</Label>
-						<Input
-							type="date"
-							value={form.doj}
-							onChange={(e) => set('doj', e.target.value)}
-						/>
-					</div>
-					<div>
-						<Label>DOJ Note</Label>
-						<Input
-							value={form.doj_note}
-							onChange={(e) => set('doj_note', e.target.value)}
-							placeholder="e.g. MOU Date"
-						/>
-					</div>
-					<div>
-						<Label>Location</Label>
-						<Input
-							value={form.location}
-							onChange={(e) => set('location', e.target.value)}
-							placeholder="Mumbai"
-						/>
-					</div>
-					<div>
-						<Label>Ops Manager</Label>
-						<Input
-							value={form.ops_manager}
-							onChange={(e) => set('ops_manager', e.target.value)}
-							placeholder="Arzoo / Akshita"
-						/>
-					</div>
-					<div className="col-span-2">
-						<Label>Profile URL</Label>
-						<Input
-							type="url"
-							value={form.profile_url}
-							onChange={(e) => set('profile_url', e.target.value)}
-							placeholder="https://www.instagram.com/…"
-						/>
-					</div>
-					<div className="col-span-2">
-						<Label>Notes</Label>
-						<Input
-							value={form.notes}
-							onChange={(e) => set('notes', e.target.value)}
-						/>
-					</div>
-
-					{!editing && (
-						<div className="col-span-2 rounded p-3 mt-1" style={{ background: 'var(--n-bg-soft)' }}>
-							<div
-								className="text-[11.5px] font-medium uppercase mb-2"
-								style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-							>
-								Attachments (optional)
-							</div>
-							<div className="grid grid-cols-2 gap-3">
-								{ATTACH_SLOTS.filter(
-									(s) => !(s.contract && NO_CONTRACT_RELATIONSHIPS.includes(form.relationship))
-								).map((slot) => (
-									<div key={slot.key}>
-										<Label>{slot.label}</Label>
-										<input
-											type="file"
-											onChange={(e) =>
-												setAttachments((a) => ({ ...a, [slot.key]: e.target.files?.[0] ?? null }))
-											}
-											className="block w-full text-[12.5px] file:mr-2 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-2 file:py-1 file:text-[12.5px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
-										/>
-									</div>
-								))}
-							</div>
-							{NO_CONTRACT_RELATIONSHIPS.includes(form.relationship) && (
-								<div className="text-[11.5px] mt-2" style={{ color: 'var(--n-fg-subtle)' }}>
-									No contract for {form.relationship === 'NonTCH' ? 'Non-TCH' : 'Friend'} creators.
-								</div>
-							)}
-							{attachError && (
-								<div
-									className="text-[12px] rounded p-2 mt-2"
-									style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
-								>
-									{attachError}
-								</div>
-							)}
-						</div>
-					)}
-				</div>
-			</Dialog>
+				submitLabel={editing ? 'Save' : 'Create'}
+				initial={initialForm}
+				onSubmit={submit}
+				error={attachError}
+				requireAttachments={!editing}
+			/>
 
 			<Dialog
 				open={docsCreator !== null}
