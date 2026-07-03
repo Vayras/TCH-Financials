@@ -78,9 +78,9 @@ export function CampaignDetailModal({ deal, onClose, onEdit, onDelete }: Campaig
 					<DetailField label="Direction" value={deal.direction} />
 					<DetailField label="Creators" value={creatorNamesOf(deal).join(', ') || '—'} />
 					<DetailField label="TCH POC" value={deal.tch_poc} />
-					<DetailField label="Total Fee" value={`₹ ${inr(deal.total_fee)}`} />
-					<DetailField label="Agency Fee" value={`₹ ${inr(deal.agency_fee_inr)}`} />
-					<DetailField label="Creator Fee" value={`₹ ${inr(deal.creator_fee)}`} />
+					<DetailField label="Total Fee" value={inr(deal.total_fee) ? `₹ ${inr(deal.total_fee)}` : '—'} />
+					<DetailField label="Agency Fee" value={inr(deal.agency_fee_inr) ? `₹ ${inr(deal.agency_fee_inr)}` : '—'} />
+					<DetailField label="Creator Fee" value={inr(deal.creator_fee) ? `₹ ${inr(deal.creator_fee)}` : '—'} />
 					<DetailField label="Confirmation Date" value={deal.confirmation_date} />
 					<DetailField label="Invoice Date" value={deal.e_invoice_date} />
 					<DetailField label="E-Invoice #" value={deal.e_invoice_number} />

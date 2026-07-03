@@ -380,22 +380,21 @@ export default function CommercialPage() {
 				</header>
 
 				<div className="grid grid-cols-2 gap-2">
-					<MetricCard label="Invoiced Billing" value={`₹ ${inr(billingSummary.invoiced)}`} />
+					<MetricCard label="Invoiced Billing" value={`₹ ${inr(billingSummary.invoiced) || '0'}`} />
 					<MetricCard label="Deals" value={totals.count} />
 				</div>
 
 				<div className="flex flex-wrap items-center gap-2">
 					<div className="relative flex-1 min-w-[260px]">
-						<span className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--n-fg-subtle)' }}>
-							<Icon name="search" size={14} />
-						</span>
-						<input
-							value={q}
-							onChange={(e) => setQ(e.target.value)}
-							placeholder="Search creator, brand, campaign…"
-							className="h-8 w-full rounded pl-8 pr-2 text-[14px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors placeholder:text-[var(--n-fg-subtle)]"
-						/>
-					</div>
+							<span className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--n-fg-subtle)' }}>
+								<Icon name="search" size={14} />
+							</span>
+							<input
+								value={q}
+								onChange={(e) => setQ(e.target.value)}
+								placeholder="Search creator, brand, campaign…"
+								className="h-8 w-full rounded pl-8 pr-2 text-[14px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors placeholder:text-[var(--n-fg-subtle)]"
+							/>
 					<label className="flex flex-col gap-1 min-w-[120px] text-[11.5px] font-medium" style={{ color: 'var(--n-fg-subtle)' }}>
 						Deal Type
 						<select value={dirFilter} onChange={(e) => setDirFilter(e.target.value as DirFilter)} className="h-8 rounded px-2 text-[14px] font-normal bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)]">
@@ -424,6 +423,7 @@ export default function CommercialPage() {
 						</select>
 					</label>
 					{filtersActive && <Button variant="ghost" onClick={resetFilters}>Reset filters</Button>}
+					</div>
 				</div>
 
 				{missingDate.length > 0 && (

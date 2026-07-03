@@ -25,20 +25,12 @@ automatically once every deal on it is marked `campaign_over = Y`.
 
 | Layer    | Tech                                                        |
 |----------|-------------------------------------------------------------|
-| DB       | PostgreSQL 17 — Supabase in production, docker locally      |
-| Backend  | Django 6 + Django REST Framework (gunicorn on :8000)        |
-| Frontend | Next.js 15 + React 19 + TypeScript + Tailwind v4 + MUI (:5000) |
+| DB       | PostgreSQL 17 — Supabase                                    |
+| Frontend | Next.js 15 + React 19 + TypeScript + Tailwind v4 (:5050)    |
 
 ## Layout
 
 ```
-backend/              Django project (config/) + app (tch/)
-  tch/models.py             Campaign, Creator, CommercialDeal, DealCreatorShare, …
-  tch/aggregation.py        Derives Overview / Entity Summary / Alerts (campaign-centric)
-  tch/serializers.py        Deal API accepts campaign by name; resolves/creates the FK
-  tch/views.py              DRF viewsets + aggregation endpoints
-  tch/management/commands/import_excel.py   One-shot xlsx → DB loader
-  docker-entrypoint.sh      migrate + seed-only-if-DB-empty (never wipes)
 frontend/             Next.js app
   lib/api.ts                Typed API client + types
   app/page.tsx              Current Overview (per-campaign billing)
@@ -68,24 +60,26 @@ Supabase notes:
   IPv6-only and unreachable from most networks.
 - Do **not** use the transaction pooler (port 6543) with Django.
 
-When `DATABASE_URL` is unset, the backend falls back to the local docker
-Postgres (`POSTGRES_*` vars in `.env`, host port 5434).
+The frontend reads its Supabase credentials from `frontend/.env.local`:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
+```
 
 ## Production
 
-Production runs the docker stack against Supabase:
+Build and serve with npm (Node ≥ 22.12):
 
 ```bash
-cp .env.example .env        # set DATABASE_URL to the Supabase pooler URI
-docker compose up -d --build
+npm run build               # installs frontend deps + next build
+npm run start               # http://localhost:5050
 ```
 
-- Frontend: http://localhost:5050 · Backend API: http://localhost:8000/api/
-- On boot the backend runs migrations, then seeds from `data/source.xlsx`
-  **only if the database is completely empty**. A database with data is never
-  touched — there is no automatic wipe path.
-- The bundled `db` service is ignored while `DATABASE_URL` is set; you can
-  remove it from `docker-compose.yml` if you are fully on Supabase.
+> Port 5050 (not 5000) because macOS AirPlay Receiver squats on :5000.
+
+`NEXT_PUBLIC_*` values are inlined into the client bundle at build time, so
+rebuild after changing `frontend/.env.local`.
 
 ### Backups
 
@@ -98,46 +92,15 @@ export DATABASE_URL=postgresql://...   # same pooler URI
 
 ## Local development
 
-### Option A — docker (mirrors production)
-
-Leave `DATABASE_URL` unset (or empty) in `.env` and run:
+Node ≥ 22.12. From the repo root:
 
 ```bash
-docker compose up -d --build
+npm run install:frontend
+npm run dev                       # http://localhost:5050
 ```
 
-This uses the bundled Postgres 17 container with a persistent `pgdata` volume
-and seeds from `data/source.xlsx` on the first (empty-DB) boot.
-
-### Option B — bare metal (fast iteration)
-
-Backend (Python 3.12+):
-
-```bash
-cd backend
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-python manage.py migrate          # targets DATABASE_URL from ../.env if set,
-                                  # else PG*/DB_* vars (local Postgres)
-python manage.py runserver 127.0.0.1:8000
-```
-
-Frontend (Node ≥ 22.12):
-
-```bash
-cd frontend
-npm install
-npm run dev                       # http://localhost:5000
-```
-
-The dev server proxies `/api/*` to the backend (`API_PROXY_TARGET`, default
-`http://localhost:8000`), so no frontend env vars are needed when Django runs
-on :8000. `npm run typecheck` runs `tsc --noEmit`.
-
-> Heads-up: `python-decouple` reads `.env` from the repo root — if it contains
-> the Supabase `DATABASE_URL`, bare-metal manage.py commands hit **Supabase**.
-> To target a local DB instead, prefix commands with `DATABASE_URL=''` and the
-> `PGHOST/PGPORT/...` vars you want.
+(or run the same scripts from inside `frontend/`). `npm run typecheck` runs
+`tsc --noEmit`, `npm run lint` runs `next lint`.
 
 ## API surface
 
