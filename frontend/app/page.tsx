@@ -172,7 +172,7 @@ export default function OverviewPage() {
 							style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
 						>
 							<div className="text-[11.5px] font-medium uppercase flex items-center gap-1.5" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
-								<span className="h-1.5 w-1.5 rounded-full bg-[#19567c]" />
+								<span className="h-1.5 w-1.5 rounded-full bg-[#1a63a3]" />
 								Elements (EMW)
 							</div>
 							<div
@@ -208,12 +208,12 @@ export default function OverviewPage() {
 							style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
 						>
 							<div className="text-[11.5px] font-medium uppercase flex items-center gap-1.5" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
-								<span className="h-1.5 w-1.5 rounded-full bg-[#0f7b6c]" />
+								<span className="h-1.5 w-1.5 rounded-full bg-[#0d9070]" />
 								Profit (TCH Fee)
 							</div>
 							<div
 								className="text-[22px] font-semibold tabular-nums mt-1"
-								style={{ color: '#0f7b6c' }}
+								style={{ color: '#0d9070' }}
 							>
 								{inr(data.profits.total)}
 							</div>
