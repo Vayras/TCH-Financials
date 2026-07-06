@@ -7,6 +7,7 @@ import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
 import { cn } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
+import BillingBarChart from '@/components/BillingBarChart';
 
 const STATUS_DOT: Record<string, string> = {
 	Active: 'bg-[#0f7b6c]',
@@ -306,6 +307,21 @@ export default function OverviewPage() {
 				</div>
 			) : data && src ? (
 				<>
+					{/* Billing by period — replaces the old dash-heavy summary rows */}
+					<div
+						className="rounded p-4"
+						style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
+					>
+						<BillingBarChart
+							cols={cols}
+							totals={src.totals}
+							emw={src.emw}
+							profits={src.profits}
+							emwPct={src.emwPct}
+							profitPct={src.profitPct}
+						/>
+					</div>
+
 					<div className="tbl-card">
 						<div className="scroll-x">
 							<table className="grid-table with-sticky-first">
@@ -368,60 +384,6 @@ export default function OverviewPage() {
 											</td>
 										))}
 										<td className="num">{inr(data.totals.total)}</td>
-									</tr>
-									<tr>
-										<td>
-											<span className="inline-flex items-center gap-2">
-												<span className="h-1.5 w-1.5 rounded-full bg-[#19567c]" />
-												<span style={{ color: 'var(--n-fg)' }}>EMW Billing</span>
-											</span>
-										</td>
-										{cols.map((c) => (
-											<td key={c.key} className="num" style={{ color: 'var(--n-fg-muted)' }}>
-												{inr(src.emw[c.key]) || '—'}
-											</td>
-										))}
-										<td className="num font-semibold" style={{ color: 'var(--n-fg)' }}>
-											{inr(data.emw_billing.total)}
-										</td>
-									</tr>
-									<tr>
-										<td style={{ color: 'var(--n-fg-muted)' }}>EMW Billing %</td>
-										{cols.map((c) => (
-											<td key={c.key} className="num" style={{ color: 'var(--n-fg-subtle)' }}>
-												{pct(src.emwPct[c.key]) || '—'}
-											</td>
-										))}
-										<td className="num" style={{ color: 'var(--n-fg-muted)' }}>
-											{pct(data.emw_pct.total)}
-										</td>
-									</tr>
-									<tr>
-										<td>
-											<span className="inline-flex items-center gap-2">
-												<span className="h-1.5 w-1.5 rounded-full bg-[#0f7b6c]" />
-												<span style={{ color: 'var(--n-fg)' }}>Profits (TCH Fee)</span>
-											</span>
-										</td>
-										{cols.map((c) => (
-											<td key={c.key} className="num" style={{ color: 'var(--n-fg-muted)' }}>
-												{inr(src.profits[c.key]) || '—'}
-											</td>
-										))}
-										<td className="num font-semibold" style={{ color: 'var(--n-fg)' }}>
-											{inr(data.profits.total)}
-										</td>
-									</tr>
-									<tr>
-										<td style={{ color: 'var(--n-fg-muted)' }}>Profit Ratio</td>
-										{cols.map((c) => (
-											<td key={c.key} className="num" style={{ color: 'var(--n-fg-subtle)' }}>
-												{pct(src.profitPct[c.key]) || '—'}
-											</td>
-										))}
-										<td className="num" style={{ color: 'var(--n-fg-muted)' }}>
-											{pct(data.profit_pct.total)}
-										</td>
 									</tr>
 								</tbody>
 							</table>

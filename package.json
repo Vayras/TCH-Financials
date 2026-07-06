@@ -4,9 +4,15 @@
   "private": true,
   "scripts": {
     "install:frontend": "cd frontend && npm install",
-    "dev": "cd frontend && npm run dev",
+    "install:backend": "cd backend && npm install",
+    "dev": "npm run dev:backend & npm run dev:frontend",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
     "build": "cd frontend && npm install && npm run build",
+    "build:backend": "cd backend && npm install && npm run build",
     "start": "cd frontend && npm run start",
+    "start:backend": "cd backend && npm run start",
+    "migrate": "cd backend && npm run migration:run",
     "lint": "cd frontend && npm run lint",
     "typecheck": "cd frontend && npm run typecheck"
   }

@@ -2,12 +2,15 @@
 
 import * as React from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
+import { api, type CreatorDocument } from '@/lib/api';
 import Dialog from '@/components/ui/Dialog';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Select from '@/components/ui/Select';
 import Label from '@/components/ui/Label';
 import Icon from '@/components/ui/Icon';
+import Tag from '@/components/ui/Tag';
+import { formatDocDate } from '@/lib/utils';
 import type { AttachmentType, CreatorForm } from '@/types/creator';
 import { ATTACH_SLOTS, REL, STATUS } from '@/lib/creators';
 
@@ -72,8 +75,10 @@ export interface CreatorFormModalProps {
 	initial: CreatorForm;
 	onSubmit: (form: CreatorForm) => Promise<void> | void;
 	error?: string | null;
-	/** Show and require the document slots (used when creating; edits manage docs via the Docs dialog). */
+	/** Require every document slot (creating). When false (editing), slots are optional uploads. */
 	requireAttachments?: boolean;
+	/** Existing creator being edited — enables the on-file document list. */
+	creatorId?: number | null;
 }
 
 export function CreatorFormModal({
@@ -84,7 +89,8 @@ export function CreatorFormModal({
 	initial,
 	onSubmit,
 	error,
-	requireAttachments = false
+	requireAttachments = false,
+	creatorId = null
 }: CreatorFormModalProps) {
 	const {
 		register,
@@ -98,12 +104,46 @@ export function CreatorFormModal({
 
 	const urls = useFieldArray({ control, name: 'url' });
 
+	const [urlError, setUrlError] = React.useState<string | null>(null);
+
+	// Documents already on file (edit mode only).
+	const [existingDocs, setExistingDocs] = React.useState<CreatorDocument[]>([]);
+	const [docsLoading, setDocsLoading] = React.useState(false);
+
+	const loadDocs = React.useCallback(async () => {
+		if (!creatorId) return;
+		setDocsLoading(true);
+		try {
+			setExistingDocs(await api.get<CreatorDocument[]>(`/creator-documents/?creator=${creatorId}`));
+		} catch (e) {
+			alert((e as Error).message);
+		} finally {
+			setDocsLoading(false);
+		}
+	}, [creatorId]);
+
 	React.useEffect(() => {
-		if (open) reset(toValues(initial));
-	}, [open, initial, reset]);
+		if (open) {
+			reset(toValues(initial));
+			setUrlError(null);
+			if (creatorId) loadDocs();
+			else setExistingDocs([]);
+		}
+	}, [open, initial, reset, creatorId, loadDocs]);
+
+	async function deleteDoc(id: number) {
+		if (!confirm('Delete this document?')) return;
+		try {
+			await api.del(`/creator-documents/${id}/`);
+			await loadDocs();
+		} catch (e) {
+			alert((e as Error).message);
+		}
+	}
 
 	const relation = watch('relation');
 	const slots = ATTACH_SLOTS.filter((s) => !s.exclusiveOnly || relation === 'Exclusive');
+	const onFileTypes = new Set(existingDocs.map((d) => d.doc_type));
 
 	return (
 		<Dialog
@@ -123,7 +163,14 @@ export function CreatorFormModal({
 		>
 			<form
 				id="creator-form"
-				onSubmit={handleSubmit(async (v) => onSubmit(fromValues(v)))}
+				onSubmit={handleSubmit(async (v) => {
+					if (v.url.map((u) => u.value.trim()).filter(Boolean).length === 0) {
+						setUrlError('At least one URL is required');
+						return;
+					}
+					setUrlError(null);
+					await onSubmit(fromValues(v));
+				})}
 				className="grid grid-cols-2 gap-3"
 			>
 				<div className="col-span-2">
@@ -140,27 +187,71 @@ export function CreatorFormModal({
 				</div>
 				<div>
 					<Label>Niche</Label>
-					<Input {...register('niche')} placeholder="Lifestyle / Fashion" />
+					<Input
+						{...register('niche', { required: 'Niche is required' })}
+						placeholder="Lifestyle / Fashion"
+					/>
+					{errors.niche && (
+						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+							{errors.niche.message}
+						</div>
+					)}
 				</div>
 				<div>
 					<Label>Relation</Label>
-					<Select {...register('relation')} options={REL} placeholder="Select relation…" />
+					<Select
+						{...register('relation', { required: 'Relation is required' })}
+						options={REL}
+						placeholder="Select relation…"
+					/>
+					{errors.relation && (
+						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+							{errors.relation.message}
+						</div>
+					)}
 				</div>
 				<div>
 					<Label>Status</Label>
-					<Select {...register('status')} options={STATUS} placeholder="Select status…" />
+					<Select
+						{...register('status', { required: 'Status is required' })}
+						options={STATUS}
+						placeholder="Select status…"
+					/>
+					{errors.status && (
+						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+							{errors.status.message}
+						</div>
+					)}
 				</div>
 				<div>
 					<Label>DOJ</Label>
-					<Input type="date" {...register('doj')} />
+					<Input type="date" {...register('doj', { required: 'DOJ is required' })} />
+					{errors.doj && (
+						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+							{errors.doj.message}
+						</div>
+					)}
 				</div>
 				<div>
 					<Label>Location</Label>
-					<Input {...register('location')} placeholder="Mumbai" />
+					<Input {...register('location', { required: 'Location is required' })} placeholder="Mumbai" />
+					{errors.location && (
+						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+							{errors.location.message}
+						</div>
+					)}
 				</div>
 				<div>
 					<Label>Talent Manager</Label>
-					<Input {...register('talent_manager')} placeholder="Arzoo / Akshita" />
+					<Input
+						{...register('talent_manager', { required: 'Talent Manager is required' })}
+						placeholder="Arzoo / Akshita"
+					/>
+					{errors.talent_manager && (
+						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+							{errors.talent_manager.message}
+						</div>
+					)}
 				</div>
 				<div className="col-span-2">
 					<Label>URLs</Label>
@@ -169,7 +260,7 @@ export function CreatorFormModal({
 							<div key={field.id} className="flex gap-1">
 								<Input
 									type="url"
-									{...register(`url.${i}.value`)}
+									{...register(`url.${i}.value`, { required: 'URL cannot be empty' })}
 									placeholder="https://www.instagram.com/…"
 								/>
 								<Button variant="ghost" onClick={() => urls.remove(i)}>
@@ -181,40 +272,103 @@ export function CreatorFormModal({
 							<Icon name="plus" size={13} /> Add URL
 						</Button>
 					</div>
+					{(urlError || errors.url) && (
+						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+							{urlError ?? 'URL cannot be empty'}
+						</div>
+					)}
 				</div>
-				{requireAttachments && (
+
+				{creatorId !== null && (
 					<div className="col-span-2 rounded p-3 mt-1" style={{ background: 'var(--n-bg-soft)' }}>
 						<div
 							className="text-[11.5px] font-medium uppercase mb-2"
 							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
 						>
-							Attachments (required)
+							Documents on file
 						</div>
-						<div className="grid grid-cols-2 gap-3">
-							{slots.map((slot) => (
-								<div key={slot.key}>
-									<Label>{slot.label} *</Label>
-									<input
-										type="file"
-										accept="image/*,application/pdf"
-										{...register(`attachments.${slot.key}`, {
-											validate: (v) => {
-												if (slot.exclusiveOnly && getValues('relation') !== 'Exclusive') return true;
-												return (v && v.length > 0) || `${slot.label} is required`;
-											}
-										})}
-										className="block w-full text-[12.5px] file:mr-2 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-2 file:py-1 file:text-[12.5px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
-									/>
-									{errors.attachments?.[slot.key] && (
-										<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
-											{errors.attachments[slot.key]?.message}
+						{docsLoading ? (
+							<div className="text-[13px] py-3 text-center" style={{ color: 'var(--n-fg-subtle)' }}>
+								Loading…
+							</div>
+						) : existingDocs.length === 0 ? (
+							<div
+								className="text-[13px] rounded p-3 text-center"
+								style={{ border: '1px dashed var(--n-border)', color: 'var(--n-fg-subtle)' }}
+							>
+								No documents uploaded yet — add them below.
+							</div>
+						) : (
+							<ul
+								className="rounded border divide-y"
+								style={{ borderColor: 'var(--n-border)', background: 'var(--n-bg)' }}
+							>
+								{existingDocs.map((d) => (
+									<li key={d.id} className="flex items-center gap-2 px-3 py-2">
+										<Tag tone="neutral">{d.doc_type}</Tag>
+										<div className="min-w-0 flex-1">
+											<a
+												className="inline-link text-[13px] font-medium"
+												href={d.file}
+												target="_blank"
+												rel="noopener"
+											>
+												{d.label || d.file.split('/').pop()} ↗
+											</a>
+											<div className="text-[11.5px]" style={{ color: 'var(--n-fg-subtle)' }}>
+												Uploaded {formatDocDate(d.uploaded_at)}
+											</div>
 										</div>
-									)}
-								</div>
-							))}
-						</div>
+										<Button variant="danger" onClick={() => deleteDoc(d.id)}>
+											Del
+										</Button>
+									</li>
+								))}
+							</ul>
+						)}
 					</div>
 				)}
+
+				<div className="col-span-2 rounded p-3 mt-1" style={{ background: 'var(--n-bg-soft)' }}>
+					<div
+						className="text-[11.5px] font-medium uppercase mb-2"
+						style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
+					>
+						{requireAttachments ? 'Attachments (required)' : 'Upload / replace documents'}
+					</div>
+					<div className="grid grid-cols-2 gap-3">
+						{slots.map((slot) => (
+							<div key={slot.key}>
+								<Label>
+									{slot.label}
+									{requireAttachments ? ' *' : ''}
+									{!requireAttachments && onFileTypes.has(slot.key) && (
+										<span className="ml-1" style={{ color: 'var(--n-fg-subtle)' }}>
+											(on file ✓)
+										</span>
+									)}
+								</Label>
+								<input
+									type="file"
+									accept="image/*,application/pdf"
+									{...register(`attachments.${slot.key}`, {
+										validate: (v) => {
+											if (!requireAttachments) return true;
+											if (slot.exclusiveOnly && getValues('relation') !== 'Exclusive') return true;
+											return (v && v.length > 0) || `${slot.label} is required`;
+										}
+									})}
+									className="block w-full text-[12.5px] file:mr-2 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-2 file:py-1 file:text-[12.5px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
+								/>
+								{errors.attachments?.[slot.key] && (
+									<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+										{errors.attachments[slot.key]?.message}
+									</div>
+								)}
+							</div>
+						))}
+					</div>
+				</div>
 				{error && (
 					<div
 						className="col-span-2 text-[12px] rounded p-2"

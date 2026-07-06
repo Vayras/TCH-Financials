@@ -1,21 +1,16 @@
 'use client';
 
 import * as React from 'react';
-import { api, ConflictError, type Creator, type CreatorDocument } from '@/lib/api';
+import { api, ConflictError, type Creator } from '@/lib/api';
 import Button from '@/components/ui/Button';
-import Dialog from '@/components/ui/Dialog';
-import Input from '@/components/ui/Input';
-import Select from '@/components/ui/Select';
-import Label from '@/components/ui/Label';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
-import { cn, downloadFile, formatDocDate, formatDoj } from '@/lib/utils';
+import { cn, formatDoj } from '@/lib/utils';
 import CreatorFormModal from '@/components/CreatorFormModal';
 import DataTable from '@/components/DataTable';
 import { type ColumnDef } from '@tanstack/react-table';
 import type { CreatorForm } from '@/types/creator';
 import {
-	DOC_TYPES,
 	EMPTY_FORM,
 	REL_FILTERS,
 	STATUS_FILTERS,
@@ -34,73 +29,6 @@ export default function CreatorsPage() {
 	const [relFilter, setRelFilter] = React.useState('All');
 	const [statusFilter, setStatusFilter] = React.useState('All');
 	const [attachError, setAttachError] = React.useState<string | null>(null);
-
-	// Documents modal state
-	const [docsCreator, setDocsCreator] = React.useState<Creator | null>(null);
-	const [docs, setDocs] = React.useState<CreatorDocument[]>([]);
-	const [docsLoading, setDocsLoading] = React.useState(false);
-	const [docType, setDocType] = React.useState('Other');
-	const [docLabel, setDocLabel] = React.useState('');
-	const [docFile, setDocFile] = React.useState<File | null>(null);
-	const [uploading, setUploading] = React.useState(false);
-	const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-	const loadDocs = React.useCallback(async (creatorId: number) => {
-		setDocsLoading(true);
-		try {
-			const list = await api.get<CreatorDocument[]>(`/creator-documents/?creator=${creatorId}`);
-			setDocs(list);
-		} catch (e) {
-			alert((e as Error).message);
-		} finally {
-			setDocsLoading(false);
-		}
-	}, []);
-
-	function openDocs(c: Creator) {
-		setDocsCreator(c);
-		setDocs([]);
-		setDocType('Other');
-		setDocLabel('');
-		setDocFile(null);
-		if (fileInputRef.current) fileInputRef.current.value = '';
-		loadDocs(c.id);
-	}
-
-	async function uploadDoc() {
-		if (!docsCreator || !docFile) return;
-		setUploading(true);
-		try {
-			await uploadCreatorDocument(docsCreator.id, docType, docFile, docLabel);
-			setDocFile(null);
-			setDocLabel('');
-			if (fileInputRef.current) fileInputRef.current.value = '';
-			await loadDocs(docsCreator.id);
-		} catch (e) {
-			alert((e as Error).message);
-		} finally {
-			setUploading(false);
-		}
-	}
-
-	async function deleteDoc(id: number) {
-		if (!docsCreator) return;
-		if (!confirm('Delete this document?')) return;
-		try {
-			await api.del(`/creator-documents/${id}/`);
-			await loadDocs(docsCreator.id);
-		} catch (e) {
-			alert((e as Error).message);
-		}
-	}
-
-	async function downloadDoc(d: CreatorDocument) {
-		try {
-			await downloadFile(d.file, d.label || undefined);
-		} catch (e) {
-			alert((e as Error).message);
-		}
-	}
 
 	const load = React.useCallback(async () => {
 		setLoading(true);
@@ -165,7 +93,7 @@ export default function CreatorsPage() {
 			}
 			if (failed.length > 0) {
 				setAttachError(
-					`Creator saved, but these attachments failed to upload: ${failed.join(', ')}. Use “Docs” to retry.`
+					`Creator saved, but these attachments failed to upload: ${failed.join(', ')}. Re-open Edit to retry.`
 				);
 				await load();
 				return;
@@ -298,12 +226,9 @@ export default function CreatorsPage() {
 				id: 'actions',
 				header: 'Actions',
 				enableSorting: false,
-				meta: { thClassName: 'w-[160px]' },
+				meta: { thClassName: 'w-[120px]' },
 				cell: ({ row }) => (
 					<div className="flex gap-1">
-						<Button variant="ghost" onClick={() => openDocs(row.original)}>
-							Docs
-						</Button>
 						<Button variant="ghost" onClick={() => startEdit(row.original)}>
 							Edit
 						</Button>
@@ -405,111 +330,8 @@ export default function CreatorsPage() {
 				onSubmit={submit}
 				error={attachError}
 				requireAttachments={!editing}
+				creatorId={editing?.id ?? null}
 			/>
-
-			<Dialog
-				open={docsCreator !== null}
-				onOpenChange={(o) => {
-					if (!o) setDocsCreator(null);
-				}}
-				title={docsCreator ? `Documents · ${docsCreator.name}` : 'Documents'}
-				footer={
-					<Button variant="outline" onClick={() => setDocsCreator(null)}>
-						Close
-					</Button>
-				}
-			>
-				<div className="space-y-4">
-					<div>
-						<div
-							className="text-[11.5px] font-medium uppercase mb-1.5"
-							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-						>
-							On file
-						</div>
-						{docsLoading ? (
-							<div className="text-[13px] py-4 text-center" style={{ color: 'var(--n-fg-subtle)' }}>
-								Loading…
-							</div>
-						) : docs.length === 0 ? (
-							<div
-								className="text-[13px] rounded p-4 text-center"
-								style={{ border: '1px dashed var(--n-border)', color: 'var(--n-fg-subtle)' }}
-							>
-								No documents uploaded yet.
-							</div>
-						) : (
-							<ul className="rounded border divide-y" style={{ borderColor: 'var(--n-border)' }}>
-								{docs.map((d) => (
-									<li key={d.id} className="flex items-center gap-2 px-3 py-2">
-										<Tag tone="neutral">{d.doc_type}</Tag>
-										<div className="min-w-0 flex-1">
-											<a
-												className="inline-link text-[13.5px] font-medium"
-												href={d.file}
-												target="_blank"
-												rel="noopener"
-											>
-												{d.label || d.file.split('/').pop()} ↗
-											</a>
-											<div className="text-[11.5px]" style={{ color: 'var(--n-fg-subtle)' }}>
-												Uploaded {formatDocDate(d.uploaded_at)}
-											</div>
-										</div>
-										<Button variant="ghost" onClick={() => downloadDoc(d)}>
-											<Icon name="download" size={13} /> Download
-										</Button>
-										<Button variant="danger" onClick={() => deleteDoc(d.id)}>
-											Del
-										</Button>
-									</li>
-								))}
-							</ul>
-						)}
-					</div>
-
-					<div className="rounded p-3" style={{ background: 'var(--n-bg-soft)' }}>
-						<div
-							className="text-[11.5px] font-medium uppercase mb-2"
-							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-						>
-							Upload a document
-						</div>
-						<div className="grid grid-cols-2 gap-3">
-							<div>
-								<Label>Type</Label>
-								<Select
-									value={docType}
-									onChange={(e) => setDocType(e.target.value)}
-									options={DOC_TYPES}
-								/>
-							</div>
-							<div>
-								<Label>Label (optional)</Label>
-								<Input
-									value={docLabel}
-									onChange={(e) => setDocLabel(e.target.value)}
-									placeholder="e.g. Signed MOU 2026"
-								/>
-							</div>
-							<div className="col-span-2">
-								<Label>File</Label>
-								<input
-									ref={fileInputRef}
-									type="file"
-									onChange={(e) => setDocFile(e.target.files?.[0] ?? null)}
-									className="block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
-								/>
-							</div>
-						</div>
-						<div className="mt-3 flex justify-end">
-							<Button variant="primary" onClick={uploadDoc} disabled={!docFile || uploading}>
-								<Icon name="plus" size={14} /> {uploading ? 'Uploading…' : 'Upload'}
-							</Button>
-						</div>
-					</div>
-				</div>
-			</Dialog>
 		</>
 	);
 }
