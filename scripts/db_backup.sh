@@ -5,11 +5,20 @@
 
 set -euo pipefail
 
-BACKUP_DIR="$(cd "$(dirname "$0")/.." && pwd)/backups"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+BACKUP_DIR="${BACKUP_DIR:-$REPO_ROOT/backups}"
 mkdir -p "$BACKUP_DIR"
 
 TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
 OUTFILE="$BACKUP_DIR/tch_${TIMESTAMP}.sql.gz"
+
+# Cron runs with a bare environment — fall back to the repo .env.
+if [ -z "${DATABASE_URL:-}" ] && [ -f "$REPO_ROOT/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . "$REPO_ROOT/.env"
+  set +a
+fi
 
 if [ -z "${DATABASE_URL:-}" ]; then
   echo "[backup] ERROR: DATABASE_URL is not set." >&2
