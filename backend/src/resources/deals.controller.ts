@@ -46,6 +46,7 @@ const FIELDS = {
   creator_payment_cycle: 'creatorPaymentCycle',
   creator_payment_date: 'creatorPaymentDate',
   comments: 'comments',
+  completed_at: 'completedAt',
 };
 
 const REQUIRED: Record<string, string> = {

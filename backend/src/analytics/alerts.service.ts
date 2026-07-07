@@ -4,13 +4,21 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, LessThanOrEqual } from 'typeorm';
-import { addDays, daysBetween, safeDate, todayISO } from '../common/dates';
+import {
+  addDays, daysBetween, nextWednesdayOnOrAfter, safeDate, todayISO,
+} from '../common/dates';
 import { D, Decimal } from '../common/decimal';
 import { QUARTERS, creatorSplits, fiscalYearOf } from '../common/fy';
 import {
-  AlertDismissal, ContractingCompliance, Creator, CreatorDocument,
+  AlertDismissal, ContractingCompliance, Creator, CreatorDocument, DealDocument,
 } from '../entities';
 import { AnalyticsService } from './analytics.service';
+
+// Creator payment cycle -> days added to the invoice date before the
+// Wednesday clearing run.
+const CYCLE_DAYS: Record<string, number> = {
+  '': 0, Immediate: 0, Net15: 15, Net30: 30, Net45: 45, Net60: 60,
+};
 
 // Thresholds (calendar days)
 const INACTIVE_CREATOR_DAYS = 45; // Exclusive/Friend with no deal in this many days
@@ -59,7 +67,10 @@ export function alertKey(item: AlertItem): string {
   const meta = item.meta ?? {};
   const kind = item.kind;
   let ident: string;
-  if (kind === 'invoice_overdue' || kind === 'payment_overdue') {
+  if (
+    kind === 'invoice_overdue' || kind === 'payment_overdue' ||
+    kind === 'upload_invoice' || kind === 'clear_payment'
+  ) {
     ident = `deal:${meta.deal_id}`;
   } else if (['inactive_creator', 'missing_documents', 'renewal_due'].includes(kind)) {
     ident = `creator:${meta.creator_id}`;
@@ -332,6 +343,72 @@ export class AlertsService {
       });
     }
 
+    // ---- Payments: upload invoices / clear payment ----
+    const payments: AlertItem[] = [];
+    const dealDocs = await this.dataSource.getRepository(DealDocument).find();
+    const docsByDeal = new Map<number, { hasClient: boolean; hasCreator: boolean }>();
+    for (const dd of dealDocs) {
+      const key = Number(dd.dealId);
+      const entry = docsByDeal.get(key) ?? { hasClient: false, hasCreator: false };
+      if (dd.docType === 'ClientInvoice') entry.hasClient = true;
+      if (dd.docType === 'CreatorInvoice') entry.hasCreator = true;
+      docsByDeal.set(key, entry);
+    }
+    const nextWedFromToday = nextWednesdayOnOrAfter(today);
+
+    for (const d of deals) {
+      const docState = docsByDeal.get(Number(d.id)) ?? { hasClient: false, hasCreator: false };
+      const invoicesIn = d.invoiceReceived === 'Y' || (docState.hasClient && docState.hasCreator);
+      const cleared = d.paymentCleared === 'Y' || d.creatorPaymentStatus === 'Paid';
+      const who = whoOf(d);
+
+      // (a) Upload invoice — campaign wrapped up but invoices aren't both in.
+      if (!cleared && !invoicesIn) {
+        const campaignEndDate = d.campaignId !== null ? (d.campaign?.endDate ?? null) : null;
+        const campaignEnded = !!campaignEndDate && campaignEndDate < today;
+        if (d.campaignOver === 'Y' || campaignEnded) {
+          const anchor = d.completedAt || campaignEndDate;
+          const overdueDays = anchor ? daysBetween(anchor, today) : 0;
+          const missing: 'client' | 'creator' | 'both' =
+            !docState.hasClient && !docState.hasCreator
+              ? 'both'
+              : !docState.hasClient
+                ? 'client'
+                : 'creator';
+          const missingLabel =
+            missing === 'both' ? 'client & creator invoices' : `${missing} invoice`;
+          payments.push({
+            kind: 'upload_invoice',
+            severity: anchor && overdueDays > 7 ? 'high' : 'med',
+            title: `Upload invoices — ${d.brand || 'No brand'} / ${campaignName(d) || 'No campaign'}`,
+            detail: `Missing ${missingLabel}. Creator: ${who}.`,
+            action: `TCH POC ${d.tchPoc || 'unassigned'}: upload client & creator invoices in the Payments tab`,
+            meta: { deal_id: Number(d.id), tch_poc: d.tchPoc, missing, creator: who },
+          });
+        }
+      }
+
+      // (b) Clear payment — invoices in, campaign over, not yet cleared.
+      if (invoicesIn && !cleared && d.campaignOver === 'Y') {
+        const base = d.creatorInvoiceDate || d.completedAt || today;
+        const cycleDays = CYCLE_DAYS[d.creatorPaymentCycle] ?? 0;
+        const due = nextWednesdayOnOrAfter(addDays(base, cycleDays));
+        const severity: 'high' | 'med' | 'low' =
+          due < today ? 'high' : due <= nextWedFromToday ? 'med' : 'low';
+        const amount = D(d.creatorInvoiceAmount).isZero() ? d.creatorFee : d.creatorInvoiceAmount;
+        const amountLabel = `₹${Number(amount).toLocaleString('en-IN')}`;
+        payments.push({
+          kind: 'clear_payment',
+          severity,
+          title: `Clear payment — ${amountLabel} to ${who}`,
+          detail: `Due ${due} (Wednesday cycle). ${d.brand || '(no brand)'} / ${campaignName(d) || '(no campaign)'}.`,
+          action:
+            'Invoice team: pay this creator in the Wednesday cycle and mark it cleared in the Payments tab',
+          meta: { deal_id: Number(d.id), due_date: due, amount: Number(amount), tch_poc: d.tchPoc },
+        });
+      }
+    }
+
     // ---- Seasonal moments ----
     const seasonal: AlertItem[] = [];
     for (const [m, day, label] of SEASONAL_MOMENTS) {
@@ -364,6 +441,12 @@ export class AlertsService {
         (sevRank[a.severity] ?? 9) - (sevRank[b.severity] ?? 9) ||
         a.title.localeCompare(b.title),
     );
+    payments.sort(
+      (a, b) =>
+        (sevRank[a.severity] ?? 9) - (sevRank[b.severity] ?? 9) ||
+        String(a.meta.due_date ?? '').localeCompare(String(b.meta.due_date ?? '')) ||
+        a.title.localeCompare(b.title),
+    );
 
     // Stamp stable keys and drop dismissed alerts.
     const dismissed = new Set(
@@ -386,6 +469,7 @@ export class AlertsService {
       health: keep(health),
       docs: keep(docs),
       seasonal: keep(seasonal),
+      payments: keep(payments),
     };
 
     return {
@@ -406,6 +490,7 @@ export class AlertsService {
         health: kept.health.length,
         docs: kept.docs.length,
         seasonal: kept.seasonal.length,
+        payments: kept.payments.length,
       },
       dismissed_count: dismissedHits,
     };

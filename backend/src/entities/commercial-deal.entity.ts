@@ -136,6 +136,11 @@ export class CommercialDeal {
   @Column({ type: 'text', default: '' })
   comments: string;
 
+  // Set when both invoices are on file (see DealDocumentsController) — the
+  // anchor date for the "clear payment" alert's Wednesday-cycle math.
+  @Column({ name: 'completed_at', type: 'date', nullable: true })
+  completedAt: string | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

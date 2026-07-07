@@ -5,7 +5,7 @@
 
 import {
   Campaign, CommercialDeal, ContractingCompliance, Creator, CreatorDocument,
-  DealCreatorShare, DropOff, EmployeeWeeklyReport, EventInvite,
+  DealCreatorShare, DealDocument, DropOff, EmployeeWeeklyReport, EventInvite,
   SocialMediaSnapshot,
 } from '../entities';
 
@@ -135,9 +135,21 @@ export function dealDto(d: CommercialDeal) {
     creator_payment_cycle: d.creatorPaymentCycle,
     creator_payment_date: d.creatorPaymentDate,
     comments: d.comments,
+    completed_at: d.completedAt,
     created_at: ts(d.createdAt),
     creator_shares: (d.creatorShares ?? []).map(shareDto),
     version: d.version,
+  };
+}
+
+export function dealDocumentDto(d: DealDocument) {
+  return {
+    id: Number(d.id),
+    deal: Number(d.dealId),
+    doc_type: d.docType,
+    label: d.label,
+    file: d.file ? `/media/${d.file}` : '',
+    uploaded_at: ts(d.uploadedAt),
   };
 }
 
