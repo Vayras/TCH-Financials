@@ -101,6 +101,7 @@ const PATHS: Record<string, React.ReactNode> = {
 			<line x1="6" y1="6" x2="18" y2="18" />
 		</>
 	),
+	check: <polyline points="20 6 9 17 4 12" />,
 	'more-horizontal': (
 		<>
 			<circle cx="12" cy="12" r="1" />

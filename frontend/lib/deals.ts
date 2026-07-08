@@ -63,7 +63,8 @@ export function normalisePctValue(p: string): number {
 	const n = Number(p);
 	if (!Number.isFinite(n) || n <= 0) return 0;
 	// Historical/prod rows sometimes stored "15" for 15% instead of "0.15".
-	return n > 1 ? n / 100 : n;
+	// Values below 1 are fractions; 1 and above are human percent (1 = 1%).
+	return n >= 1 ? n / 100 : n;
 }
 
 export function normalisePctString(p: string): string {
