@@ -74,7 +74,7 @@ export function CampaignDetailModal({ deal, onClose, onEdit, onDelete }: Campaig
 			{deal && (
 				<div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
 					<DetailField label="Brand" value={deal.brand} />
-					<DetailField label="Brand POC" value={deal.brand_poc} />
+					<DetailField label="POC Email" value={deal.brand_poc} />
 					<DetailField label="Direction" value={deal.direction} />
 					<DetailField label="Creators" value={creatorNamesOf(deal).join(', ') || '—'} />
 					<DetailField label="TCH POC" value={deal.tch_poc} />

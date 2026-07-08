@@ -276,8 +276,8 @@ export function CampaignFormModal({
 				<Field label="Brand" error={errText('brand')}>
 					<Input {...reg('brand', required)} className={errors.brand ? 'border-[#b91c1c]' : ''} />
 				</Field>
-				<Field label="Brand POC" error={errText('brand_poc')}>
-					<Input placeholder="Brand-side contact" {...reg('brand_poc', required)} className={errors.brand_poc ? 'border-[#b91c1c]' : ''} />
+				<Field label="POC Email" error={errText('brand_poc')}>
+					<Input type="email" placeholder="poc@brand.com" {...reg('brand_poc', required)} className={errors.brand_poc ? 'border-[#b91c1c]' : ''} />
 				</Field>
 				<Field label="Campaign (pick or create)" error={errText('campaign')}>
 					<Input list="campaign-name-options" {...reg('campaign', required)} className={errors.campaign ? 'border-[#b91c1c]' : ''} />

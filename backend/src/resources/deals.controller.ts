@@ -48,7 +48,6 @@ const FIELDS = {
   comments: 'comments',
 };
 
-// Wire field -> human label; any of these blank on create/update -> 400.
 const REQUIRED: Record<string, string> = {
   confirmation_date: 'Confirmation Date',
   direction: 'Direction',
@@ -57,17 +56,10 @@ const REQUIRED: Record<string, string> = {
   agency_fee_pct: 'Agency Fee %',
   agency_fee_inr: 'Agency Fee (INR)',
   creator_fee: 'Creator Fee',
-  billing_entity: 'Billing Entity',
   brand: 'Brand',
-  brand_poc: 'Brand POC',
+  brand_poc: 'POC Email',
   campaign: 'Campaign',
   deliverables: 'Deliverables',
-  ro_number: 'RO Number',
-  campaign_over: 'Campaign Over',
-  invoice_received: 'Invoice Received',
-  payment_cleared: 'Payment Cleared by TCH',
-  e_invoice_number: 'E-Invoice #',
-  payment_received: 'Payment Received by TCH',
 };
 
 const RELATIONS = ['creator', 'campaign', 'creatorShares', 'creatorShares.creator'];
