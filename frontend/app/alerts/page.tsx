@@ -11,7 +11,7 @@ type State =
 	| { kind: 'loading' }
 	| { kind: 'error'; message: string }
 	| { kind: 'ok'; data: AlertsPayload };
-type SectionKey = 'urgent' | 'bd' | 'health' | 'docs' | 'seasonal';
+type SectionKey = 'urgent' | 'payments' | 'bd' | 'health' | 'docs' | 'seasonal';
 type FilterKey = 'all' | SectionKey;
 
 function sevTone(s: AlertSeverity): 'no' | 'markup' | 'neutral' {
@@ -33,6 +33,13 @@ const SECTION_META: Record<
 		icon: 'alert-triangle',
 		accent: '#c0432e',
 		accentBg: '#fbe9e4'
+	},
+	payments: {
+		title: 'Payments',
+		subtitle: 'Creator invoices to collect and Wednesday payment-cycle dues',
+		icon: 'credit-card',
+		accent: '#1f6f43',
+		accentBg: '#dcedda'
 	},
 	bd: {
 		title: 'BD Opportunities',
@@ -64,13 +71,14 @@ const SECTION_META: Record<
 	}
 };
 
-const ORDER: SectionKey[] = ['urgent', 'bd', 'health', 'docs', 'seasonal'];
-const FILTERS: FilterKey[] = ['all', 'urgent', 'bd', 'health', 'docs', 'seasonal'];
+const ORDER: SectionKey[] = ['urgent', 'payments', 'bd', 'health', 'docs', 'seasonal'];
+const FILTERS: FilterKey[] = ['all', 'urgent', 'payments', 'bd', 'health', 'docs', 'seasonal'];
 
 function filterLabel(f: FilterKey): string {
 	if (f === 'all') return 'All';
 	if (f === 'bd') return 'BD';
 	if (f === 'urgent') return 'Urgent';
+	if (f === 'payments') return 'Payments';
 	if (f === 'health') return 'Health';
 	if (f === 'docs') return 'Docs';
 	return 'Seasonal';
@@ -112,7 +120,7 @@ export default function AlertsPage() {
 			setPageState((prev) => {
 				if (prev.kind !== 'ok') return prev;
 				const d = prev.data;
-				const sections = (['urgent', 'bd', 'health', 'docs', 'seasonal'] as const).map(
+				const sections = (['urgent', 'payments', 'bd', 'health', 'docs', 'seasonal'] as const).map(
 					(k) => [k, d[k].filter((it) => !gone.has(it.key))] as const
 				);
 				const next = { ...d, dismissed_count: d.dismissed_count + keys.length };
@@ -190,6 +198,7 @@ export default function AlertsPage() {
 								<span className="ml-1 text-[11px]" style={{ color: 'var(--n-fg-subtle)' }}>
 									{f === 'all'
 										? alerts.counts.urgent +
+											alerts.counts.payments +
 											alerts.counts.bd +
 											alerts.counts.health +
 											alerts.counts.docs +
@@ -248,13 +257,14 @@ export default function AlertsPage() {
 					const payload = pageState.data;
 					const totalCount =
 						payload.counts.urgent +
+						payload.counts.payments +
 						payload.counts.bd +
 						payload.counts.health +
 						payload.counts.docs +
 						payload.counts.seasonal;
 					return (
 						<>
-							<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+							<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
 								{ORDER.map((key) => {
 									const meta = SECTION_META[key];
 									return (

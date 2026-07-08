@@ -232,7 +232,17 @@ export type Deal = {
 	creator_payment_date: string | null;
 	comments: string;
 	creator_shares: CreatorShare[];
+	completed_at: string | null;
 	version: number;
+};
+
+export type DealDocument = {
+	id: number;
+	deal: number;
+	doc_type: 'ClientInvoice' | 'CreatorInvoice';
+	label: string;
+	file: string;
+	uploaded_at: string;
 };
 
 export type CreatorDocument = {
@@ -421,7 +431,8 @@ export type AlertsPayload = {
 	health: AlertItem[];
 	docs: AlertItem[];
 	seasonal: AlertItem[];
-	counts: { urgent: number; bd: number; health: number; docs: number; seasonal: number };
+	payments: AlertItem[];
+	counts: { urgent: number; bd: number; health: number; docs: number; seasonal: number; payments: number };
 	// How many computed alerts were suppressed by dismissals this load.
 	dismissed_count: number;
 };

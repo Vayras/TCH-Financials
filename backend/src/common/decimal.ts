@@ -11,10 +11,11 @@ export const D = (v: string | number | null | undefined): Decimal => {
   }
 };
 
-// Accept both fractional (0.15) and human percent (15) inputs.
+// Accept both fractional (0.15) and human percent (15) inputs. Values below 1
+// are fractions; 1 and above are human percent (1 = 1%, not 100%).
 export function normalisePct(value: unknown): string {
   const pct = D(value as string);
-  return (pct.gt(1) ? pct.div(100) : pct).toFixed(4);
+  return (pct.gte(1) ? pct.div(100) : pct).toFixed(4);
 }
 
 // Money on the wire is a string with two decimals (numeric(14,2)).

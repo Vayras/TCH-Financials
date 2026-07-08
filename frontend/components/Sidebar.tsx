@@ -92,6 +92,7 @@ function GlobalFySelect() {
 const NAV = [
 	{ href: '/', label: 'Overview', icon: 'home' },
 	{ href: '/commercial', label: 'Campaign', icon: 'briefcase' },
+	{ href: '/payments', label: 'Payments', icon: 'credit-card' },
 	{ href: '/creators', label: 'Creators', icon: 'users' },
 	{ href: '/alerts', label: 'Alerts', icon: 'bell' },
 	{ href: '/employees', label: 'Employees', icon: 'user-cog' },

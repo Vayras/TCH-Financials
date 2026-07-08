@@ -101,6 +101,7 @@ const PATHS: Record<string, React.ReactNode> = {
 			<line x1="6" y1="6" x2="18" y2="18" />
 		</>
 	),
+	check: <polyline points="20 6 9 17 4 12" />,
 	'more-horizontal': (
 		<>
 			<circle cx="12" cy="12" r="1" />
@@ -140,6 +141,13 @@ const PATHS: Record<string, React.ReactNode> = {
 			<path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
 			<polyline points="7 10 12 15 17 10" />
 			<line x1="12" y1="15" x2="12" y2="3" />
+		</>
+	),
+	'credit-card': (
+		<>
+			<rect x="2" y="5" width="20" height="14" rx="2" />
+			<line x1="2" y1="10" x2="22" y2="10" />
+			<line x1="6" y1="15" x2="10" y2="15" />
 		</>
 	),
 	'calendar-clock': (

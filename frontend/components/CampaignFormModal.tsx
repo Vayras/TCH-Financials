@@ -118,7 +118,7 @@ export function CampaignFormModal({
 		}
 		const p = Number(getValues('agency_fee_pct'));
 		if (!Number.isFinite(p) || p <= 0) return;
-		const pct = p <= 1 ? p : p / 100;
+		const pct = p < 1 ? p : p / 100;
 		const a = total * pct;
 		setValue('agency_fee_inr', a.toFixed(2));
 		setValue('creator_fee', (total - a).toFixed(2));
@@ -196,6 +196,9 @@ export function CampaignFormModal({
 				<Field label="Confirmation Date" error={errText('confirmation_date')}>
 					<Input type="date" {...reg('confirmation_date', required)} className={errors.confirmation_date ? 'border-[#b91c1c]' : ''} />
 				</Field>
+				<Field label="E-Invoice #" error={errText('e_invoice_number')}>
+					<Input placeholder="TCH/2627/Jul01" {...reg('e_invoice_number', required)} className={errors.e_invoice_number ? 'border-[#b91c1c]' : ''} />
+				</Field>
 				<Field label="E-Invoice Date">
 					<Input type="date" {...reg('e_invoice_date')} />
 				</Field>
@@ -219,7 +222,7 @@ export function CampaignFormModal({
 					<Input type="number" step="0.01" {...reg('total_fee', { ...required, onChange: recomputeFees })} className={errors.total_fee ? 'border-[#b91c1c]' : ''} />
 				</Field>
 				<Field label="Agency Fee %" error={errText('agency_fee_pct')}>
-					<Input type="number" step="0.0001" placeholder="20 or 0.20 = 20%" {...reg('agency_fee_pct', { ...required, onChange: () => { feeBasis.current = 'pct'; recomputeFees(); } })} className={errors.agency_fee_pct ? 'border-[#b91c1c]' : ''} />
+					<Input type="number" step="0.0001" placeholder="1 = 1%, 20 or 0.20 = 20%" {...reg('agency_fee_pct', { ...required, onChange: () => { feeBasis.current = 'pct'; recomputeFees(); } })} className={errors.agency_fee_pct ? 'border-[#b91c1c]' : ''} />
 				</Field>
 				<Field label="Agency Fee (INR)" error={errText('agency_fee_inr')}>
 					<Input type="number" step="0.01" {...reg('agency_fee_inr', { ...required, onChange: () => { feeBasis.current = 'inr'; recomputeFees(); } })} className={errors.agency_fee_inr ? 'border-[#b91c1c]' : ''} />

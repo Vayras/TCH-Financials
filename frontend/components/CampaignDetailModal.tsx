@@ -6,6 +6,7 @@ import { creatorNamesOf } from '@/lib/deals';
 import { inr } from '@/lib/utils';
 import Dialog from '@/components/ui/Dialog';
 import Button from '@/components/ui/Button';
+import Icon from '@/components/ui/Icon';
 
 // One label/value pair in the read-only campaign detail modal.
 function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
@@ -16,6 +17,13 @@ function DetailField({ label, value }: { label: string; value: React.ReactNode }
 			<div className="text-[14px] mt-0.5 break-words" style={{ color: 'var(--n-fg)' }}>{display}</div>
 		</div>
 	);
+}
+
+// Y/N status flag as a tick: green check for yes, muted cross for no.
+function StatusTick({ flag }: { flag: string }) {
+	if (flag === 'Y') return <Icon name="check" size={16} className="text-[#15803d]" />;
+	if (flag === 'N') return <Icon name="x" size={16} className="text-[var(--n-fg-subtle)]" />;
+	return <>—</>;
 }
 
 function DetailSection({ title }: { title: string }) {
@@ -98,27 +106,9 @@ export function CampaignDetailModal({ deal, onClose, onEdit, onDelete }: Campaig
 						</>
 					)}
 
-					<DetailSection title="Client Invoice (TCH → Client)" />
-					<DetailField label="Invoice #" value={deal.client_invoice_number} />
-					<DetailField label="Invoice Date" value={deal.client_invoice_date} />
-					<DetailField label="Invoice Amount" value={Number(deal.client_invoice_amount) > 0 ? `₹ ${inr(deal.client_invoice_amount)}` : '—'} />
-					<DetailField label="Payment Status" value={deal.client_payment_status} />
-					<DetailField label="Amount Received" value={Number(deal.client_payment_received_amount) > 0 ? `₹ ${inr(deal.client_payment_received_amount)}` : '—'} />
-					<DetailField label="Payment Date" value={deal.client_payment_date} />
-
-					<DetailSection title="Creator Invoice (Creator → TCH)" />
-					<DetailField label="Invoice #" value={deal.creator_invoice_number} />
-					<DetailField label="Invoice Date" value={deal.creator_invoice_date} />
-					<DetailField label="Invoice Amount" value={Number(deal.creator_invoice_amount) > 0 ? `₹ ${inr(deal.creator_invoice_amount)}` : '—'} />
-					<DetailField label="Payment Status" value={deal.creator_payment_status} />
-					<DetailField label="Payment Cycle" value={deal.creator_payment_cycle ? deal.creator_payment_cycle.replace('Net', 'Net ') : ''} />
-					<DetailField label="Payment Date" value={deal.creator_payment_date} />
-
 					<DetailSection title="Status" />
-					<DetailField label="Campaign Over" value={deal.campaign_over === 'Y' ? 'Yes' : deal.campaign_over === 'N' ? 'No' : '—'} />
-					<DetailField label="Invoice Received" value={deal.invoice_received === 'Y' ? 'Yes' : deal.invoice_received === 'N' ? 'No' : '—'} />
-					<DetailField label="Payment Cleared" value={deal.payment_cleared === 'Y' ? 'Yes' : deal.payment_cleared === 'N' ? 'No' : '—'} />
-					<DetailField label="Payment Received" value={deal.payment_received === 'Y' ? 'Yes' : deal.payment_received === 'N' ? 'No' : '—'} />
+					<DetailField label="Campaign Over" value={<StatusTick flag={deal.campaign_over} />} />
+					<DetailField label="Payment Cleared" value={<StatusTick flag={deal.payment_cleared} />} />
 
 					{deal.comments && (
 						<>

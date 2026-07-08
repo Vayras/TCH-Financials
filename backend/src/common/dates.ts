@@ -36,6 +36,16 @@ export function yearOf(iso: string): number {
   return Number(iso.slice(0, 4));
 }
 
+// First Wednesday on or after the given date — the weekly payment-clearing
+// cycle used by the "clear payment" alert.
+export function nextWednesdayOnOrAfter(iso: string): string {
+  const d = parseISODate(iso);
+  const day = d.getUTCDay(); // Sunday = 0 ... Wednesday = 3
+  const delta = (3 - day + 7) % 7;
+  d.setUTCDate(d.getUTCDate() + delta);
+  return isoDate(d);
+}
+
 // Clamp to a valid date (Feb 30 -> Feb 28), mirroring the Django fallback.
 export function safeDate(year: number, month: number, day: number): string {
   const probe = new Date(Date.UTC(year, month - 1, day));
