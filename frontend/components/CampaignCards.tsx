@@ -3,7 +3,7 @@
 import * as React from 'react';
 import type { Deal } from '@/lib/api';
 import type { CampaignGroup, CreatorGroup } from '@/types/deal';
-import { billingPeriodOf, creatorLabel, creatorNamesOf, dirTone, monthYearLabel, relTone } from '@/lib/deals';
+import { creatorLabel, creatorNamesOf, dirTone, monthYearLabel, relTone } from '@/lib/deals';
 import { inr } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Tag from '@/components/ui/Tag';
@@ -37,7 +37,7 @@ function DealRow({ r, headline, onView }: { r: Deal; headline: string; onView: (
 			<div className="min-w-0 flex-1">
 				<div className="font-medium truncate" style={{ color: 'var(--n-fg)' }}>{headline}</div>
 				<div className="tabular-nums" style={{ color: 'var(--n-fg-muted)' }}>
-					{inr(r.total_fee)} · {monthYearLabel(billingPeriodOf(r))}
+					{inr(r.total_fee)} · {monthYearLabel(r.confirmation_date)}
 				</div>
 			</div>
 			<Tag tone={dirTone(r.direction)}>{r.direction}</Tag>

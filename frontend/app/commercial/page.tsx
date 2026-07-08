@@ -6,10 +6,8 @@ import { inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import type { CampaignGroup, CardGroupBy, CreatorGroup, DealForm, DirFilter, ShareForm } from '@/types/deal';
 import {
-	billingPeriodOf,
 	buildShare,
 	calYearOfMonth,
-	creatorLabel,
 	creatorNamesOf,
 	EMPTY_DEAL_FORM,
 	FY_MONTH_ORDER,
@@ -231,20 +229,10 @@ export default function CommercialPage() {
 		});
 	}, [availMonths]);
 
-	// Deals are tracked strictly by the billing month (E-Invoice No, falling
-	// back to invoice date) — the same rule the Overview uses, so the two pages
-	// always agree.
-	const trackDate = React.useCallback((r: Deal) => billingPeriodOf(r), []);
-
-	// Deals that can't be placed in a fiscal year because they lack the tracking
-	// date — surfaced for ops to backfill rather than silently dropped.
-	const missingDate = React.useMemo(() => {
-		return rows.filter((r) => {
-			if (dirFilter !== 'All' && r.direction !== dirFilter) return false;
-			if (creatorFilter !== 'All' && !creatorNamesOf(r).includes(creatorFilter)) return false;
-			return !trackDate(r);
-		});
-	}, [rows, dirFilter, creatorFilter, trackDate]);
+	// Deals are tracked by their confirmation date (always required), so every
+	// deal lands in a period. The Overview keeps its invoice-month rule for
+	// invoiced-billing analytics.
+	const trackDate = React.useCallback((r: Deal) => r.confirmation_date, []);
 
 	// Non-period filters (direction, creator, search) — shared between the
 	// visible list and the billing summary so the two always describe the same
@@ -278,9 +266,6 @@ export default function CommercialPage() {
 	const filtered = React.useMemo(() => {
 		const list = rows.filter((r) => {
 			if (!matchesFacets(r)) return false;
-			// Scope strictly to the selected period by the tracking date. Rows
-			// with no such date can't be attributed to a fiscal year and are
-			// hidden (see the backfill banner for the count).
 			return inPeriod(trackDate(r));
 		});
 		return list.slice().sort((a, b) => {
@@ -293,15 +278,16 @@ export default function CommercialPage() {
 		});
 	}, [rows, matchesFacets, inPeriod, trackDate]);
 
-	// Headline billing: every deal invoiced in the selected period.
+	// Headline billing: every deal confirmed in the selected period — the same
+	// rule as the visible list, so the metric always matches the cards.
 	const billingSummary = React.useMemo(() => {
 		let invoiced = 0;
 		for (const r of rows) {
 			if (!matchesFacets(r)) continue;
-			if (inPeriod(billingPeriodOf(r))) invoiced += Number(r.total_fee) || 0;
+			if (inPeriod(trackDate(r))) invoiced += Number(r.total_fee) || 0;
 		}
 		return { invoiced };
-	}, [rows, matchesFacets, inPeriod]);
+	}, [rows, matchesFacets, inPeriod, trackDate]);
 
 	function resetFilters() {
 		setCreatorFilter('All');
@@ -382,7 +368,7 @@ export default function CommercialPage() {
 				</header>
 
 				<div className="grid grid-cols-2 gap-2">
-					<MetricCard label="Invoiced Billing" value={`₹ ${inr(billingSummary.invoiced) || '0'}`} />
+					<MetricCard label="Billing" value={`₹ ${inr(billingSummary.invoiced) || '0'}`} />
 					<MetricCard label="Deals" value={totals.count} />
 				</div>
 
@@ -427,29 +413,6 @@ export default function CommercialPage() {
 					</label>
 					{filtersActive && <Button variant="ghost" onClick={resetFilters}>Reset filters</Button>}
 				</div>
-
-				{missingDate.length > 0 && (
-					<div className="text-[13px] rounded p-3" style={{ background: '#fffbeb', color: '#92400e', border: '1px solid #fde68a' }}>
-						{missingDate.length} deal{missingDate.length === 1 ? '' : 's'} {missingDate.length === 1 ? 'has' : 'have'} no{' '}
-						E-Invoice No or invoice date and{' '}
-						{missingDate.length === 1 ? "isn't" : "aren't"} counted in any
-						period — open {missingDate.length === 1 ? 'it' : 'one'} below to backfill the invoice number or delete it.
-						<ul className="mt-2 space-y-1">
-							{missingDate.map((d) => (
-								<li key={d.id}>
-									<button
-										type="button"
-										onClick={() => setDetail(d)}
-										className="underline underline-offset-2 hover:opacity-75 text-left"
-										style={{ color: '#92400e' }}
-									>
-										{[d.brand, d.campaign, creatorLabel(creatorNamesOf(d))].filter((s) => s && s !== '—').join(' · ') || `Deal #${d.id}`}
-									</button>
-								</li>
-							))}
-						</ul>
-					</div>
-				)}
 
 				{loading ? (
 					<div className="text-[14px] py-8 text-center" style={{ color: 'var(--n-fg-subtle)' }}>
