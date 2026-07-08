@@ -9,6 +9,7 @@ import {
 	billingPeriodOf,
 	buildShare,
 	calYearOfMonth,
+	creatorLabel,
 	creatorNamesOf,
 	EMPTY_DEAL_FORM,
 	FY_MONTH_ORDER,
@@ -96,6 +97,7 @@ export default function CommercialPage() {
 		const primary = editing.creator_shares?.[0];
 		return {
 			confirmation_date: editing.confirmation_date ?? '',
+			e_invoice_number: editing.e_invoice_number ?? '',
 			e_invoice_date: editing.e_invoice_date ?? '',
 			creator: primary
 				? primary.creator
@@ -431,7 +433,21 @@ export default function CommercialPage() {
 						{missingDate.length} deal{missingDate.length === 1 ? '' : 's'} {missingDate.length === 1 ? 'has' : 'have'} no{' '}
 						E-Invoice No or invoice date and{' '}
 						{missingDate.length === 1 ? "isn't" : "aren't"} counted in any
-						period — backfill {missingDate.length === 1 ? 'it' : 'them'} to include {missingDate.length === 1 ? 'it' : 'them'} in billing totals.
+						period — open {missingDate.length === 1 ? 'it' : 'one'} below to backfill the invoice number or delete it.
+						<ul className="mt-2 space-y-1">
+							{missingDate.map((d) => (
+								<li key={d.id}>
+									<button
+										type="button"
+										onClick={() => setDetail(d)}
+										className="underline underline-offset-2 hover:opacity-75 text-left"
+										style={{ color: '#92400e' }}
+									>
+										{[d.brand, d.campaign, creatorLabel(creatorNamesOf(d))].filter((s) => s && s !== '—').join(' · ') || `Deal #${d.id}`}
+									</button>
+								</li>
+							))}
+						</ul>
 					</div>
 				)}
 

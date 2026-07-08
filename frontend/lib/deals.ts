@@ -8,6 +8,7 @@ export const DIRECTION = [
 
 export const EMPTY_DEAL_FORM: DealForm = {
 	confirmation_date: '',
+	e_invoice_number: '',
 	e_invoice_date: '',
 	creator: '',
 	tch_poc: '',

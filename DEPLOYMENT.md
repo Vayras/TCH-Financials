@@ -1,4 +1,4 @@
-# TCH Financials — Production Deployment (VPS)
+  # TCH Financials — Production Deployment (VPS)
 
 How to run the app on a single Linux VPS (Ubuntu/Debian assumed). Two Node
 processes behind nginx, with the database and auth hosted on Supabase:
@@ -194,7 +194,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 # TLS
 sudo apt-get install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d financials.example.com
+sudo certbot --nginx -d tch.adamantium.digital
 ```
 
 API paths end in a trailing slash (`/api/creators/`) — both nginx and the

@@ -196,6 +196,9 @@ export function CampaignFormModal({
 				<Field label="Confirmation Date" error={errText('confirmation_date')}>
 					<Input type="date" {...reg('confirmation_date', required)} className={errors.confirmation_date ? 'border-[#b91c1c]' : ''} />
 				</Field>
+				<Field label="E-Invoice #" error={errText('e_invoice_number')}>
+					<Input placeholder="TCH/2627/Jul01" {...reg('e_invoice_number', required)} className={errors.e_invoice_number ? 'border-[#b91c1c]' : ''} />
+				</Field>
 				<Field label="E-Invoice Date">
 					<Input type="date" {...reg('e_invoice_date')} />
 				</Field>

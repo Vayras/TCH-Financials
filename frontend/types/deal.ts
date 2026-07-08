@@ -2,6 +2,7 @@ import type { Deal } from '@/lib/api';
 
 export type DealForm = {
 	confirmation_date: string;
+	e_invoice_number: string;
 	e_invoice_date: string;
 	creator: string;
 	tch_poc: string;
