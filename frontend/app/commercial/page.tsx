@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { api, ConflictError, type Deal, type Creator, type Campaign } from '@/lib/api';
+import { api, ConflictError, type Deal, type Creator, type Campaign, type DealDocument } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import type { CampaignGroup, CardGroupBy, CreatorGroup, DealForm, DirFilter, ShareForm } from '@/types/deal';
@@ -22,11 +22,13 @@ import { CampaignGroupCard, CreatorGroupCard } from '@/components/CampaignCards'
 import CampaignDetailModal from '@/components/CampaignDetailModal';
 import CampaignFormModal, { type CampaignFormResult } from '@/components/CampaignFormModal';
 import { uploadCreatorDocument } from '@/lib/creators';
+import { uploadDealInvoice } from '@/lib/payments';
 
 export default function CommercialPage() {
 	const [rows, setRows] = React.useState<Deal[]>([]);
 	const [creators, setCreators] = React.useState<Creator[]>([]);
 	const [campaigns, setCampaigns] = React.useState<Campaign[]>([]);
+	const [docs, setDocs] = React.useState<DealDocument[]>([]);
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
 	const [open, setOpen] = React.useState(false);
@@ -59,7 +61,8 @@ export default function CommercialPage() {
 					setLoading(false);
 				}),
 				api.getSWR<Creator[]>('/creators/', setCreators),
-				api.getSWR<Campaign[]>('/campaigns/', setCampaigns)
+				api.getSWR<Campaign[]>('/campaigns/', setCampaigns),
+				api.getSWR<DealDocument[]>('/deal-documents/', setDocs)
 			]);
 		} catch (e) {
 			if (!shown) setError((e as Error).message);
@@ -157,25 +160,23 @@ export default function CommercialPage() {
 			creator_shares: shareRows
 		};
 		try {
+			let deal: Deal;
 			if (editing) {
-				await api.patch(`/deals/${editing.id}/`, { ...payload, version: editing.version });
+				deal = await api.patch<Deal>(`/deals/${editing.id}/`, { ...payload, version: editing.version });
 			} else {
-				await api.post('/deals/', payload);
+				deal = await api.post<Deal>('/deals/', payload);
 			}
-			// Invoice files are stored as documents on the primary creator until
-			// deals grow their own attachment field on the backend.
-			const creatorId = form.creator ? Number(form.creator) : null;
-			if (creatorId) {
-				const uploads: [File | null, string][] = [
-					[clientInvoiceFile, `Client Invoice — ${form.campaign || form.brand}`],
-					[creatorInvoiceFile, `Creator Invoice — ${form.campaign || form.brand}`]
+			if (deal && deal.id) {
+				const uploads: [File | null, 'ClientInvoice' | 'CreatorInvoice'][] = [
+					[clientInvoiceFile, 'ClientInvoice'],
+					[creatorInvoiceFile, 'CreatorInvoice']
 				];
-				for (const [file, label] of uploads) {
+				for (const [file, docType] of uploads) {
 					if (!file) continue;
 					try {
-						await uploadCreatorDocument(creatorId, 'Other', file, label);
+						await uploadDealInvoice(deal.id, docType, file);
 					} catch {
-						alert(`Campaign saved, but "${label}" failed to upload.`);
+						alert(`Campaign saved, but "${docType === 'ClientInvoice' ? 'Client' : 'Creator'} Invoice" failed to upload.`);
 					}
 				}
 			}
@@ -456,6 +457,7 @@ export default function CommercialPage() {
 
 			<CampaignDetailModal
 				deal={detail}
+				docs={docs.filter((d) => d.deal === detail?.id)}
 				onClose={() => setDetail(null)}
 				onEdit={startEdit}
 				onDelete={remove}

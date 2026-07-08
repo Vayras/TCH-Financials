@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { Deal } from '@/lib/api';
+import type { Deal, DealDocument } from '@/lib/api';
 import { creatorNamesOf } from '@/lib/deals';
 import { inr } from '@/lib/utils';
 import Dialog from '@/components/ui/Dialog';
@@ -36,12 +36,13 @@ function DetailSection({ title }: { title: string }) {
 
 export interface CampaignDetailModalProps {
 	deal: Deal | null;
+	docs: DealDocument[];
 	onClose: () => void;
 	onEdit: (d: Deal) => void;
-	onDelete: (d: Deal) => void;
+	onDelete: (d: Deal) => void | Promise<void>;
 }
 
-export function CampaignDetailModal({ deal, onClose, onEdit, onDelete }: CampaignDetailModalProps) {
+export function CampaignDetailModal({ deal, docs, onClose, onEdit, onDelete }: CampaignDetailModalProps) {
 	return (
 		<Dialog
 			open={deal !== null}
@@ -109,6 +110,30 @@ export function CampaignDetailModal({ deal, onClose, onEdit, onDelete }: Campaig
 					<DetailSection title="Status" />
 					<DetailField label="Campaign Over" value={<StatusTick flag={deal.campaign_over} />} />
 					<DetailField label="Payment Cleared" value={<StatusTick flag={deal.payment_cleared} />} />
+
+					{docs.length > 0 && (
+						<>
+							<DetailSection title="Uploaded Invoices" />
+							{docs.map((doc) => (
+								<DetailField
+									key={doc.id}
+									label={doc.doc_type === 'ClientInvoice' ? 'Client Invoice' : 'Creator Invoice'}
+									value={
+										<a
+											href={doc.file}
+											target="_blank"
+											rel="noopener"
+											className="underline font-medium hover:text-[var(--n-accent)]"
+											style={{ color: 'var(--n-accent)' }}
+											title={doc.label}
+										>
+											{doc.label || doc.file.split('/').pop()} ↗
+										</a>
+									}
+								/>
+							))}
+						</>
+					)}
 
 					{deal.comments && (
 						<>
