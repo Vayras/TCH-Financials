@@ -2,26 +2,48 @@
 
 import * as React from 'react';
 
-// Fiscal years selectable site-wide. Indian FY runs Apr → Mar, keyed by the
-// starting calendar year (2025 = FY 25-26).
-export const FY_OPTIONS = [2025, 2026, 2027];
+// Indian FY starts Apr 1. Returns the calendar year the current FY started in
+// (e.g. May 2026 → 2026, January 2026 → 2025).
+function getCurrentFiscalYearStart(): number {
+	const now = new Date();
+	const month = now.getMonth(); // 0-indexed
+	return month >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+}
+
+// Build selectable options: always include 2025 as the earliest, extend up to
+// next FY so the upcoming year appears as soon as work starts on it.
+function buildFyOptions(): number[] {
+	const currentFY = getCurrentFiscalYearStart();
+	const first = 2025;
+	const last = Math.max(currentFY + 1, 2027);
+	return Array.from({ length: last - first + 1 }, (_, i) => first + i);
+}
+
 const STORAGE_KEY = 'tch.fyStart';
 
 type FiscalYearCtx = {
-	fyStart: number;
+	// null during SSR and the brief pre-hydration window — consumers should
+	// treat null as "not yet resolved" and avoid rendering FY-dependent data.
+	fyStart: number | null;
 	setFyStart: (year: number) => void;
+	fyOptions: number[];
 };
 
 const FiscalYearContext = React.createContext<FiscalYearCtx | null>(null);
 
 export function FiscalYearProvider({ children }: { children: React.ReactNode }) {
-	const [fyStart, setFyStartState] = React.useState<number>(2025);
+	// null initial state → no SSR default, no hydration mismatch.
+	const [fyStart, setFyStartState] = React.useState<number | null>(null);
+	const [fyOptions, setFyOptions] = React.useState<number[]>([]);
 
-	// Hydrate from localStorage after mount so the choice survives reloads and
-	// page navigation, without causing an SSR/CSR markup mismatch.
+	// Runs only in the browser — safe to read localStorage and compute date.
 	React.useEffect(() => {
+		const options = buildFyOptions();
+		setFyOptions(options);
+
 		const saved = Number(window.localStorage.getItem(STORAGE_KEY));
-		if (FY_OPTIONS.includes(saved)) setFyStartState(saved);
+		// Use saved preference if it's still a valid option, otherwise default to current FY.
+		setFyStartState(options.includes(saved) ? saved : getCurrentFiscalYearStart());
 	}, []);
 
 	const setFyStart = React.useCallback((year: number) => {
@@ -34,7 +56,7 @@ export function FiscalYearProvider({ children }: { children: React.ReactNode }) 
 	}, []);
 
 	return (
-		<FiscalYearContext.Provider value={{ fyStart, setFyStart }}>
+		<FiscalYearContext.Provider value={{ fyStart, setFyStart, fyOptions }}>
 			{children}
 		</FiscalYearContext.Provider>
 	);

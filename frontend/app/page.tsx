@@ -1,65 +1,40 @@
 'use client';
 
 import * as React from 'react';
-import { api, type Overview, type Creator } from '@/lib/api';
+import { type Overview, type Creator } from '@/lib/api';
 import { inr, pct } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
 import { cn } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import BillingBarChart from '@/components/BillingBarChart';
+import { useOverviewQuery, useOverviewCreatorsQuery } from './queries';
 
 const STATUS_DOT: Record<string, string> = {
 	Active: 'bg-[#0f7b6c]',
 	Over: 'bg-[#9b9a97]'
 };
 
-function fyLabelFor(start: number): string {
+function fyLabelFor(start: number | null): string {
+	if (start === null) return '…';
 	return `FY ${start % 100}-${(start + 1) % 100}`;
 }
 
 export default function OverviewPage() {
 	const { fyStart } = useFiscalYear();
-	const [data, setData] = React.useState<Overview | null>(null);
-	const [loading, setLoading] = React.useState(true);
-	const [error, setError] = React.useState<string | null>(null);
+
+	const [creatorFilter, setCreatorFilter] = React.useState('All');
+
+	const { data, isLoading: overviewLoading, error: overviewError, refetch } = useOverviewQuery(fyStart, creatorFilter);
+	const { data: creators = [], isLoading: creatorsLoading } = useOverviewCreatorsQuery();
+
+	const loading = overviewLoading || creatorsLoading;
+	const error = overviewError ? overviewError.message : null;
+
 	const [view, setView] = React.useState<'month' | 'quarter'>('month');
 	// Optional filters: narrow to a single month (client-side) and/or scope every
 	// figure to one creator (server-side via ?creator=).
 	const [monthFilter, setMonthFilter] = React.useState('All');
-	const [creatorFilter, setCreatorFilter] = React.useState('All');
-	const [creators, setCreators] = React.useState<Creator[]>([]);
-
-	const load = React.useCallback(async () => {
-		setLoading(true);
-		setError(null);
-		try {
-			const params = new URLSearchParams({ fy: String(fyStart) });
-			if (creatorFilter !== 'All') params.set('creator', creatorFilter);
-			// Cached payload renders instantly; the fresh one replaces it when
-			// the network answers.
-			await api.getSWR<Overview>(`/overview/?${params}`, (d) => {
-				setData(d);
-				setLoading(false);
-			});
-		} catch (e) {
-			setError((e as Error).message);
-		} finally {
-			setLoading(false);
-		}
-	}, [fyStart, creatorFilter]);
-
-	React.useEffect(() => {
-		load();
-	}, [load]);
-
-	// Creator master list powers the filter dropdown (kept independent of the
-	// scoped overview payload, which only carries the filtered creator's rows).
-	React.useEffect(() => {
-		api.get<Creator[]>('/creators/')
-			.then(setCreators)
-			.catch(() => setCreators([]));
-	}, []);
 
 	// A selected month forces the month lens and narrows to that single column;
 	// otherwise honour the month/quarter toggle.
@@ -288,7 +263,7 @@ export default function OverviewPage() {
 							Clear filters
 						</Button>
 					)}
-					<Button variant="ghost" onClick={load}>
+					<Button variant="ghost" onClick={() => refetch()}>
 						<Icon name="refresh" size={14} /> Refresh
 					</Button>
 				</div>

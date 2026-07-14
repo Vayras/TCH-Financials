@@ -10,7 +10,8 @@ import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
 import { useFiscalYear } from '@/lib/fiscal-year';
 
-function fyLabelFor(start: number): string {
+function fyLabelFor(start: number | null): string {
+	if (start === null) return '…';
 	return `FY ${start % 100}-${(start + 1) % 100}`;
 }
 
@@ -30,9 +31,9 @@ export default function EntitySummaryPage() {
 	// Local fiscal-year override for this page's comparison picker. Defaults to
 	// the global FY and follows it when the global selector changes, but can be
 	// pointed at any past year independently.
-	const [fy, setFy] = React.useState(fyStart);
+	const [fy, setFy] = React.useState<number | null>(fyStart);
 	React.useEffect(() => {
-		setFy(fyStart);
+		if (fyStart !== null) setFy(fyStart);
 	}, [fyStart]);
 	const [entityFilter, setEntityFilter] = React.useState('');
 	const [searchInput, setSearchInput] = React.useState('');

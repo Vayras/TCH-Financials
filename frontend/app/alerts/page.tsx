@@ -1,18 +1,17 @@
 'use client';
 
 import * as React from 'react';
-import { api, type AlertsPayload, type AlertItem, type AlertSeverity } from '@/lib/api';
+import { type AlertsPayload, type AlertItem, type AlertSeverity } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
 import Tag from '@/components/ui/Tag';
-
-type State =
-	| { kind: 'loading' }
-	| { kind: 'error'; message: string }
-	| { kind: 'ok'; data: AlertsPayload };
-type SectionKey = 'urgent' | 'payments' | 'bd' | 'health' | 'docs' | 'seasonal';
-type FilterKey = 'all' | SectionKey;
+import {
+	useAlertsQuery,
+	useDismissAlertsMutation,
+	useRestoreAllAlertsMutation
+} from './queries';
+import { type AlertsState, type AlertSectionKey, type AlertFilterKey } from '@/lib/types';
 
 function sevTone(s: AlertSeverity): 'no' | 'markup' | 'neutral' {
 	if (s === 'high') return 'no';
@@ -24,7 +23,7 @@ function sevLabel(s: AlertSeverity): string {
 }
 
 const SECTION_META: Record<
-	SectionKey,
+	AlertSectionKey,
 	{ title: string; subtitle: string; icon: string; accent: string; accentBg: string }
 > = {
 	urgent: {
@@ -71,10 +70,10 @@ const SECTION_META: Record<
 	}
 };
 
-const ORDER: SectionKey[] = ['urgent', 'payments', 'bd', 'health', 'docs', 'seasonal'];
-const FILTERS: FilterKey[] = ['all', 'urgent', 'payments', 'bd', 'health', 'docs', 'seasonal'];
+const ORDER: AlertSectionKey[] = ['urgent', 'payments', 'bd', 'health', 'docs', 'seasonal'];
+const FILTERS: AlertFilterKey[] = ['all', 'urgent', 'payments', 'bd', 'health', 'docs', 'seasonal'];
 
-function filterLabel(f: FilterKey): string {
+function filterLabel(f: AlertFilterKey): string {
 	if (f === 'all') return 'All';
 	if (f === 'bd') return 'BD';
 	if (f === 'urgent') return 'Urgent';
@@ -85,28 +84,19 @@ function filterLabel(f: FilterKey): string {
 }
 
 export default function AlertsPage() {
-	const [pageState, setPageState] = React.useState<State>({ kind: 'loading' });
-	const [activeSection, setActiveSection] = React.useState<FilterKey>('all');
+	const { data: alertsData, isLoading, error: queryError, refetch } = useAlertsQuery();
+	const dismissMutation = useDismissAlertsMutation();
+	const restoreAllMutation = useRestoreAllAlertsMutation();
+
+	const [activeSection, setActiveSection] = React.useState<AlertFilterKey>('all');
 	const [busy, setBusy] = React.useState(false);
 
-	const load = React.useCallback(async () => {
-		setPageState({ kind: 'loading' });
-		let shown = false;
-		try {
-			await api.getSWR<AlertsPayload>('/alerts/', (d) => {
-				shown = true;
-				setPageState({ kind: 'ok', data: d });
-			});
-		} catch (e) {
-			// Keep the cached payload on screen if we showed one; a failed
-			// refresh shouldn't blank a working page.
-			if (!shown) setPageState({ kind: 'error', message: (e as Error).message });
-		}
-	}, []);
-
-	React.useEffect(() => {
-		load();
-	}, [load]);
+	const pageState = React.useMemo<AlertsState>(() => {
+		if (isLoading) return { kind: 'loading' };
+		if (queryError) return { kind: 'error', message: queryError.message };
+		if (alertsData) return { kind: 'ok', data: alertsData };
+		return { kind: 'loading' };
+	}, [isLoading, queryError, alertsData]);
 
 	// Dismiss alerts by key: persist server-side, drop from local state without
 	// a full reload (alerts are recomputed on every GET, so the next load stays
@@ -115,47 +105,32 @@ export default function AlertsPage() {
 		if (keys.length === 0) return;
 		setBusy(true);
 		try {
-			await api.post('/alerts/dismiss/', { keys });
-			const gone = new Set(keys);
-			setPageState((prev) => {
-				if (prev.kind !== 'ok') return prev;
-				const d = prev.data;
-				const sections = (['urgent', 'payments', 'bd', 'health', 'docs', 'seasonal'] as const).map(
-					(k) => [k, d[k].filter((it) => !gone.has(it.key))] as const
-				);
-				const next = { ...d, dismissed_count: d.dismissed_count + keys.length };
-				for (const [k, items] of sections) {
-					next[k] = items;
-					next.counts = { ...next.counts, [k]: items.length };
-				}
-				return { kind: 'ok', data: next };
-			});
+			await dismissMutation.mutateAsync(keys);
 		} catch (e) {
-			setPageState({ kind: 'error', message: (e as Error).message });
+			alert((e as Error).message);
 		} finally {
 			setBusy(false);
 		}
-	}, []);
+	}, [dismissMutation]);
 
 	const restoreAll = React.useCallback(async () => {
 		setBusy(true);
 		try {
-			await api.post('/alerts/restore/', {});
-			await load();
+			await restoreAllMutation.mutateAsync();
 		} catch (e) {
-			setPageState({ kind: 'error', message: (e as Error).message });
+			alert((e as Error).message);
 		} finally {
 			setBusy(false);
 		}
-	}, [load]);
+	}, [restoreAllMutation]);
 
 	const alerts = pageState.kind === 'ok' ? pageState.data : null;
 
-	function listFor(key: SectionKey): AlertItem[] {
+	function listFor(key: AlertSectionKey): AlertItem[] {
 		if (!alerts) return [];
 		return alerts[key] ?? [];
 	}
-	function shouldShow(key: SectionKey): boolean {
+	function shouldShow(key: AlertSectionKey): boolean {
 		if (activeSection === 'all') return true;
 		return activeSection === key;
 	}
@@ -235,7 +210,7 @@ export default function AlertsPage() {
 							<Icon name="x" size={14} /> Clear {activeSection === 'all' ? 'all' : filterLabel(activeSection)}
 						</Button>
 					)}
-					<Button variant="ghost" onClick={load}>
+					<Button variant="ghost" onClick={() => refetch()}>
 						<Icon name="refresh" size={14} /> Refresh
 					</Button>
 				</div>

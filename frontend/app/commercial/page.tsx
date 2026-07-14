@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { api, ConflictError, type Deal, type Creator, type Campaign, type DealDocument } from '@/lib/api';
+import { ConflictError, type Deal, type Creator, type Campaign, type DealDocument } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import type { CampaignGroup, CardGroupBy, CreatorGroup, DealForm, DirFilter, ShareForm } from '@/types/deal';
@@ -22,22 +22,35 @@ import { CampaignGroupCard, CreatorGroupCard } from '@/components/CampaignCards'
 import CampaignDetailModal from '@/components/CampaignDetailModal';
 import CampaignFormModal, { type CampaignFormResult } from '@/components/CampaignFormModal';
 import { uploadCreatorDocument } from '@/lib/creators';
-import { uploadDealInvoice } from '@/lib/payments';
+import {
+	useCommercialDealsQuery,
+	useCommercialCreatorsQuery,
+	useCommercialCampaignsQuery,
+	useCommercialDocsQuery,
+	useSaveDealMutation,
+	useDeleteDealMutation
+} from './queries';
 
 export default function CommercialPage() {
-	const [rows, setRows] = React.useState<Deal[]>([]);
-	const [creators, setCreators] = React.useState<Creator[]>([]);
-	const [campaigns, setCampaigns] = React.useState<Campaign[]>([]);
-	const [docs, setDocs] = React.useState<DealDocument[]>([]);
-	const [loading, setLoading] = React.useState(true);
-	const [error, setError] = React.useState<string | null>(null);
+	const { fyStart } = useFiscalYear();
+
+	const { data: rows = [], isLoading: dealsLoading, error: dealsError } = useCommercialDealsQuery(fyStart);
+	const { data: creators = [], isLoading: creatorsLoading } = useCommercialCreatorsQuery();
+	const { data: campaigns = [], isLoading: campaignsLoading } = useCommercialCampaignsQuery();
+	const { data: docs = [], isLoading: docsLoading } = useCommercialDocsQuery();
+
+	const loading = dealsLoading || creatorsLoading || campaignsLoading || docsLoading;
+	const error = dealsError ? dealsError.message : null;
+
+	const saveDealMutation = useSaveDealMutation(fyStart);
+	const deleteDealMutation = useDeleteDealMutation(fyStart);
+
 	const [open, setOpen] = React.useState(false);
 	const [editing, setEditing] = React.useState<Deal | null>(null);
 	const [q, setQ] = React.useState('');
 	const [dirFilter, setDirFilter] = React.useState<DirFilter>('All');
 	// Multi-month filter: empty = all months of the selected fiscal year.
 	const [months, setMonths] = React.useState<string[]>([]);
-	const { fyStart } = useFiscalYear();
 	const [creatorFilter, setCreatorFilter] = React.useState('All');
 	const [groupBy, setGroupBy] = React.useState<CardGroupBy>(() => {
 		if (typeof window === 'undefined') return 'campaign';
@@ -45,35 +58,6 @@ export default function CommercialPage() {
 		return saved === 'campaign' || saved === 'creator' ? saved : 'campaign';
 	});
 	const [detail, setDetail] = React.useState<Deal | null>(null);
-
-	const load = React.useCallback(async () => {
-		setLoading(true);
-		let shown = false;
-		try {
-			// fy scopes the payload server-side to the selected fiscal year
-			// (plus not-yet-invoiced deals for the backfill banner) — the page
-			// never shows other years, so don't download them. Each feed
-			// renders from cache instantly and updates when the network lands.
-			await Promise.all([
-				api.getSWR<Deal[]>(`/deals/?fy=${fyStart}`, (d) => {
-					shown = true;
-					setRows(d);
-					setLoading(false);
-				}),
-				api.getSWR<Creator[]>('/creators/', setCreators),
-				api.getSWR<Campaign[]>('/campaigns/', setCampaigns),
-				api.getSWR<DealDocument[]>('/deal-documents/', setDocs)
-			]);
-		} catch (e) {
-			if (!shown) setError((e as Error).message);
-		} finally {
-			setLoading(false);
-		}
-	}, [fyStart]);
-
-	React.useEffect(() => {
-		load();
-	}, [load]);
 
 	React.useEffect(() => {
 		window.localStorage.setItem('commercial-card-group', groupBy);
@@ -160,41 +144,29 @@ export default function CommercialPage() {
 			creator_shares: shareRows
 		};
 		try {
-			let deal: Deal;
-			if (editing) {
-				deal = await api.patch<Deal>(`/deals/${editing.id}/`, { ...payload, version: editing.version });
-			} else {
-				deal = await api.post<Deal>('/deals/', payload);
-			}
-			if (deal && deal.id) {
-				const uploads: [File | null, 'ClientInvoice' | 'CreatorInvoice'][] = [
-					[clientInvoiceFile, 'ClientInvoice'],
-					[creatorInvoiceFile, 'CreatorInvoice']
-				];
-				for (const [file, docType] of uploads) {
-					if (!file) continue;
-					try {
-						await uploadDealInvoice(deal.id, docType, file);
-					} catch {
-						alert(`Campaign saved, but "${docType === 'ClientInvoice' ? 'Client' : 'Creator'} Invoice" failed to upload.`);
-					}
-				}
-			}
+			await saveDealMutation.mutateAsync({
+				editingId: editing?.id,
+				editingVersion: editing?.version,
+				payload,
+				clientInvoiceFile,
+				creatorInvoiceFile
+			});
 			setOpen(false);
-			await load();
 		} catch (e) {
 			alert((e as Error).message);
 			if (e instanceof ConflictError) {
 				setOpen(false);
-				await load();
 			}
 		}
 	}
 
 	async function remove(d: Deal) {
 		if (!confirm(`Delete campaign for "${d.creator_name}" / brand "${d.brand}"?`)) return;
-		await api.del(`/deals/${d.id}/`);
-		await load();
+		try {
+			await deleteDealMutation.mutateAsync(d.id);
+		} catch (e) {
+			alert((e as Error).message);
+		}
 	}
 
 	// Distinct creator names across the loaded deals (primary + split rows) —
@@ -212,6 +184,7 @@ export default function CommercialPage() {
 	// dropdown when its calendar position is in the past or is the running one
 	// for the selected fiscal year. Future months are hidden entirely.
 	const availMonths = React.useMemo(() => {
+		if (fyStart === null) return [];
 		const now = new Date();
 		const curY = now.getFullYear();
 		const curM = now.getMonth() + 1;

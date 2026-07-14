@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { api, ConflictError, type Creator } from '@/lib/api';
+import { ConflictError, type Creator } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
@@ -18,37 +18,27 @@ import {
 	statusTone,
 	uploadCreatorDocument
 } from '@/lib/creators';
+import {
+	useCreatorsQuery,
+	useCreateCreatorMutation,
+	useUpdateCreatorMutation,
+	useDeleteCreatorMutation
+} from './queries';
 
 export default function CreatorsPage() {
-	const [rows, setRows] = React.useState<Creator[]>([]);
-	const [loading, setLoading] = React.useState(true);
-	const [error, setError] = React.useState<string | null>(null);
+	const { data: rows = [], isLoading: loading, error: queryError } = useCreatorsQuery();
+	const createMutation = useCreateCreatorMutation();
+	const updateMutation = useUpdateCreatorMutation();
+	const deleteMutation = useDeleteCreatorMutation();
+
+	const error = queryError ? queryError.message : null;
+
 	const [addOpen, setAddOpen] = React.useState(false);
 	const [editing, setEditing] = React.useState<Creator | null>(null);
 	const [q, setQ] = React.useState('');
 	const [relFilter, setRelFilter] = React.useState('All');
 	const [statusFilter, setStatusFilter] = React.useState('All');
 	const [attachError, setAttachError] = React.useState<string | null>(null);
-
-	const load = React.useCallback(async () => {
-		setLoading(true);
-		let shown = false;
-		try {
-			await api.getSWR<Creator[]>('/creators/', (d) => {
-				shown = true;
-				setRows(d);
-				setLoading(false);
-			});
-		} catch (e) {
-			if (!shown) setError((e as Error).message);
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
-	React.useEffect(() => {
-		load();
-	}, [load]);
 
 	function startAdd() {
 		setEditing(null);
@@ -76,10 +66,13 @@ export default function CreatorsPage() {
 			};
 			let creatorId: number;
 			if (editing) {
-				await api.patch(`/creators/${editing.id}/`, { ...payload, version: editing.version });
+				await updateMutation.mutateAsync({
+					id: editing.id,
+					payload: { ...payload, version: editing.version }
+				});
 				creatorId = editing.id;
 			} else {
-				const created = await api.post<Creator>('/creators/', payload);
+				const created = await createMutation.mutateAsync(payload);
 				creatorId = created.id;
 			}
 
@@ -95,16 +88,13 @@ export default function CreatorsPage() {
 				setAttachError(
 					`Creator saved, but these attachments failed to upload: ${failed.join(', ')}. Re-open Edit to retry.`
 				);
-				await load();
 				return;
 			}
 			setAddOpen(false);
-			await load();
 		} catch (e) {
 			alert((e as Error).message);
 			if (e instanceof ConflictError) {
 				setAddOpen(false);
-				await load();
 			}
 		}
 	}
@@ -112,8 +102,7 @@ export default function CreatorsPage() {
 	async function remove(r: Creator) {
 		if (!confirm(`Delete creator "${r.name}"?`)) return;
 		try {
-			await api.del(`/creators/${r.id}/`);
-			await load();
+			await deleteMutation.mutateAsync(r.id);
 		} catch (e) {
 			alert((e as Error).message);
 		}
