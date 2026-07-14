@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ConflictError, type Deal, type Creator, type Campaign, type DealDocument } from '@/lib/api';
+import { ConflictError, type Deal } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import type { CampaignGroup, CardGroupBy, CreatorGroup, DealForm, DirFilter, ShareForm } from '@/types/deal';
@@ -21,7 +21,6 @@ import MetricCard from '@/components/MetricCard';
 import { CampaignGroupCard, CreatorGroupCard } from '@/components/CampaignCards';
 import CampaignDetailModal from '@/components/CampaignDetailModal';
 import CampaignFormModal, { type CampaignFormResult } from '@/components/CampaignFormModal';
-import { uploadCreatorDocument } from '@/lib/creators';
 import {
 	useCommercialDealsQuery,
 	useCommercialCreatorsQuery,
@@ -125,9 +124,9 @@ export default function CommercialPage() {
 		const hasSplit = shares.length > 0;
 		const shareRows = hasSplit
 			? [
-					buildShare(form.creator, form.total_fee, form.agency_fee_pct),
-					...shares.map((s) => buildShare(s.creator, s.total_fee, s.agency_fee_pct))
-				]
+				buildShare(form.creator, form.total_fee, form.agency_fee_pct),
+				...shares.map((s) => buildShare(s.creator, s.total_fee, s.agency_fee_pct))
+			]
 			: [];
 		const sum = (k: 'total_fee' | 'agency_fee_inr' | 'creator_fee') =>
 			shareRows.reduce((n, s) => n + (Number(s[k]) || 0), 0).toFixed(2);
@@ -346,16 +345,16 @@ export default function CommercialPage() {
 
 				<div className="flex flex-wrap items-end gap-2">
 					<div className="relative flex-1 min-w-[260px]">
-							<span className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--n-fg-subtle)' }}>
-								<Icon name="search" size={14} />
-							</span>
-							<input
-								value={q}
-								onChange={(e) => setQ(e.target.value)}
-								placeholder="Search creator, brand, campaign…"
-								className="h-8 w-full rounded pl-8 pr-2 text-[14px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors placeholder:text-[var(--n-fg-subtle)]"
-							/>
-						</div>
+						<span className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--n-fg-subtle)' }}>
+							<Icon name="search" size={14} />
+						</span>
+						<input
+							value={q}
+							onChange={(e) => setQ(e.target.value)}
+							placeholder="Search creator, brand, campaign…"
+							className="h-8 w-full rounded pl-8 pr-2 text-[14px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors placeholder:text-[var(--n-fg-subtle)]"
+						/>
+					</div>
 					<label className="flex flex-col gap-1 min-w-[120px] text-[11.5px] font-medium" style={{ color: 'var(--n-fg-subtle)' }}>
 						Deal Type
 						<select value={dirFilter} onChange={(e) => setDirFilter(e.target.value as DirFilter)} className="h-8 rounded px-2 text-[14px] font-normal bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)]">

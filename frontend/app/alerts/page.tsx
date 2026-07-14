@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { type AlertsPayload, type AlertItem, type AlertSeverity } from '@/lib/api';
+import { type AlertItem, type AlertSeverity } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
@@ -173,11 +173,11 @@ export default function AlertsPage() {
 								<span className="ml-1 text-[11px]" style={{ color: 'var(--n-fg-subtle)' }}>
 									{f === 'all'
 										? alerts.counts.urgent +
-											alerts.counts.payments +
-											alerts.counts.bd +
-											alerts.counts.health +
-											alerts.counts.docs +
-											alerts.counts.seasonal
+										alerts.counts.payments +
+										alerts.counts.bd +
+										alerts.counts.health +
+										alerts.counts.docs +
+										alerts.counts.seasonal
 										: alerts.counts[f]}
 								</span>
 							)}

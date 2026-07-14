@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { type Overview, type Creator } from '@/lib/api';
 import { inr, pct } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
@@ -42,19 +41,19 @@ export default function OverviewPage() {
 	const src = data
 		? effView === 'month'
 			? {
-					totals: data.totals.by_month,
-					emw: data.emw_billing.by_month,
-					profits: data.profits.by_month,
-					emwPct: data.emw_pct.by_month,
-					profitPct: data.profit_pct.by_month
-				}
+				totals: data.totals.by_month,
+				emw: data.emw_billing.by_month,
+				profits: data.profits.by_month,
+				emwPct: data.emw_pct.by_month,
+				profitPct: data.profit_pct.by_month
+			}
 			: {
-					totals: data.totals.by_quarter,
-					emw: data.emw_billing.by_quarter,
-					profits: data.profits.by_quarter,
-					emwPct: data.emw_pct.by_quarter,
-					profitPct: data.profit_pct.by_quarter
-				}
+				totals: data.totals.by_quarter,
+				emw: data.emw_billing.by_quarter,
+				profits: data.profits.by_quarter,
+				emwPct: data.emw_pct.by_quarter,
+				profitPct: data.profit_pct.by_quarter
+			}
 		: null;
 
 	return (
