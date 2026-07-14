@@ -223,14 +223,29 @@ export default function CreatorsPage() {
 				id: 'actions',
 				header: 'Actions',
 				enableSorting: false,
-				meta: { thClassName: 'w-[120px]' },
+				meta: { thClassName: 'w-[90px]' },
 				cell: ({ row }) => (
-					<div className="flex gap-1">
-						<Button variant="ghost" onClick={() => startEdit(row.original)}>
-							Edit
+					<div className="flex gap-0.5 justify-end">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => startEdit(row.original)}
+							aria-label="Edit creator"
+							title="Edit creator"
+						>
+							<Icon name="edit" size={14} />
 						</Button>
-						<Button variant="danger" onClick={() => remove(row.original)}>
-							Del
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => remove(row.original)}
+							aria-label="Delete creator"
+							title="Delete creator"
+							style={{ color: '#b91c1c' }}
+							onMouseEnter={(e) => (e.currentTarget.style.background = '#fef2f2')}
+							onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+						>
+							<Icon name="trash" size={14} />
 						</Button>
 					</div>
 				)
