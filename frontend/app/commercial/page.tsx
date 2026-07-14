@@ -112,7 +112,7 @@ export default function CommercialPage() {
 			(editing?.creator_shares ?? []).slice(1).map((s) => ({
 				creator: s.creator ? String(s.creator) : '',
 				total_fee: s.total_fee,
-				agency_fee_inr: s.agency_fee_inr
+				agency_fee_pct: s.agency_fee_pct
 			})),
 		[editing]
 	);
@@ -125,8 +125,8 @@ export default function CommercialPage() {
 		const hasSplit = shares.length > 0;
 		const shareRows = hasSplit
 			? [
-					buildShare(form.creator, form.total_fee, form.agency_fee_inr),
-					...shares.map((s) => buildShare(s.creator, s.total_fee, s.agency_fee_inr))
+					buildShare(form.creator, form.total_fee, form.agency_fee_pct),
+					...shares.map((s) => buildShare(s.creator, s.total_fee, s.agency_fee_pct))
 				]
 			: [];
 		const sum = (k: 'total_fee' | 'agency_fee_inr' | 'creator_fee') =>
@@ -161,7 +161,6 @@ export default function CommercialPage() {
 	}
 
 	async function remove(d: Deal) {
-		if (!confirm(`Delete campaign for "${d.creator_name}" / brand "${d.brand}"?`)) return;
 		try {
 			await deleteDealMutation.mutateAsync(d.id);
 		} catch (e) {

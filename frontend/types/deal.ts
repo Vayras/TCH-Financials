@@ -25,7 +25,13 @@ export type DealForm = {
 export type ShareForm = {
 	creator: string;
 	total_fee: string;
-	agency_fee_inr: string;
+	agency_fee_pct: string;
+};
+
+export const EMPTY_SHARE: ShareForm = {
+	creator: '',
+	total_fee: '',
+	agency_fee_pct: ''
 };
 
 export type DirFilter = 'All' | 'Inbound' | 'Outbound';

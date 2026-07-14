@@ -43,6 +43,71 @@ export interface CampaignDetailModalProps {
 }
 
 export function CampaignDetailModal({ deal, docs, onClose, onEdit, onDelete }: CampaignDetailModalProps) {
+	const [confirmingDelete, setConfirmingDelete] = React.useState(false);
+
+	// Reset confirmation state whenever the modal opens a new deal or closes.
+	React.useEffect(() => {
+		setConfirmingDelete(false);
+	}, [deal]);
+
+	const dealLabel = deal
+		? [deal.brand, deal.campaign].filter(Boolean).join(' · ') || 'this campaign'
+		: 'this campaign';
+
+	const footer = confirmingDelete ? (
+		// ── Inline delete confirmation ─────────────────────────────────────────
+		<div className="flex items-center gap-3 w-full">
+			<div className="flex-1 min-w-0">
+				<p className="text-[13px] font-medium truncate" style={{ color: 'var(--n-fg)' }}>
+					Delete &ldquo;{dealLabel}&rdquo;?
+				</p>
+				<p className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
+					This cannot be undone.
+				</p>
+			</div>
+			<Button
+				variant="outline"
+				onClick={() => setConfirmingDelete(false)}
+			>
+				Cancel
+			</Button>
+			<Button
+				variant="danger"
+				onClick={async () => {
+					if (deal) {
+						onClose();
+						await onDelete(deal);
+					}
+				}}
+			>
+				Delete
+			</Button>
+		</div>
+	) : (
+		// ── Normal footer ──────────────────────────────────────────────────────
+		<>
+			<Button
+				variant="danger"
+				className="mr-auto"
+				onClick={() => setConfirmingDelete(true)}
+			>
+				Delete
+			</Button>
+			<Button variant="outline" onClick={onClose}>Close</Button>
+			<Button
+				variant="primary"
+				onClick={() => {
+					if (deal) {
+						onClose();
+						onEdit(deal);
+					}
+				}}
+			>
+				Edit
+			</Button>
+		</>
+	);
+
 	return (
 		<Dialog
 			open={deal !== null}
@@ -51,34 +116,7 @@ export function CampaignDetailModal({ deal, docs, onClose, onEdit, onDelete }: C
 			}}
 			title={deal ? `${deal.brand || 'Campaign'}${deal.campaign ? ` · ${deal.campaign}` : ''}` : 'Campaign'}
 			className="max-w-4xl"
-			footer={
-				<>
-					<Button
-						variant="danger"
-						className="mr-auto"
-						onClick={() => {
-							if (deal) {
-								onClose();
-								onDelete(deal);
-							}
-						}}
-					>
-						Delete
-					</Button>
-					<Button variant="outline" onClick={onClose}>Close</Button>
-					<Button
-						variant="primary"
-						onClick={() => {
-							if (deal) {
-								onClose();
-								onEdit(deal);
-							}
-						}}
-					>
-						Edit
-					</Button>
-				</>
-			}
+			footer={footer}
 		>
 			{deal && (
 				<div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
@@ -102,7 +140,11 @@ export function CampaignDetailModal({ deal, docs, onClose, onEdit, onDelete }: C
 						<>
 							<DetailSection title="Creator split" />
 							{deal.creator_shares.map((s, i) => (
-								<DetailField key={s.id ?? i} label={s.creator_name || s.creator_name_raw || `Creator ${i + 1}`} value={`Fee ₹ ${inr(s.total_fee)} · Agency ₹ ${inr(s.agency_fee_inr)}`} />
+								<DetailField
+									key={s.id ?? i}
+									label={s.creator_name || s.creator_name_raw || `Creator ${i + 1}`}
+									value={`Fee ₹ ${inr(s.total_fee)} · Agency ₹ ${inr(s.agency_fee_inr)}`}
+								/>
 							))}
 						</>
 					)}

@@ -26,22 +26,19 @@ export const EMPTY_DEAL_FORM: DealForm = {
 	comments: ''
 };
 
-export const EMPTY_SHARE: ShareForm = {
-	creator: '',
-	total_fee: '',
-	agency_fee_inr: ''
-};
-
-// Build a CreatorShare payload row, deriving % and creator fee from totals.
-export function buildShare(creator: string, total: string, inr: string) {
+// Build a CreatorShare payload row from pct input, deriving ₹ fee and creator fee.
+export function buildShare(creator: string, total: string, pct: string) {
 	const t = Number(total) || 0;
-	const a = Number(inr) || 0;
+	const p = Number(pct) || 0;
+	// Accept either decimal (0.20) or whole-number percent (20 = 20 %)
+	const pctDecimal = p < 1 ? p : p / 100;
+	const a = t * pctDecimal;
 	return {
 		creator: creator ? Number(creator) : null,
 		creator_name_raw: '',
 		total_fee: total || '0',
-		agency_fee_inr: inr || '0',
-		agency_fee_pct: t > 0 ? (a / t).toFixed(4) : '0',
+		agency_fee_inr: a.toFixed(2),
+		agency_fee_pct: pctDecimal.toFixed(4),
 		creator_fee: (t - a).toFixed(2)
 	};
 }
