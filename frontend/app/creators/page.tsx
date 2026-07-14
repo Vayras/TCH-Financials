@@ -5,6 +5,7 @@ import { ConflictError, type Creator } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
+import Dialog from '@/components/ui/Dialog';
 import { cn, formatDoj } from '@/lib/utils';
 import CreatorFormModal from '@/components/CreatorFormModal';
 import DataTable from '@/components/DataTable';
@@ -99,10 +100,17 @@ export default function CreatorsPage() {
 		}
 	}
 
+	const [deletingCreator, setDeletingCreator] = React.useState<Creator | null>(null);
+
 	async function remove(r: Creator) {
-		if (!confirm(`Delete creator "${r.name}"?`)) return;
+		setDeletingCreator(r);
+	}
+
+	async function confirmDelete() {
+		if (!deletingCreator) return;
 		try {
-			await deleteMutation.mutateAsync(r.id);
+			await deleteMutation.mutateAsync(deletingCreator.id);
+			setDeletingCreator(null);
 		} catch (e) {
 			alert((e as Error).message);
 		}
@@ -321,6 +329,34 @@ export default function CreatorsPage() {
 				requireAttachments={!editing}
 				creatorId={editing?.id ?? null}
 			/>
+
+			<Dialog
+				open={deletingCreator !== null}
+				onOpenChange={(open) => {
+					if (!open) setDeletingCreator(null);
+				}}
+				title="Delete Creator"
+				className="max-w-md"
+				footer={
+					<>
+						<Button variant="outline" onClick={() => setDeletingCreator(null)}>
+							Cancel
+						</Button>
+						<Button variant="danger" onClick={confirmDelete}>
+							Delete
+						</Button>
+					</>
+				}
+			>
+				<div className="space-y-2 text-[14px]">
+					<p style={{ color: 'var(--n-fg)' }}>
+						Are you sure you want to delete <strong>{deletingCreator?.name}</strong>?
+					</p>
+					<p style={{ color: 'var(--n-fg-subtle)' }}>
+						This creator will be removed from the master database. This action cannot be undone.
+					</p>
+				</div>
+			</Dialog>
 		</>
 	);
 }
