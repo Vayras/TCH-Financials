@@ -133,6 +133,7 @@ export function CampaignDetailModal({ deal, docs, onClose, onEdit, onDelete }: C
 					<DetailField label="E-Invoice #" value={deal.e_invoice_number} />
 					<DetailField label="Campaign" value={deal.campaign} />
 					<DetailField label="Campaign Status" value={deal.campaign_status} />
+					<DetailField label="Billing Entity" value={deal.billing_entity} />
 					<DetailField label="Deliverables" value={deal.deliverables} />
 					<DetailField label="RO #" value={deal.ro_number} />
 
