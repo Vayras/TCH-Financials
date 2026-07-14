@@ -202,10 +202,9 @@ export default function CommercialPage() {
 		});
 	}, [availMonths]);
 
-	// Deals are tracked by their confirmation date (always required), so every
-	// deal lands in a period. The Overview keeps its invoice-month rule for
-	// invoiced-billing analytics.
-	const trackDate = React.useCallback((r: Deal) => r.confirmation_date, []);
+	// Deals are tracked primarily by their E-invoice date. If a deal hasn't
+	// been invoiced yet, it falls back to the confirmation date.
+	const trackDate = React.useCallback((r: Deal) => r.e_invoice_date || r.confirmation_date, []);
 
 	// Non-period filters (direction, creator, search) — shared between the
 	// visible list and the billing summary so the two always describe the same
