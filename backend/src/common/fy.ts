@@ -61,9 +61,8 @@ export function invoicePeriod(eInvoiceNumber: string | null | undefined): string
  * deal isn't invoiced yet and belongs to no fiscal year.
  */
 export function billingPeriod(deal: CommercialDeal): string | null {
-  const period = invoicePeriod(deal.eInvoiceNumber);
-  if (period !== null) return period;
   if (deal.eInvoiceDate) return `${deal.eInvoiceDate.slice(0, 7)}-01`;
+  if (deal.confirmationDate) return `${deal.confirmationDate.slice(0, 7)}-01`;
   return null;
 }
 

@@ -103,16 +103,9 @@ const MONTH_NUM: Record<string, number> = {
 	jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12
 };
 export function billingPeriodOf(r: Deal): string | null {
-	const m = INVOICE_NO_RE.exec((r.e_invoice_number || '').replace(/\s+/g, ' '));
-	if (m) {
-		const fy = 2000 + Number(m[1]);
-		const month = MONTH_NUM[m[3].slice(0, 3).toLowerCase()];
-		if (month) {
-			const year = month >= 4 ? fy : fy + 1;
-			return `${year}-${String(month).padStart(2, '0')}-01`;
-		}
-	}
-	return r.e_invoice_date || null;
+	if (r.e_invoice_date) return `${r.e_invoice_date.slice(0, 7)}-01`;
+	if (r.confirmation_date) return `${r.confirmation_date.slice(0, 7)}-01`;
+	return null;
 }
 
 // The full set of creator display names on a deal (primary + any split rows).
