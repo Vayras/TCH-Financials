@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { api, ConflictError, type Deal, type Creator, type Campaign } from '@/lib/api';
+import { ConflictError, type Deal } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import type { CampaignGroup, CardGroupBy, CreatorGroup, DealForm, DirFilter, ShareForm } from '@/types/deal';
@@ -21,21 +21,35 @@ import MetricCard from '@/components/MetricCard';
 import { CampaignGroupCard, CreatorGroupCard } from '@/components/CampaignCards';
 import CampaignDetailModal from '@/components/CampaignDetailModal';
 import CampaignFormModal, { type CampaignFormResult } from '@/components/CampaignFormModal';
-import { uploadCreatorDocument } from '@/lib/creators';
+import {
+	useCommercialDealsQuery,
+	useCommercialCreatorsQuery,
+	useCommercialCampaignsQuery,
+	useCommercialDocsQuery,
+	useSaveDealMutation,
+	useDeleteDealMutation
+} from './queries';
 
 export default function CommercialPage() {
-	const [rows, setRows] = React.useState<Deal[]>([]);
-	const [creators, setCreators] = React.useState<Creator[]>([]);
-	const [campaigns, setCampaigns] = React.useState<Campaign[]>([]);
-	const [loading, setLoading] = React.useState(true);
-	const [error, setError] = React.useState<string | null>(null);
+	const { fyStart } = useFiscalYear();
+
+	const { data: rows = [], isLoading: dealsLoading, error: dealsError } = useCommercialDealsQuery(fyStart);
+	const { data: creators = [], isLoading: creatorsLoading } = useCommercialCreatorsQuery();
+	const { data: campaigns = [], isLoading: campaignsLoading } = useCommercialCampaignsQuery();
+	const { data: docs = [], isLoading: docsLoading } = useCommercialDocsQuery();
+
+	const loading = dealsLoading || creatorsLoading || campaignsLoading || docsLoading;
+	const error = dealsError ? dealsError.message : null;
+
+	const saveDealMutation = useSaveDealMutation(fyStart);
+	const deleteDealMutation = useDeleteDealMutation(fyStart);
+
 	const [open, setOpen] = React.useState(false);
 	const [editing, setEditing] = React.useState<Deal | null>(null);
 	const [q, setQ] = React.useState('');
 	const [dirFilter, setDirFilter] = React.useState<DirFilter>('All');
 	// Multi-month filter: empty = all months of the selected fiscal year.
 	const [months, setMonths] = React.useState<string[]>([]);
-	const { fyStart } = useFiscalYear();
 	const [creatorFilter, setCreatorFilter] = React.useState('All');
 	const [groupBy, setGroupBy] = React.useState<CardGroupBy>(() => {
 		if (typeof window === 'undefined') return 'campaign';
@@ -43,34 +57,6 @@ export default function CommercialPage() {
 		return saved === 'campaign' || saved === 'creator' ? saved : 'campaign';
 	});
 	const [detail, setDetail] = React.useState<Deal | null>(null);
-
-	const load = React.useCallback(async () => {
-		setLoading(true);
-		let shown = false;
-		try {
-			// fy scopes the payload server-side to the selected fiscal year
-			// (plus not-yet-invoiced deals for the backfill banner) — the page
-			// never shows other years, so don't download them. Each feed
-			// renders from cache instantly and updates when the network lands.
-			await Promise.all([
-				api.getSWR<Deal[]>(`/deals/?fy=${fyStart}`, (d) => {
-					shown = true;
-					setRows(d);
-					setLoading(false);
-				}),
-				api.getSWR<Creator[]>('/creators/', setCreators),
-				api.getSWR<Campaign[]>('/campaigns/', setCampaigns)
-			]);
-		} catch (e) {
-			if (!shown) setError((e as Error).message);
-		} finally {
-			setLoading(false);
-		}
-	}, [fyStart]);
-
-	React.useEffect(() => {
-		load();
-	}, [load]);
 
 	React.useEffect(() => {
 		window.localStorage.setItem('commercial-card-group', groupBy);
@@ -125,7 +111,7 @@ export default function CommercialPage() {
 			(editing?.creator_shares ?? []).slice(1).map((s) => ({
 				creator: s.creator ? String(s.creator) : '',
 				total_fee: s.total_fee,
-				agency_fee_inr: s.agency_fee_inr
+				agency_fee_pct: s.agency_fee_pct
 			})),
 		[editing]
 	);
@@ -138,9 +124,9 @@ export default function CommercialPage() {
 		const hasSplit = shares.length > 0;
 		const shareRows = hasSplit
 			? [
-					buildShare(form.creator, form.total_fee, form.agency_fee_inr),
-					...shares.map((s) => buildShare(s.creator, s.total_fee, s.agency_fee_inr))
-				]
+				buildShare(form.creator, form.total_fee, form.agency_fee_pct),
+				...shares.map((s) => buildShare(s.creator, s.total_fee, s.agency_fee_pct))
+			]
 			: [];
 		const sum = (k: 'total_fee' | 'agency_fee_inr' | 'creator_fee') =>
 			shareRows.reduce((n, s) => n + (Number(s[k]) || 0), 0).toFixed(2);
@@ -157,43 +143,28 @@ export default function CommercialPage() {
 			creator_shares: shareRows
 		};
 		try {
-			if (editing) {
-				await api.patch(`/deals/${editing.id}/`, { ...payload, version: editing.version });
-			} else {
-				await api.post('/deals/', payload);
-			}
-			// Invoice files are stored as documents on the primary creator until
-			// deals grow their own attachment field on the backend.
-			const creatorId = form.creator ? Number(form.creator) : null;
-			if (creatorId) {
-				const uploads: [File | null, string][] = [
-					[clientInvoiceFile, `Client Invoice — ${form.campaign || form.brand}`],
-					[creatorInvoiceFile, `Creator Invoice — ${form.campaign || form.brand}`]
-				];
-				for (const [file, label] of uploads) {
-					if (!file) continue;
-					try {
-						await uploadCreatorDocument(creatorId, 'Other', file, label);
-					} catch {
-						alert(`Campaign saved, but "${label}" failed to upload.`);
-					}
-				}
-			}
+			await saveDealMutation.mutateAsync({
+				editingId: editing?.id,
+				editingVersion: editing?.version,
+				payload,
+				clientInvoiceFile,
+				creatorInvoiceFile
+			});
 			setOpen(false);
-			await load();
 		} catch (e) {
 			alert((e as Error).message);
 			if (e instanceof ConflictError) {
 				setOpen(false);
-				await load();
 			}
 		}
 	}
 
 	async function remove(d: Deal) {
-		if (!confirm(`Delete campaign for "${d.creator_name}" / brand "${d.brand}"?`)) return;
-		await api.del(`/deals/${d.id}/`);
-		await load();
+		try {
+			await deleteDealMutation.mutateAsync(d.id);
+		} catch (e) {
+			alert((e as Error).message);
+		}
 	}
 
 	// Distinct creator names across the loaded deals (primary + split rows) —
@@ -211,6 +182,7 @@ export default function CommercialPage() {
 	// dropdown when its calendar position is in the past or is the running one
 	// for the selected fiscal year. Future months are hidden entirely.
 	const availMonths = React.useMemo(() => {
+		if (fyStart === null) return [];
 		const now = new Date();
 		const curY = now.getFullYear();
 		const curM = now.getMonth() + 1;
@@ -229,10 +201,9 @@ export default function CommercialPage() {
 		});
 	}, [availMonths]);
 
-	// Deals are tracked by their confirmation date (always required), so every
-	// deal lands in a period. The Overview keeps its invoice-month rule for
-	// invoiced-billing analytics.
-	const trackDate = React.useCallback((r: Deal) => r.confirmation_date, []);
+	// Deals are tracked primarily by their E-invoice date. If a deal hasn't
+	// been invoiced yet, it falls back to the confirmation date.
+	const trackDate = React.useCallback((r: Deal) => r.e_invoice_date || r.confirmation_date, []);
 
 	// Non-period filters (direction, creator, search) — shared between the
 	// visible list and the billing summary so the two always describe the same
@@ -374,16 +345,16 @@ export default function CommercialPage() {
 
 				<div className="flex flex-wrap items-end gap-2">
 					<div className="relative flex-1 min-w-[260px]">
-							<span className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--n-fg-subtle)' }}>
-								<Icon name="search" size={14} />
-							</span>
-							<input
-								value={q}
-								onChange={(e) => setQ(e.target.value)}
-								placeholder="Search creator, brand, campaign…"
-								className="h-8 w-full rounded pl-8 pr-2 text-[14px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors placeholder:text-[var(--n-fg-subtle)]"
-							/>
-						</div>
+						<span className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--n-fg-subtle)' }}>
+							<Icon name="search" size={14} />
+						</span>
+						<input
+							value={q}
+							onChange={(e) => setQ(e.target.value)}
+							placeholder="Search creator, brand, campaign…"
+							className="h-8 w-full rounded pl-8 pr-2 text-[14px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors placeholder:text-[var(--n-fg-subtle)]"
+						/>
+					</div>
 					<label className="flex flex-col gap-1 min-w-[120px] text-[11.5px] font-medium" style={{ color: 'var(--n-fg-subtle)' }}>
 						Deal Type
 						<select value={dirFilter} onChange={(e) => setDirFilter(e.target.value as DirFilter)} className="h-8 rounded px-2 text-[14px] font-normal bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)]">
@@ -456,6 +427,7 @@ export default function CommercialPage() {
 
 			<CampaignDetailModal
 				deal={detail}
+				docs={docs.filter((d) => d.deal === detail?.id)}
 				onClose={() => setDetail(null)}
 				onEdit={startEdit}
 				onDelete={remove}

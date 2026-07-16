@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { api, ConflictError, type EmployeeReport } from '@/lib/api';
+import { ConflictError, type EmployeeReport } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
@@ -9,18 +9,13 @@ import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
 import Label from '@/components/ui/Label';
 import Icon from '@/components/ui/Icon';
-
-type EmployeeForm = {
-	week_ending: string;
-	employee_name: string;
-	new_outreach: number;
-	paid_confirmations: string;
-	revenue_locked: string;
-	profit_locked: string;
-	barter_confirmations: string;
-	live_campaigns: number;
-	action_points: string;
-};
+import {
+	useEmployeeReportsQuery,
+	useCreateEmployeeReportMutation,
+	useUpdateEmployeeReportMutation,
+	useDeleteEmployeeReportMutation
+} from './queries';
+import { type EmployeeForm } from '@/lib/types';
 
 const EMPTY_FORM: EmployeeForm = {
 	week_ending: '',
@@ -35,34 +30,18 @@ const EMPTY_FORM: EmployeeForm = {
 };
 
 export default function EmployeesPage() {
-	const [rows, setRows] = React.useState<EmployeeReport[]>([]);
-	const [loading, setLoading] = React.useState(true);
-	const [error, setError] = React.useState<string | null>(null);
+	const { data: rows = [], isLoading: loading, error: queryError } = useEmployeeReportsQuery();
+	const createMutation = useCreateEmployeeReportMutation();
+	const updateMutation = useUpdateEmployeeReportMutation();
+	const deleteMutation = useDeleteEmployeeReportMutation();
+
+	const error = queryError ? queryError.message : null;
+
 	const [open, setOpen] = React.useState(false);
 	const [editing, setEditing] = React.useState<EmployeeReport | null>(null);
 	const [q, setQ] = React.useState('');
 	const [expandedCards, setExpandedCards] = React.useState<Record<string, boolean>>({});
 	const [form, setForm] = React.useState<EmployeeForm>(EMPTY_FORM);
-
-	const load = React.useCallback(async () => {
-		setLoading(true);
-		let shown = false;
-		try {
-			await api.getSWR<EmployeeReport[]>('/employee-reports/', (d) => {
-				shown = true;
-				setRows(d);
-				setLoading(false);
-			});
-		} catch (e) {
-			if (!shown) setError((e as Error).message);
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
-	React.useEffect(() => {
-		load();
-	}, [load]);
 
 	function startAdd() {
 		setEditing(null);
@@ -97,25 +76,30 @@ export default function EmployeesPage() {
 		};
 		try {
 			if (editing) {
-				await api.patch(`/employee-reports/${editing.id}/`, { ...payload, version: editing.version });
+				await updateMutation.mutateAsync({
+					id: editing.id,
+					version: editing.version,
+					payload
+				});
 			} else {
-				await api.post('/employee-reports/', payload);
+				await createMutation.mutateAsync(payload);
 			}
 			setOpen(false);
-			await load();
 		} catch (e) {
 			alert((e as Error).message);
 			if (e instanceof ConflictError) {
 				setOpen(false);
-				await load();
 			}
 		}
 	}
 
 	async function remove(r: EmployeeReport) {
 		if (!confirm(`Delete report for "${r.employee_name}" (${r.week_ending})?`)) return;
-		await api.del(`/employee-reports/${r.id}/`);
-		await load();
+		try {
+			await deleteMutation.mutateAsync(r.id);
+		} catch (e) {
+			alert((e as Error).message);
+		}
 	}
 
 	const filtered = React.useMemo(() => {

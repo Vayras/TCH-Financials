@@ -223,7 +223,8 @@ export class DealsController {
       .leftJoinAndSelect('deal.campaign', 'campaign')
       .leftJoinAndSelect('deal.creatorShares', 'share')
       .leftJoinAndSelect('share.creator', 'shareCreator')
-      .orderBy('deal.confirmation_date', 'ASC', 'NULLS FIRST')
+      .orderBy('deal.e_invoice_date', 'ASC', 'NULLS FIRST')
+      .addOrderBy('deal.confirmation_date', 'ASC', 'NULLS FIRST')
       .addOrderBy('deal.id', 'ASC');
     if (campaign) qb.andWhere('deal.campaign_id = :campaign', { campaign });
     let rows = await qb.getMany();

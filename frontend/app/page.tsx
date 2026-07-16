@@ -1,68 +1,39 @@
 'use client';
 
 import * as React from 'react';
-import { api, type Overview, type Creator } from '@/lib/api';
 import { inr, pct } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
+import Select from '@/components/ui/Select';
 import { cn } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import BillingBarChart from '@/components/BillingBarChart';
+import MetricCard from '@/components/MetricCard';
+import { useOverviewQuery, useOverviewCreatorsQuery } from './queries';
 
 const STATUS_DOT: Record<string, string> = {
 	Active: 'bg-[#0f7b6c]',
 	Over: 'bg-[#9b9a97]'
 };
 
-function fyLabelFor(start: number): string {
+function fyLabelFor(start: number | null): string {
+	if (start === null) return '…';
 	return `FY ${start % 100}-${(start + 1) % 100}`;
 }
 
 export default function OverviewPage() {
 	const { fyStart } = useFiscalYear();
-	const [data, setData] = React.useState<Overview | null>(null);
-	const [loading, setLoading] = React.useState(true);
-	const [error, setError] = React.useState<string | null>(null);
-	const [view, setView] = React.useState<'month' | 'quarter'>('month');
-	// Optional filters: narrow to a single month (client-side) and/or scope every
-	// figure to one creator (server-side via ?creator=).
-	const [monthFilter, setMonthFilter] = React.useState('All');
 	const [creatorFilter, setCreatorFilter] = React.useState('All');
-	const [creators, setCreators] = React.useState<Creator[]>([]);
 
-	const load = React.useCallback(async () => {
-		setLoading(true);
-		setError(null);
-		try {
-			const params = new URLSearchParams({ fy: String(fyStart) });
-			if (creatorFilter !== 'All') params.set('creator', creatorFilter);
-			// Cached payload renders instantly; the fresh one replaces it when
-			// the network answers.
-			await api.getSWR<Overview>(`/overview/?${params}`, (d) => {
-				setData(d);
-				setLoading(false);
-			});
-		} catch (e) {
-			setError((e as Error).message);
-		} finally {
-			setLoading(false);
-		}
-	}, [fyStart, creatorFilter]);
+	const { data, isLoading: overviewLoading, error: overviewError, refetch } = useOverviewQuery(fyStart, creatorFilter);
+	const { data: creators = [], isLoading: creatorsLoading } = useOverviewCreatorsQuery();
 
-	React.useEffect(() => {
-		load();
-	}, [load]);
+	const loading = overviewLoading || creatorsLoading;
+	const error = overviewError ? overviewError.message : null;
 
-	// Creator master list powers the filter dropdown (kept independent of the
-	// scoped overview payload, which only carries the filtered creator's rows).
-	React.useEffect(() => {
-		api.get<Creator[]>('/creators/')
-			.then(setCreators)
-			.catch(() => setCreators([]));
-	}, []);
+	const [view, setView] = React.useState<'month' | 'quarter'>('month');
+	const [monthFilter, setMonthFilter] = React.useState('All');
 
-	// A selected month forces the month lens and narrows to that single column;
-	// otherwise honour the month/quarter toggle.
 	const monthActive = monthFilter !== 'All';
 	const effView: 'month' | 'quarter' = monthActive ? 'month' : view;
 	const allCols = data ? (effView === 'month' ? data.months : data.quarters) : [];
@@ -70,23 +41,23 @@ export default function OverviewPage() {
 	const src = data
 		? effView === 'month'
 			? {
-					totals: data.totals.by_month,
-					emw: data.emw_billing.by_month,
-					profits: data.profits.by_month,
-					emwPct: data.emw_pct.by_month,
-					profitPct: data.profit_pct.by_month
-				}
+				totals: data.totals.by_month,
+				emw: data.emw_billing.by_month,
+				profits: data.profits.by_month,
+				emwPct: data.emw_pct.by_month,
+				profitPct: data.profit_pct.by_month
+			}
 			: {
-					totals: data.totals.by_quarter,
-					emw: data.emw_billing.by_quarter,
-					profits: data.profits.by_quarter,
-					emwPct: data.emw_pct.by_quarter,
-					profitPct: data.profit_pct.by_quarter
-				}
+				totals: data.totals.by_quarter,
+				emw: data.emw_billing.by_quarter,
+				profits: data.profits.by_quarter,
+				emwPct: data.emw_pct.by_quarter,
+				profitPct: data.profit_pct.by_quarter
+			}
 		: null;
 
 	return (
-		<section className="space-y-8">
+		<section className="space-y-6">
 			<header className="space-y-2">
 				<div
 					className="text-[12px] font-medium uppercase"
@@ -102,129 +73,85 @@ export default function OverviewPage() {
 				</h1>
 				<p className="text-[15px] max-w-[640px]" style={{ color: 'var(--n-fg-muted)' }}>
 					Total billing by campaign, derived live from Campaign Tracking. Each deal lands in the
-						fiscal year and month of its E-Invoice No (e.g. TCH/2526/Dec01 → Dec, FY 25-26). Add a deal there and the
-					numbers below recompute on the next load.
+					fiscal year and month of its E-Invoice No (e.g. TCH/2526/Dec01 → Dec, FY 25-26).
 				</p>
 			</header>
 
 			{data && (
-				<>
-					{/* Campaign Status Cards */}
-					<div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-						<div
-							className="rounded p-3"
-							style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-						>
-							<div
-								className="text-[11.5px] font-medium uppercase"
-								style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-							>
-								Campaigns This FY
+				<div className="space-y-6">
+					{/* Key Metrics Section */}
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+						{/* Financial Summary */}
+						<div className="md:col-span-2 grid grid-cols-2 gap-2">
+							<div className="col-span-full">
+								<HeroMetricCard
+									label="Total Billing"
+									value={inr(data.totals.total)}
+								/>
 							</div>
-							<div
-								className="text-[28px] font-bold tabular-nums mt-1"
-								style={{ color: 'var(--n-fg)' }}
-							>
-								{data.total_campaigns}
-							</div>
+							<MetricCard
+								label="Elements (EMW)"
+								dotColor="#1a63a3"
+								value={
+									<div className="flex flex-col">
+										<span>{inr(data.emw_billing.total)}</span>
+										<span className="text-[12px] font-normal mt-1" style={{ color: 'var(--n-fg-subtle)' }}>
+											{pct(data.emw_pct.total)} of billing
+										</span>
+									</div>
+								}
+							/>
+							<MetricCard
+								label="External Billing"
+								dotColor="#9b9a97"
+								value={
+									<div className="flex flex-col">
+										<span>{inr(Number(data.totals.total) - Number(data.emw_billing.total))}</span>
+										<span className="text-[12px] font-normal mt-1" style={{ color: 'var(--n-fg-subtle)' }}>
+											{pct(String(1 - Number(data.emw_pct.total)))} of billing
+										</span>
+									</div>
+								}
+							/>
 						</div>
-						{(['Active', 'Over'] as const).map((s) => (
-							<div
-								key={s}
-								className="rounded p-3"
-								style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-							>
-								<div className="text-[11.5px] font-medium uppercase flex items-center gap-1.5" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
-									<span className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT[s] ?? '')} />
-									{s === 'Active' ? 'Active Campaigns' : 'Campaigns Over'}
-								</div>
-								<div
-									className="text-[22px] font-semibold tabular-nums mt-1"
-									style={{ color: 'var(--n-fg)' }}
-								>
-									{data.campaign_counts[s] ?? 0}
-								</div>
-							</div>
-						))}
-					</div>
 
-					{/* Billing Summary Cards */}
-					<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-						<div
-							className="rounded p-3"
-							style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-						>
-							<div
-								className="text-[11.5px] font-medium uppercase"
-								style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-							>
-								Total Billing
-							</div>
-							<div
-								className="text-[26px] font-bold tabular-nums mt-1"
-								style={{ color: 'var(--n-fg)' }}
-							>
-								{inr(data.totals.total)}
-							</div>
-						</div>
-						<div
-							className="rounded p-3"
-							style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-						>
-							<div className="text-[11.5px] font-medium uppercase flex items-center gap-1.5" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
-								<span className="h-1.5 w-1.5 rounded-full bg-[#1a63a3]" />
-								Elements (EMW)
-							</div>
-							<div
-								className="text-[22px] font-semibold tabular-nums mt-1"
-								style={{ color: 'var(--n-fg)' }}
-							>
-								{inr(data.emw_billing.total)}
-							</div>
-							<div className="text-[12px] tabular-nums mt-0.5" style={{ color: 'var(--n-fg-subtle)' }}>
-								{pct(data.emw_pct.total)} of billing
-							</div>
-						</div>
-						<div
-							className="rounded p-3"
-							style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-						>
-							<div className="text-[11.5px] font-medium uppercase flex items-center gap-1.5" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
-								<span className="h-1.5 w-1.5 rounded-full bg-[#9b9a97]" />
-								External
-							</div>
-							<div
-								className="text-[22px] font-semibold tabular-nums mt-1"
-								style={{ color: 'var(--n-fg)' }}
-							>
-								{inr(Number(data.totals.total) - Number(data.emw_billing.total))}
-							</div>
-							<div className="text-[12px] tabular-nums mt-0.5" style={{ color: 'var(--n-fg-subtle)' }}>
-								{pct(String(1 - Number(data.emw_pct.total)))} of billing
-							</div>
-						</div>
-						<div
-							className="rounded p-3"
-							style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-						>
-							<div className="text-[11.5px] font-medium uppercase flex items-center gap-1.5" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
-								<span className="h-1.5 w-1.5 rounded-full bg-[#0d9070]" />
-								Profit (TCH Fee)
-							</div>
-							<div
-								className="text-[22px] font-semibold tabular-nums mt-1"
-								style={{ color: '#0d9070' }}
-							>
-								{inr(data.profits.total)}
-							</div>
-							<div className="text-[12px] tabular-nums mt-0.5" style={{ color: 'var(--n-fg-subtle)' }}>
-								{pct(data.profit_pct.total)} margin
+						{/* Operational Metrics & Net Margin */}
+						<div className="flex flex-col gap-2">
+							<MetricCard
+								label="Net Margin (TCH Fee)"
+								dotColor="#0d9070"
+								valueColor="#0d9070"
+								value={
+									<div className="flex flex-col">
+										<span>{inr(data.profits.total)}</span>
+										<span className="text-[12px] font-normal mt-1" style={{ color: 'var(--n-fg-subtle)' }}>
+											{pct(data.profit_pct.total)} profit margin
+										</span>
+									</div>
+								}
+							/>
+							<div className="grid grid-cols-3 gap-2 flex-1">
+								<MiniMetricCard
+									label="Total"
+									value={data.total_campaigns}
+								/>
+								<MiniMetricCard
+									label="Active"
+									value={data.campaign_counts.Active ?? 0}
+									dotColor="#0f7b6c"
+								/>
+								<MiniMetricCard
+									label="Over"
+									value={data.campaign_counts.Over ?? 0}
+									dotColor="#9b9a97"
+								/>
 							</div>
 						</div>
 					</div>
-				</>
+				</div>
 			)}
 
+			{/* Filters Toolbar */}
 			<div
 				className="flex items-center gap-3 flex-wrap pb-3"
 				style={{ borderBottom: '1px solid var(--n-border)' }}
@@ -248,33 +175,29 @@ export default function OverviewPage() {
 					</button>
 				</div>
 
-				<label className="flex items-center gap-1.5 text-[13px]" style={{ color: 'var(--n-fg-muted)' }}>
-					Month
-					<select
+				<div className="flex items-center gap-2 min-w-[150px]">
+					<span className="text-[13px] whitespace-nowrap" style={{ color: 'var(--n-fg-muted)' }}>Month</span>
+					<Select
 						value={monthFilter}
 						onChange={(e) => setMonthFilter(e.target.value)}
-						className="h-8 rounded px-2 text-[13px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)]"
-					>
-						<option value="All">All months</option>
-						{(data?.months ?? []).map((m) => (
-							<option key={m.key} value={m.key}>{m.label}</option>
-						))}
-					</select>
-				</label>
+						options={[
+							{ value: 'All', label: 'All months' },
+							...(data?.months ?? []).map((m) => ({ value: m.key, label: m.label }))
+						]}
+					/>
+				</div>
 
-				<label className="flex items-center gap-1.5 text-[13px]" style={{ color: 'var(--n-fg-muted)' }}>
-					Creator
-					<select
+				<div className="flex items-center gap-2 min-w-[180px]">
+					<span className="text-[13px] whitespace-nowrap" style={{ color: 'var(--n-fg-muted)' }}>Creator</span>
+					<Select
 						value={creatorFilter}
 						onChange={(e) => setCreatorFilter(e.target.value)}
-						className="h-8 rounded px-2 text-[13px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)]"
-					>
-						<option value="All">All creators</option>
-						{creators.map((c) => (
-							<option key={c.id} value={c.name}>{c.name}</option>
-						))}
-					</select>
-				</label>
+						options={[
+							{ value: 'All', label: 'All creators' },
+							...creators.map((c) => ({ value: c.name, label: c.name }))
+						]}
+					/>
+				</div>
 
 				<div className="ml-auto flex items-center gap-2">
 					{(monthActive || creatorFilter !== 'All') && (
@@ -288,7 +211,7 @@ export default function OverviewPage() {
 							Clear filters
 						</Button>
 					)}
-					<Button variant="ghost" onClick={load}>
+					<Button variant="ghost" onClick={() => refetch()}>
 						<Icon name="refresh" size={14} /> Refresh
 					</Button>
 				</div>
@@ -306,10 +229,10 @@ export default function OverviewPage() {
 					Error: {error}
 				</div>
 			) : data && src ? (
-				<>
-					{/* Billing by period — replaces the old dash-heavy summary rows */}
+				<div className="space-y-6">
+					{/* Billing Chart */}
 					<div
-						className="rounded p-4"
+						className="rounded-lg p-4"
 						style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
 					>
 						<BillingBarChart
@@ -322,6 +245,7 @@ export default function OverviewPage() {
 						/>
 					</div>
 
+					{/* Campaign Details Table */}
 					<div className="tbl-card">
 						<div className="scroll-x">
 							<table className="grid-table with-sticky-first">
@@ -395,7 +319,7 @@ export default function OverviewPage() {
 
 					{data.not_invoiced.count > 0 && (
 						<div
-							className="flex items-center gap-3 rounded p-3 text-[13px]"
+							className="flex items-center gap-3 rounded-lg p-3 text-[13px]"
 							style={{
 								background: 'var(--n-bg-soft)',
 								border: '1px solid var(--n-border)',
@@ -420,8 +344,57 @@ export default function OverviewPage() {
 						supporting dimension. A deal&apos;s month and fiscal year come from its E-Invoice No.
 						EMW billing is the subset of deals where the billing entity contains &quot;EMW&quot;.
 					</div>
-				</>
+				</div>
 			) : null}
 		</section>
+	);
+}
+
+// ── Design System Sub-components ───────────────────────────────────────────
+
+function HeroMetricCard({ label, value }: { label: string; value: string }) {
+	return (
+		<div
+			className="rounded-lg p-4 flex flex-col justify-between"
+			style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
+		>
+			<div
+				className="text-[11.5px] font-semibold uppercase"
+				style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
+			>
+				{label}
+			</div>
+			<div
+				className="text-[30px] font-bold tabular-nums tracking-tight mt-2 leading-none"
+				style={{ color: 'var(--n-fg)' }}
+			>
+				{value}
+			</div>
+		</div>
+	);
+}
+
+function MiniMetricCard({ label, value, dotColor }: { label: string; value: number; dotColor?: string }) {
+	return (
+		<div
+			className="rounded p-2 flex flex-col justify-between items-center text-center"
+			style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg-soft)' }}
+		>
+			<div className="flex items-center gap-1">
+				{dotColor && <span className="h-1.5 w-1.5 rounded-full" style={{ background: dotColor }} />}
+				<div
+					className="text-[10px] font-medium uppercase"
+					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
+				>
+					{label}
+				</div>
+			</div>
+			<div
+				className="text-[18px] font-bold tabular-nums mt-1 leading-none"
+				style={{ color: 'var(--n-fg)' }}
+			>
+				{value}
+			</div>
+		</div>
 	);
 }

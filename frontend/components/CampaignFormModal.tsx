@@ -4,7 +4,8 @@ import * as React from 'react';
 import { useForm, useFieldArray, type FieldErrors, type RegisterOptions, type Path } from 'react-hook-form';
 import type { Creator } from '@/lib/api';
 import type { DealForm, ShareForm } from '@/types/deal';
-import { DIRECTION, EMPTY_SHARE, MONTH_NAMES } from '@/lib/deals';
+import { EMPTY_SHARE } from '@/types/deal';
+import { DIRECTION, MONTH_NAMES } from '@/lib/deals';
 import { inr } from '@/lib/utils';
 import Dialog from '@/components/ui/Dialog';
 import Button from '@/components/ui/Button';
@@ -36,24 +37,52 @@ function countErrors(errs: FieldErrors<FormValues>): number {
 	let n = 0;
 	const walk = (node: unknown) => {
 		if (!node || typeof node !== 'object') return;
-		if ('message' in (node as object) && 'type' in (node as object)) {
-			n += 1;
-			return;
-		}
+		if ('message' in (node as object) && 'type' in (node as object)) { n += 1; return; }
 		for (const v of Object.values(node as object)) walk(v);
 	};
 	walk(errs);
 	return n;
 }
 
-function Field({ label, error, children }: { label: string; error?: string; children: React.ReactNode }) {
+/** Thin section header to visually group related fields */
+function SectionHeader({ children }: { children: React.ReactNode }) {
 	return (
-		<div>
+		<div className="col-span-full pt-2 pb-1 mb-4" style={{ borderBottom: '1px solid var(--n-border)' }}>
+			<span
+				className="text-[11px] font-semibold uppercase tracking-widest"
+				style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.08em' }}
+			>
+				{children}
+			</span>
+		</div>
+	);
+}
+
+/** Consistent field wrapper — label + input + inline error */
+function Field({
+	label,
+	error,
+	hint,
+	children,
+	className,
+}: {
+	label: string;
+	error?: string;
+	hint?: string;
+	children: React.ReactNode;
+	className?: string;
+}) {
+	return (
+		<div className={className}>
 			<Label>{label}</Label>
 			{children}
-			<div className="min-h-[18px] text-[12px] mt-0.5" style={{ color: error ? '#b91c1c' : 'transparent' }}>
-				{error ?? ' '}
-			</div>
+			{error ? (
+				<p className="mt-0.5 text-[12px]" style={{ color: '#b91c1c' }}>{error}</p>
+			) : hint ? (
+				<p className="mt-0.5 text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>{hint}</p>
+			) : (
+				<div className="min-h-[18px]" />
+			)}
 		</div>
 	);
 }
@@ -79,7 +108,7 @@ export function CampaignFormModal({
 	initialShares,
 	creators,
 	campaignNames,
-	onSubmit
+	onSubmit,
 }: CampaignFormModalProps) {
 	const {
 		register,
@@ -89,7 +118,7 @@ export function CampaignFormModal({
 		watch,
 		getValues,
 		setValue,
-		formState: { errors, isSubmitting }
+		formState: { errors, isSubmitting },
 	} = useForm<FormValues>({ defaultValues: { ...initial, shares: initialShares } });
 
 	const shares = useFieldArray({ control, name: 'shares' });
@@ -127,15 +156,9 @@ export function CampaignFormModal({
 	const required = { required: 'Required' } as const;
 	const creatorOptions = creators.map((c) => ({ value: String(c.id), label: `${c.name} · ${c.relationship}` }));
 
-	const [watchCreator, watchBrand, watchEInvDate, watchConfDate, watchCampaign, watchTotalFee, watchShares] = watch([
-		'creator',
-		'brand',
-		'e_invoice_date',
-		'confirmation_date',
-		'campaign',
-		'total_fee',
-		'shares'
-	]);
+	const [
+		watchCreator, watchBrand, watchEInvDate, watchConfDate, watchCampaign, watchTotalFee, watchShares,
+	] = watch(['creator', 'brand', 'e_invoice_date', 'confirmation_date', 'campaign', 'total_fee', 'shares']);
 
 	const suggestedCampaignName = React.useMemo(() => {
 		const creatorName = creators.find((c) => String(c.id) === watchCreator)?.name || '';
@@ -157,30 +180,28 @@ export function CampaignFormModal({
 				form,
 				shares: shareRows,
 				clientInvoiceFile: client_invoice_file?.[0] ?? null,
-				creatorInvoiceFile: creator_invoice_file?.[0] ?? null
+				creatorInvoiceFile: creator_invoice_file?.[0] ?? null,
 			});
 		},
 		(errs) => {
 			const count = countErrors(errs);
 			setSummaryError(
-				`${count} required field${count === 1 ? '' : 's'} missing. Fields marked in red are required. Invoice uploads are optional.`
+				`${count} required field${count === 1 ? '' : 's'} missing. Fields marked in red below must be filled in. Invoice uploads are optional.`
 			);
 		}
 	);
 
-	const errText = (k: keyof DealForm) => (errors[k]?.message as string) || undefined;
+	const err = (k: keyof DealForm) => (errors[k]?.message as string) || undefined;
 
 	return (
 		<Dialog
 			open={open}
 			onOpenChange={onOpenChange}
 			title={title}
-			className="max-w-4xl"
+			className="max-w-3xl"
 			footer={
 				<>
-					<Button variant="outline" onClick={() => onOpenChange(false)}>
-						Cancel
-					</Button>
+					<Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
 					<Button variant="primary" type="submit" form="campaign-form" disabled={isSubmitting}>
 						{isSubmitting ? 'Saving…' : submitLabel}
 					</Button>
@@ -188,87 +209,274 @@ export function CampaignFormModal({
 			}
 		>
 			{summaryError && (
-				<div className="mb-3 text-[13px] rounded p-3" style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}>
+				<div
+					className="mb-4 text-[13px] rounded-md p-3 flex gap-2 items-start"
+					style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
+				>
+					<Icon name="alert-circle" size={14} className="mt-0.5 shrink-0" />
 					{summaryError}
 				</div>
 			)}
-			<form id="campaign-form" onSubmit={submitHandler} className="grid grid-cols-3 gap-3">
-				<Field label="Confirmation Date" error={errText('confirmation_date')}>
-					<Input type="date" {...reg('confirmation_date', required)} className={errors.confirmation_date ? 'border-[#b91c1c]' : ''} />
+
+			<form id="campaign-form" onSubmit={submitHandler} className="grid grid-cols-2 gap-x-4 gap-y-0">
+
+				{/* ── 1. Deal Info ─────────────────────────────────────────────────── */}
+				<SectionHeader>Deal Info</SectionHeader>
+
+				<Field label="Confirmation Date *" error={err('confirmation_date')}>
+					<Input
+						type="date"
+						{...reg('confirmation_date', required)}
+						className={errors.confirmation_date ? 'border-[#b91c1c]' : ''}
+					/>
 				</Field>
-				<Field label="E-Invoice #" error={errText('e_invoice_number')}>
-					<Input placeholder="TCH/2627/Jul01" {...reg('e_invoice_number', required)} className={errors.e_invoice_number ? 'border-[#b91c1c]' : ''} />
+
+				<Field label="Direction *" error={err('direction')}>
+					<Select
+						{...reg('direction', required)}
+						options={DIRECTION}
+						className={errors.direction ? 'border-[#b91c1c]' : ''}
+					/>
 				</Field>
-				<Field label="E-Invoice Date">
+
+				<Field label="E-Invoice Number *" error={err('e_invoice_number')}>
+					<Input
+						placeholder="e.g. TCH/2627/Jul01"
+						{...reg('e_invoice_number', required)}
+						className={errors.e_invoice_number ? 'border-[#b91c1c]' : ''}
+					/>
+				</Field>
+
+				<Field label="E-Invoice Date" error={err('e_invoice_date')}>
 					<Input type="date" {...reg('e_invoice_date')} />
 				</Field>
-				<Field label="Direction" error={errText('direction')}>
-					<Select {...reg('direction', required)} options={DIRECTION} className={errors.direction ? 'border-[#b91c1c]' : ''} />
+
+				{/* ── 2. Creator & Team ────────────────────────────────────────────── */}
+				<SectionHeader>Creator & Team</SectionHeader>
+
+				<Field label="Creator *" error={err('creator')} className="col-span-full">
+					<Select
+						{...reg('creator', required)}
+						options={creatorOptions}
+						placeholder="— select creator —"
+						className={errors.creator ? 'border-[#b91c1c]' : ''}
+					/>
 				</Field>
 
-				<div className="col-span-3">
-					<Field label="Creator (pick from master)" error={errText('creator')}>
-						<Select {...reg('creator', required)} options={creatorOptions} placeholder="— pick creator —" className={errors.creator ? 'border-[#b91c1c]' : ''} />
-					</Field>
-				</div>
-				<div className="col-span-2">
-					<Field label="TCH POC" error={errText('tch_poc')}>
-						<Input placeholder="TCH person handling this deal" {...reg('tch_poc', required)} className={errors.tch_poc ? 'border-[#b91c1c]' : ''} />
-					</Field>
-				</div>
-				<div />
+				<Field label="TCH Point of Contact *" error={err('tch_poc')} className="col-span-full">
+					<Input
+						placeholder="Name of TCH person handling this deal"
+						{...reg('tch_poc', required)}
+						className={errors.tch_poc ? 'border-[#b91c1c]' : ''}
+					/>
+				</Field>
 
-				<Field label="Total Fee (INR)" error={errText('total_fee')}>
-					<Input type="number" step="0.01" {...reg('total_fee', { ...required, onChange: recomputeFees })} className={errors.total_fee ? 'border-[#b91c1c]' : ''} />
-				</Field>
-				<Field label="Agency Fee %" error={errText('agency_fee_pct')}>
-					<Input type="number" step="0.0001" placeholder="1 = 1%, 20 or 0.20 = 20%" {...reg('agency_fee_pct', { ...required, onChange: () => { feeBasis.current = 'pct'; recomputeFees(); } })} className={errors.agency_fee_pct ? 'border-[#b91c1c]' : ''} />
-				</Field>
-				<Field label="Agency Fee (INR)" error={errText('agency_fee_inr')}>
-					<Input type="number" step="0.01" {...reg('agency_fee_inr', { ...required, onChange: () => { feeBasis.current = 'inr'; recomputeFees(); } })} className={errors.agency_fee_inr ? 'border-[#b91c1c]' : ''} />
-				</Field>
-				<div className="col-span-2">
-					<Field label="Creator Fee (INR) — auto" error={errText('creator_fee')}>
-						<Input type="number" step="0.01" {...reg('creator_fee', required)} className={errors.creator_fee ? 'border-[#b91c1c]' : ''} />
-					</Field>
-				</div>
+				{/* ── 3. Campaign Details ──────────────────────────────────────────── */}
+				<SectionHeader>Campaign Details</SectionHeader>
 
-				<div className="col-span-3 mt-1 pt-3" style={{ borderTop: '1px solid var(--n-border)' }}>
-					<div className="flex items-center justify-between mb-2">
-						<Label>
-							Additional creators (split billing)
+				<Field label="Brand *" error={err('brand')}>
+					<Input
+						placeholder="Brand name"
+						{...reg('brand', required)}
+						className={errors.brand ? 'border-[#b91c1c]' : ''}
+					/>
+				</Field>
+
+				<Field label="Brand POC Email *" error={err('brand_poc')}>
+					<Input
+						type="email"
+						placeholder="poc@brand.com"
+						{...reg('brand_poc', required)}
+						className={errors.brand_poc ? 'border-[#b91c1c]' : ''}
+					/>
+				</Field>
+
+				<Field label="Billing Entity" error={err('billing_entity')} className="col-span-full">
+					<Input
+						placeholder="e.g. TCH Media Pvt. Ltd."
+						{...reg('billing_entity')}
+					/>
+				</Field>
+
+				<Field
+					label="Campaign Name *"
+					error={err('campaign')}
+					className="col-span-full"
+				>
+					<Input
+						list="campaign-name-options"
+						placeholder="Pick an existing campaign or type a new name"
+						{...reg('campaign', required)}
+						className={errors.campaign ? 'border-[#b91c1c]' : ''}
+					/>
+					<datalist id="campaign-name-options">
+						{campaignNames.map((name) => <option key={name} value={name} />)}
+					</datalist>
+					{suggestedCampaignName && suggestedCampaignName !== watchCampaign && (
+						<button
+							type="button"
+							onClick={() => setValue('campaign', suggestedCampaignName, { shouldValidate: true })}
+							className="mt-1 text-[12px] underline decoration-dotted hover:no-underline"
+							style={{ color: 'var(--n-accent)' }}
+						>
+							Use suggested: {suggestedCampaignName}
+						</button>
+					)}
+				</Field>
+
+				<Field label="Deliverables *" error={err('deliverables')}>
+					<Input
+						placeholder="e.g. 1 Reel + 3 Stories"
+						{...reg('deliverables', required)}
+						className={errors.deliverables ? 'border-[#b91c1c]' : ''}
+					/>
+				</Field>
+
+				<Field label="RO Number" error={err('ro_number')}>
+					<Input placeholder="Optional" {...reg('ro_number')} />
+				</Field>
+
+				{/* ── 4. Financials ────────────────────────────────────────────────── */}
+				<SectionHeader>Financials</SectionHeader>
+
+				<Field label="Total Deal Fee (₹) *" error={err('total_fee')}>
+					<Input
+						type="number"
+						step="0.01"
+						placeholder="0.00"
+						{...reg('total_fee', { ...required, onChange: recomputeFees })}
+						className={errors.total_fee ? 'border-[#b91c1c]' : ''}
+					/>
+				</Field>
+
+				<Field
+					label="Agency Fee %"
+					error={err('agency_fee_pct')}
+					hint="Enter as percent: 20 = 20 %, 0.20 = 20 %"
+				>
+					<Input
+						type="number"
+						step="0.0001"
+						placeholder="e.g. 20"
+						{...reg('agency_fee_pct', {
+							...required,
+							onChange: () => { feeBasis.current = 'pct'; recomputeFees(); },
+						})}
+						className={errors.agency_fee_pct ? 'border-[#b91c1c]' : ''}
+					/>
+				</Field>
+
+				<Field
+					label="Agency Fee (₹)"
+					error={err('agency_fee_inr')}
+					hint="Edit this or % above — the other auto-updates"
+				>
+					<Input
+						type="number"
+						step="0.01"
+						placeholder="0.00"
+						{...reg('agency_fee_inr', {
+							...required,
+							onChange: () => { feeBasis.current = 'inr'; recomputeFees(); },
+						})}
+						className={errors.agency_fee_inr ? 'border-[#b91c1c]' : ''}
+					/>
+				</Field>
+
+				<Field label="Creator Fee (₹)" error={err('creator_fee')} hint="Auto-calculated: Total − Agency">
+					<Input
+						type="number"
+						step="0.01"
+						placeholder="0.00"
+						{...reg('creator_fee', required)}
+						className={errors.creator_fee ? 'border-[#b91c1c]' : ''}
+					/>
+				</Field>
+
+				{/* ── 5. Split Billing ─────────────────────────────────────────────── */}
+				<div className="col-span-full pt-2 pb-1" style={{ borderBottom: '1px solid var(--n-border)' }}>
+					<div className="flex items-center justify-between">
+						<span
+							className="text-[11px] font-semibold uppercase tracking-widest"
+							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.08em' }}
+						>
+							Split Billing
 							{shares.fields.length > 0 && (
-								<span className="ml-2 font-normal" style={{ color: 'var(--n-fg-muted)' }}>
-									Campaign total ₹ {inr(splitTotal)} · fields above are the 1st creator&apos;s share
+								<span className="ml-2 normal-case font-normal text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>
+									Campaign total ₹{inr(splitTotal)} · fields above = 1st creator&apos;s share
 								</span>
 							)}
-						</Label>
+						</span>
 						<Button variant="outline" onClick={() => shares.append({ ...EMPTY_SHARE })}>
 							<Icon name="plus" size={13} /> Add creator
 						</Button>
 					</div>
+				</div>
+
+				<div className="col-span-full">
 					{shares.fields.length === 0 ? (
-						<p className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
-							Single creator. Add creators here to split this campaign&apos;s billing across several people.
+						<p className="text-[13px] py-1" style={{ color: 'var(--n-fg-subtle)' }}>
+							Single creator deal. Add additional creators above to split billing across multiple people.
 						</p>
 					) : (
-						<div className="space-y-2">
+						<div className="space-y-2 pt-1">
 							{shares.fields.map((field, i) => (
-								<div key={field.id} className="grid grid-cols-12 gap-2 items-start">
-									<div className="col-span-6">
-										<Select {...register(`shares.${i}.creator`, { required: 'Required' })} options={creatorOptions} placeholder="— pick creator —" />
-										{errors.shares?.[i]?.creator && <div className="text-[12px] mt-0.5" style={{ color: '#b91c1c' }}>Required</div>}
+								<div
+									key={field.id}
+									className="grid gap-2 items-start rounded-md p-3"
+									style={{
+										gridTemplateColumns: '1fr 140px 140px 36px',
+										background: 'var(--n-bg-soft)',
+										border: '1px solid var(--n-border)',
+									}}
+								>
+									<div>
+										<Label>Creator</Label>
+										<Select
+											{...register(`shares.${i}.creator`, { required: 'Required' })}
+											options={creatorOptions}
+											placeholder="— select creator —"
+										/>
+										{errors.shares?.[i]?.creator && (
+											<p className="text-[12px] mt-0.5" style={{ color: '#b91c1c' }}>Required</p>
+										)}
 									</div>
-									<div className="col-span-3">
-										<Input type="number" step="0.01" placeholder="Their fee" {...register(`shares.${i}.total_fee`, { required: 'Required' })} />
-										{errors.shares?.[i]?.total_fee && <div className="text-[12px] mt-0.5" style={{ color: '#b91c1c' }}>Required</div>}
+									<div>
+										<Label>Their Fee (₹)</Label>
+										<Input
+											type="number"
+											step="0.01"
+											placeholder="0.00"
+											{...register(`shares.${i}.total_fee`, { required: 'Required' })}
+										/>
+										{errors.shares?.[i]?.total_fee && (
+											<p className="text-[12px] mt-0.5" style={{ color: '#b91c1c' }}>Required</p>
+										)}
 									</div>
-									<div className="col-span-2">
-										<Input type="number" step="0.01" placeholder="Agency ₹" {...register(`shares.${i}.agency_fee_inr`, { required: 'Required' })} />
-										{errors.shares?.[i]?.agency_fee_inr && <div className="text-[12px] mt-0.5" style={{ color: '#b91c1c' }}>Required</div>}
+									<div>
+										<Label>Agency Fee %</Label>
+										<Input
+											type="number"
+											step="0.0001"
+											placeholder="e.g. 20"
+											{...register(`shares.${i}.agency_fee_pct`, { required: 'Required' })}
+										/>
+										{errors.shares?.[i]?.agency_fee_pct && (
+											<p className="text-[12px] mt-0.5" style={{ color: '#b91c1c' }}>Required</p>
+										)}
 									</div>
-									<div className="col-span-1 flex justify-end">
-										<Button variant="danger" onClick={() => shares.remove(i)}>×</Button>
+									<div className="pt-5">
+										<button
+											type="button"
+											onClick={() => shares.remove(i)}
+											className="h-8 w-8 flex items-center justify-center rounded transition-colors"
+											style={{ color: '#b91c1c' }}
+											onMouseEnter={(e) => (e.currentTarget.style.background = '#fef2f2')}
+											onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+											aria-label="Remove creator"
+										>
+											<Icon name="x" size={14} />
+										</button>
 									</div>
 								</div>
 							))}
@@ -276,52 +484,33 @@ export function CampaignFormModal({
 					)}
 				</div>
 
-				<Field label="Brand" error={errText('brand')}>
-					<Input {...reg('brand', required)} className={errors.brand ? 'border-[#b91c1c]' : ''} />
-				</Field>
-				<Field label="POC Email" error={errText('brand_poc')}>
-					<Input type="email" placeholder="poc@brand.com" {...reg('brand_poc', required)} className={errors.brand_poc ? 'border-[#b91c1c]' : ''} />
-				</Field>
-				<Field label="Campaign (pick or create)" error={errText('campaign')}>
-					<Input list="campaign-name-options" {...reg('campaign', required)} className={errors.campaign ? 'border-[#b91c1c]' : ''} />
-					<datalist id="campaign-name-options">
-						{campaignNames.map((name) => <option key={name} value={name} />)}
-					</datalist>
-					{suggestedCampaignName && suggestedCampaignName !== watchCampaign && (
-						<button type="button" onClick={() => setValue('campaign', suggestedCampaignName, { shouldValidate: true })} className="mt-1 text-[12px] underline decoration-dotted hover:no-underline" style={{ color: 'var(--n-accent)' }}>
-							Use suggested: {suggestedCampaignName}
-						</button>
-					)}
-				</Field>
+				{/* ── 6. Invoices ──────────────────────────────────────────────────── */}
+				<SectionHeader>Invoices</SectionHeader>
 
-				<div className="col-span-2">
-					<Field label="Deliverables" error={errText('deliverables')}>
-						<Input {...reg('deliverables', required)} className={errors.deliverables ? 'border-[#b91c1c]' : ''} />
-					</Field>
-				</div>
-				<Field label="RO Number">
-					<Input {...reg('ro_number')} />
-				</Field>
-
-				<div className="col-span-3 border-t pt-3 mt-1" style={{ borderColor: 'var(--n-border)' }}>
-					<div className="text-[12px] font-semibold uppercase mb-2" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}>
-						Invoices
-					</div>
-				</div>
-				<div className="col-span-3 grid grid-cols-2 gap-3">
-					<div>
-						<Label>Client Invoice (TCH → Client) — upload</Label>
-						<input type="file" accept="image/*,application/pdf" {...register('client_invoice_file')} className="block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]" />
-					</div>
-					<div>
-						<Label>Creator Invoice (Creator → TCH) — upload</Label>
-						<input type="file" accept="image/*,application/pdf" {...register('creator_invoice_file')} className="block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]" />
-					</div>
+				<div>
+					<Label>Client Invoice (TCH → Client)</Label>
+					<input
+						type="file"
+						accept="image/*,application/pdf"
+						{...register('client_invoice_file')}
+						className="mt-1 block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)] cursor-pointer"
+					/>
 				</div>
 
-				<div className="col-span-3">
-					<Label>Comments</Label>
-					<Textarea {...register('comments')} />
+				<div>
+					<Label>Creator Invoice (Creator → TCH)</Label>
+					<input
+						type="file"
+						accept="image/*,application/pdf"
+						{...register('creator_invoice_file')}
+						className="mt-1 block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)] cursor-pointer"
+					/>
+				</div>
+
+				{/* ── 7. Comments ──────────────────────────────────────────────────── */}
+				<SectionHeader>Comments</SectionHeader>
+				<div className="col-span-full">
+					<Textarea placeholder="Optional notes or context about this deal…" {...register('comments')} />
 				</div>
 			</form>
 		</Dialog>

@@ -26,22 +26,19 @@ export const EMPTY_DEAL_FORM: DealForm = {
 	comments: ''
 };
 
-export const EMPTY_SHARE: ShareForm = {
-	creator: '',
-	total_fee: '',
-	agency_fee_inr: ''
-};
-
-// Build a CreatorShare payload row, deriving % and creator fee from totals.
-export function buildShare(creator: string, total: string, inr: string) {
+// Build a CreatorShare payload row from pct input, deriving ₹ fee and creator fee.
+export function buildShare(creator: string, total: string, pct: string) {
 	const t = Number(total) || 0;
-	const a = Number(inr) || 0;
+	const p = Number(pct) || 0;
+	// Accept either decimal (0.20) or whole-number percent (20 = 20 %)
+	const pctDecimal = p < 1 ? p : p / 100;
+	const a = t * pctDecimal;
 	return {
 		creator: creator ? Number(creator) : null,
 		creator_name_raw: '',
 		total_fee: total || '0',
-		agency_fee_inr: inr || '0',
-		agency_fee_pct: t > 0 ? (a / t).toFixed(4) : '0',
+		agency_fee_inr: a.toFixed(2),
+		agency_fee_pct: pctDecimal.toFixed(4),
 		creator_fee: (t - a).toFixed(2)
 	};
 }
@@ -106,16 +103,9 @@ const MONTH_NUM: Record<string, number> = {
 	jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12
 };
 export function billingPeriodOf(r: Deal): string | null {
-	const m = INVOICE_NO_RE.exec((r.e_invoice_number || '').replace(/\s+/g, ' '));
-	if (m) {
-		const fy = 2000 + Number(m[1]);
-		const month = MONTH_NUM[m[3].slice(0, 3).toLowerCase()];
-		if (month) {
-			const year = month >= 4 ? fy : fy + 1;
-			return `${year}-${String(month).padStart(2, '0')}-01`;
-		}
-	}
-	return r.e_invoice_date || null;
+	if (r.e_invoice_date) return `${r.e_invoice_date.slice(0, 7)}-01`;
+	if (r.confirmation_date) return `${r.confirmation_date.slice(0, 7)}-01`;
+	return null;
 }
 
 // The full set of creator display names on a deal (primary + any split rows).

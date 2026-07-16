@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { api, ConflictError, type Deal, type DealDocument } from '@/lib/api';
+import { type Deal, type DealDocument } from '@/lib/api';
 import { cn, formatDocDate, inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import { creatorLabel, creatorNamesOf } from '@/lib/deals';
@@ -11,7 +11,6 @@ import {
 	paymentStatusOf,
 	STATUS_LABEL,
 	STATUS_TONE,
-	uploadDealInvoice,
 	type PaymentStatus
 } from '@/lib/payments';
 import Button from '@/components/ui/Button';
@@ -20,6 +19,12 @@ import Label from '@/components/ui/Label';
 import Dialog from '@/components/ui/Dialog';
 import MetricCard from '@/components/MetricCard';
 import DataTable from '@/components/DataTable';
+import {
+	useDealsQuery,
+	useDealDocumentsQuery,
+	useMarkPaidMutation,
+	useUploadInvoiceMutation
+} from './queries';
 
 type StatusFilter = 'all' | PaymentStatus;
 
@@ -58,10 +63,17 @@ function InvoiceTag({
 }
 
 export default function PaymentsPage() {
-	const [rows, setRows] = React.useState<Deal[]>([]);
-	const [docs, setDocs] = React.useState<DealDocument[]>([]);
-	const [loading, setLoading] = React.useState(true);
-	const [error, setError] = React.useState<string | null>(null);
+	const { fyStart } = useFiscalYear();
+
+	const { data: rows = [], isLoading: dealsLoading, error: dealsError } = useDealsQuery(fyStart);
+	const { data: docs = [], isLoading: docsLoading } = useDealDocumentsQuery();
+
+	const loading = dealsLoading || docsLoading;
+	const error = dealsError ? dealsError.message : null;
+
+	const markPaidMutation = useMarkPaidMutation(fyStart);
+	const uploadInvoiceMutation = useUploadInvoiceMutation(fyStart);
+
 	const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('all');
 
 	const [uploadOpen, setUploadOpen] = React.useState(false);
@@ -69,31 +81,6 @@ export default function PaymentsPage() {
 	const [clientFile, setClientFile] = React.useState<File | null>(null);
 	const [creatorFile, setCreatorFile] = React.useState<File | null>(null);
 	const [saving, setSaving] = React.useState(false);
-
-	const { fyStart } = useFiscalYear();
-
-	const load = React.useCallback(async () => {
-		setLoading(true);
-		let shown = false;
-		try {
-			await Promise.all([
-				api.getSWR<Deal[]>(`/deals/?fy=${fyStart}`, (d) => {
-					shown = true;
-					setRows(d);
-					setLoading(false);
-				}),
-				api.getSWR<DealDocument[]>('/deal-documents/', setDocs)
-			]);
-		} catch (e) {
-			if (!shown) setError((e as Error).message);
-		} finally {
-			setLoading(false);
-		}
-	}, [fyStart]);
-
-	React.useEffect(() => {
-		load();
-	}, [load]);
 
 	// Completed campaigns are the payments universe — they appear the moment
 	// they're marked completed, and stay until every invoice is in and cleared.
@@ -166,12 +153,12 @@ export default function PaymentsPage() {
 		}
 		setSaving(true);
 		try {
-			if (clientFile) await uploadDealInvoice(uploadDeal.id, 'ClientInvoice', clientFile);
-			if (creatorFile) await uploadDealInvoice(uploadDeal.id, 'CreatorInvoice', creatorFile);
+			await uploadInvoiceMutation.mutateAsync({
+				dealId: uploadDeal.id,
+				clientFile,
+				creatorFile
+			});
 			closeUpload();
-			// The server may auto-complete the deal once both invoice types are
-			// on file — reload so status/dates reflect that immediately.
-			await load();
 		} catch (e) {
 			alert((e as Error).message);
 		} finally {
@@ -184,18 +171,9 @@ export default function PaymentsPage() {
 		const creatorName = creatorLabel(creatorNamesOf(deal));
 		if (!confirm(`Mark ₹${inr(amount) || amount || '0'} to ${creatorName} as paid?`)) return;
 		try {
-			await api.patch(`/deals/${deal.id}/`, {
-				payment_cleared: 'Y',
-				creator_payment_status: 'Paid',
-				creator_payment_date: new Date().toISOString().slice(0, 10),
-				version: deal.version
-			});
-			await load();
+			await markPaidMutation.mutateAsync({ id: deal.id, version: deal.version });
 		} catch (e) {
 			alert((e as Error).message);
-			if (e instanceof ConflictError) {
-				await load();
-			}
 		}
 	}
 

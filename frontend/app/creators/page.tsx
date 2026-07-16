@@ -1,10 +1,11 @@
 'use client';
 
 import * as React from 'react';
-import { api, ConflictError, type Creator } from '@/lib/api';
+import { ConflictError, type Creator } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
+import Dialog from '@/components/ui/Dialog';
 import { cn, formatDoj } from '@/lib/utils';
 import CreatorFormModal from '@/components/CreatorFormModal';
 import DataTable from '@/components/DataTable';
@@ -18,37 +19,27 @@ import {
 	statusTone,
 	uploadCreatorDocument
 } from '@/lib/creators';
+import {
+	useCreatorsQuery,
+	useCreateCreatorMutation,
+	useUpdateCreatorMutation,
+	useDeleteCreatorMutation
+} from './queries';
 
 export default function CreatorsPage() {
-	const [rows, setRows] = React.useState<Creator[]>([]);
-	const [loading, setLoading] = React.useState(true);
-	const [error, setError] = React.useState<string | null>(null);
+	const { data: rows = [], isLoading: loading, error: queryError } = useCreatorsQuery();
+	const createMutation = useCreateCreatorMutation();
+	const updateMutation = useUpdateCreatorMutation();
+	const deleteMutation = useDeleteCreatorMutation();
+
+	const error = queryError ? queryError.message : null;
+
 	const [addOpen, setAddOpen] = React.useState(false);
 	const [editing, setEditing] = React.useState<Creator | null>(null);
 	const [q, setQ] = React.useState('');
 	const [relFilter, setRelFilter] = React.useState('All');
 	const [statusFilter, setStatusFilter] = React.useState('All');
 	const [attachError, setAttachError] = React.useState<string | null>(null);
-
-	const load = React.useCallback(async () => {
-		setLoading(true);
-		let shown = false;
-		try {
-			await api.getSWR<Creator[]>('/creators/', (d) => {
-				shown = true;
-				setRows(d);
-				setLoading(false);
-			});
-		} catch (e) {
-			if (!shown) setError((e as Error).message);
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
-	React.useEffect(() => {
-		load();
-	}, [load]);
 
 	function startAdd() {
 		setEditing(null);
@@ -76,10 +67,13 @@ export default function CreatorsPage() {
 			};
 			let creatorId: number;
 			if (editing) {
-				await api.patch(`/creators/${editing.id}/`, { ...payload, version: editing.version });
+				await updateMutation.mutateAsync({
+					id: editing.id,
+					payload: { ...payload, version: editing.version }
+				});
 				creatorId = editing.id;
 			} else {
-				const created = await api.post<Creator>('/creators/', payload);
+				const created = await createMutation.mutateAsync(payload);
 				creatorId = created.id;
 			}
 
@@ -95,25 +89,28 @@ export default function CreatorsPage() {
 				setAttachError(
 					`Creator saved, but these attachments failed to upload: ${failed.join(', ')}. Re-open Edit to retry.`
 				);
-				await load();
 				return;
 			}
 			setAddOpen(false);
-			await load();
 		} catch (e) {
 			alert((e as Error).message);
 			if (e instanceof ConflictError) {
 				setAddOpen(false);
-				await load();
 			}
 		}
 	}
 
+	const [deletingCreator, setDeletingCreator] = React.useState<Creator | null>(null);
+
 	async function remove(r: Creator) {
-		if (!confirm(`Delete creator "${r.name}"?`)) return;
+		setDeletingCreator(r);
+	}
+
+	async function confirmDelete() {
+		if (!deletingCreator) return;
 		try {
-			await api.del(`/creators/${r.id}/`);
-			await load();
+			await deleteMutation.mutateAsync(deletingCreator.id);
+			setDeletingCreator(null);
 		} catch (e) {
 			alert((e as Error).message);
 		}
@@ -226,14 +223,29 @@ export default function CreatorsPage() {
 				id: 'actions',
 				header: 'Actions',
 				enableSorting: false,
-				meta: { thClassName: 'w-[120px]' },
+				meta: { thClassName: 'w-[90px]' },
 				cell: ({ row }) => (
-					<div className="flex gap-1">
-						<Button variant="ghost" onClick={() => startEdit(row.original)}>
-							Edit
+					<div className="flex gap-0.5 justify-end">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => startEdit(row.original)}
+							aria-label="Edit creator"
+							title="Edit creator"
+						>
+							<Icon name="edit" size={14} />
 						</Button>
-						<Button variant="danger" onClick={() => remove(row.original)}>
-							Del
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => remove(row.original)}
+							aria-label="Delete creator"
+							title="Delete creator"
+							style={{ color: '#b91c1c' }}
+							onMouseEnter={(e) => (e.currentTarget.style.background = '#fef2f2')}
+							onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+						>
+							<Icon name="trash" size={14} />
 						</Button>
 					</div>
 				)
@@ -332,6 +344,34 @@ export default function CreatorsPage() {
 				requireAttachments={!editing}
 				creatorId={editing?.id ?? null}
 			/>
+
+			<Dialog
+				open={deletingCreator !== null}
+				onOpenChange={(open) => {
+					if (!open) setDeletingCreator(null);
+				}}
+				title="Delete Creator"
+				className="max-w-md"
+				footer={
+					<>
+						<Button variant="outline" onClick={() => setDeletingCreator(null)}>
+							Cancel
+						</Button>
+						<Button variant="danger" onClick={confirmDelete}>
+							Delete
+						</Button>
+					</>
+				}
+			>
+				<div className="space-y-2 text-[14px]">
+					<p style={{ color: 'var(--n-fg)' }}>
+						Are you sure you want to delete <strong>{deletingCreator?.name}</strong>?
+					</p>
+					<p style={{ color: 'var(--n-fg-subtle)' }}>
+						This creator will be removed from the master database. This action cannot be undone.
+					</p>
+				</div>
+			</Dialog>
 		</>
 	);
 }
