@@ -55,14 +55,15 @@ export default function CreatorsPage() {
 
 	async function submit(form: CreatorForm) {
 		try {
+			const isNonExclusive = form.relation === 'Non-Exclusive';
 			const payload = {
 				name: form.name,
 				category: form.niche,
 				relationship: form.relation,
 				status: form.status,
-				doj: isNaN(form.doj.getTime()) ? null : form.doj.toISOString().slice(0, 10),
+				doj: isNonExclusive ? null : (isNaN(form.doj.getTime()) ? null : form.doj.toISOString().slice(0, 10)),
 				profile_url: form.url[0] ?? '',
-				location: form.location,
+				location: isNonExclusive ? '' : form.location,
 				ops_manager: form.talent_manager
 			};
 			let creatorId: number;
