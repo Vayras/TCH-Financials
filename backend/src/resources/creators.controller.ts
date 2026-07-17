@@ -52,8 +52,14 @@ function checkRequired(body: Record<string, unknown>, instance: Creator | null):
         ops_manager: instance.opsManager,
       }
     : {};
+  const rel = body.relationship || (instance ? instance.relationship : null);
   const missing = Object.entries(REQUIRED)
-    .filter(([field]) => isBlank(field in body ? body[field] : instanceWire[field]))
+    .filter(([field]) => {
+      if ((field === 'doj' || field === 'location') && rel !== 'Exclusive') {
+        return false;
+      }
+      return isBlank(field in body ? body[field] : instanceWire[field]);
+    })
     .map(([, label]) => label);
   if (missing.length) {
     throw new BadRequestException({
