@@ -348,14 +348,14 @@ export function CreatorFormModal({
 						className="text-[11.5px] font-medium uppercase mb-2"
 						style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
 					>
-						{requireAttachments ? 'Attachments (required)' : 'Upload / replace documents'}
+						{requireAttachments && relation !== 'Non-Exclusive' ? 'Attachments (required)' : 'Upload / replace documents'}
 					</div>
 					<div className="grid grid-cols-2 gap-3">
 						{slots.map((slot) => (
 							<div key={slot.key}>
 								<Label>
 									{slot.label}
-									{requireAttachments ? ' *' : ''}
+									{requireAttachments && relation !== 'Non-Exclusive' ? ' *' : ''}
 									{!requireAttachments && onFileTypes.has(slot.key) && (
 										<span className="ml-1" style={{ color: 'var(--n-fg-subtle)' }}>
 											(on file ✓)
@@ -368,6 +368,7 @@ export function CreatorFormModal({
 									{...register(`attachments.${slot.key}`, {
 										validate: (v) => {
 											if (!requireAttachments) return true;
+											if (getValues('relation') === 'Non-Exclusive') return true;
 											if (slot.exclusiveOnly && getValues('relation') !== 'Exclusive') return true;
 											return (v && v.length > 0) || `${slot.label} is required`;
 										}
