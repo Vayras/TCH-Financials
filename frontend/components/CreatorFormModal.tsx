@@ -210,19 +210,23 @@ export function CreatorFormModal({
 						</div>
 					)}
 				</div>
-				<div>
-					<Label>Status</Label>
-					<Select
-						{...register('status', { required: 'Status is required' })}
-						options={STATUS}
-						placeholder="Select status…"
-					/>
-					{errors.status && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
-							{errors.status.message}
-						</div>
-					)}
-				</div>
+				{relation !== 'Non-Exclusive' && (
+					<div>
+						<Label>Status</Label>
+						<Select
+							{...register('status', {
+								required: relation !== 'Non-Exclusive' ? 'Status is required' : false
+							})}
+							options={STATUS}
+							placeholder="Select status…"
+						/>
+						{errors.status && (
+							<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+								{errors.status.message}
+							</div>
+						)}
+					</div>
+				)}
 				{relation !== 'Non-Exclusive' && (
 					<div>
 						<Label>DOJ</Label>
