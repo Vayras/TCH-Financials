@@ -243,22 +243,18 @@ export function CreatorFormModal({
 						)}
 					</div>
 				)}
-				{relation !== 'Non-Exclusive' && (
-					<div>
-						<Label>Location</Label>
-						<Input
-							{...register('location', {
-								required: relation !== 'Non-Exclusive' ? 'Location is required' : false
-							})}
-							placeholder="Mumbai"
-						/>
-						{errors.location && (
-							<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
-								{errors.location.message}
-							</div>
-						)}
-					</div>
-				)}
+				<div>
+					<Label>Location</Label>
+					<Input
+						{...register('location', { required: 'Location is required' })}
+						placeholder="Mumbai"
+					/>
+					{errors.location && (
+						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+							{errors.location.message}
+						</div>
+					)}
+				</div>
 				<div>
 					<Label>Talent Manager</Label>
 					<Input

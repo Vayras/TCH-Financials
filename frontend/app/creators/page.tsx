@@ -63,7 +63,7 @@ export default function CreatorsPage() {
 				status: isNonExclusive ? 'Active' : form.status,
 				doj: isNonExclusive ? null : (isNaN(form.doj.getTime()) ? null : form.doj.toISOString().slice(0, 10)),
 				profile_url: form.url[0] ?? '',
-				location: isNonExclusive ? '' : form.location,
+				location: form.location,
 				ops_manager: form.talent_manager
 			};
 			let creatorId: number;

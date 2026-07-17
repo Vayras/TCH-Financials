@@ -55,7 +55,7 @@ function checkRequired(body: Record<string, unknown>, instance: Creator | null):
   const rel = body.relationship || (instance ? instance.relationship : null);
   const missing = Object.entries(REQUIRED)
     .filter(([field]) => {
-      if ((field === 'doj' || field === 'location' || field === 'status') && rel !== 'Exclusive') {
+      if ((field === 'doj' || field === 'status') && rel !== 'Exclusive') {
         return false;
       }
       return isBlank(field in body ? body[field] : instanceWire[field]);
