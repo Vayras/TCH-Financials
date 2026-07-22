@@ -138,6 +138,8 @@ export type Creator = {
 	version: number;
 };
 
+export type CreatorPage = PaginatedResponse<Creator>;
+
 export type DropOff = {
 	id: number;
 	creator: number | null;
@@ -188,6 +190,7 @@ export type CreatorShare = {
 	agency_fee_pct: string;
 	agency_fee_inr: string;
 	creator_fee: string;
+	ro_number?: string;
 };
 
 export type Deal = {
@@ -235,6 +238,45 @@ export type Deal = {
 	completed_at: string | null;
 	version: number;
 };
+
+export type PaginatedResponse<T, TSummary = Record<string, never>> = {
+	items: T[];
+	page: number;
+	page_size: number;
+	total: number;
+	total_pages: number;
+	summary: TSummary;
+};
+
+export type DealPage = PaginatedResponse<Deal, {
+	total_billing: string;
+	deal_count: number;
+}>;
+
+export type CampaignCardGroup = {
+	key: string;
+	name: string;
+	brand: string;
+	status: '' | 'Active' | 'Over';
+	creator_names: string[];
+	total: number;
+	deal_count: number;
+	deal: Deal;
+};
+
+export type CreatorCardGroup = {
+	key: string;
+	name: string;
+	relationship?: string;
+	total: number;
+	deal_count: number;
+	deal: Deal;
+};
+
+export type CommercialGroupPage = PaginatedResponse<CampaignCardGroup | CreatorCardGroup, {
+	total_billing: string;
+	deal_count: number;
+}>;
 
 export type DealDocument = {
 	id: number;
