@@ -39,4 +39,7 @@ export class DealCreatorShare {
 
   @Column({ name: 'creator_fee', type: 'numeric', precision: 14, scale: 2, default: 0 })
   creatorFee: string;
+
+  @Column({ name: 'ro_number', length: 80, default: '' })
+  roNumber: string;
 }

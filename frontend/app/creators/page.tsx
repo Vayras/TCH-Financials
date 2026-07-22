@@ -1,15 +1,24 @@
 'use client';
 
 import * as React from 'react';
-import { api, ConflictError, type Creator } from '@/lib/api';
+import { ConflictError, type Creator } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
+import Dialog from '@/components/ui/Dialog';
 import { cn, formatDoj } from '@/lib/utils';
 import CreatorFormModal from '@/components/CreatorFormModal';
 import DataTable from '@/components/DataTable';
+import PageHeader from '@/components/PageHeader';
+import FilterToolbar from '@/components/FilterToolbar';
+import Pagination from '@/components/Pagination';
+import QueryErrorState from '@/components/QueryErrorState';
+import useDebounce from '@/hooks/useDebounce';
 import { type ColumnDef } from '@tanstack/react-table';
 import type { CreatorForm } from '@/types/creator';
+import { toast } from 'sonner';
+import Link from 'next/link';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import {
 	EMPTY_FORM,
 	REL_FILTERS,
@@ -18,37 +27,42 @@ import {
 	statusTone,
 	uploadCreatorDocument
 } from '@/lib/creators';
+import { parseCreatorLinks, serializeCreatorLinks } from '@/lib/creators';
+import {
+	useCreatorsPageQuery,
+	useCreateCreatorMutation,
+	useUpdateCreatorMutation,
+	useDeleteCreatorMutation
+} from './queries';
 
 export default function CreatorsPage() {
-	const [rows, setRows] = React.useState<Creator[]>([]);
-	const [loading, setLoading] = React.useState(true);
-	const [error, setError] = React.useState<string | null>(null);
+	const createMutation = useCreateCreatorMutation();
+	const updateMutation = useUpdateCreatorMutation();
+	const deleteMutation = useDeleteCreatorMutation();
+
 	const [addOpen, setAddOpen] = React.useState(false);
 	const [editing, setEditing] = React.useState<Creator | null>(null);
+	const [confirmEditing, setConfirmEditing] = React.useState<Creator | null>(null);
 	const [q, setQ] = React.useState('');
 	const [relFilter, setRelFilter] = React.useState('All');
 	const [statusFilter, setStatusFilter] = React.useState('All');
 	const [attachError, setAttachError] = React.useState<string | null>(null);
+	const [page, setPage] = React.useState(1);
+	const [pageSize, setPageSize] = React.useState(25);
+	const debouncedSearch = useDebounce(q.trim(), 500);
+	const creatorsQuery = useCreatorsPageQuery({
+		page,
+		pageSize,
+		search: debouncedSearch || undefined,
+		relationship: relFilter === 'All' ? undefined : relFilter,
+		status: statusFilter === 'All' ? undefined : statusFilter
+	});
+	const rows = creatorsQuery.data?.items ?? [];
+	const total = creatorsQuery.data?.total ?? 0;
+	const loading = creatorsQuery.isLoading;
+	const error = creatorsQuery.error;
 
-	const load = React.useCallback(async () => {
-		setLoading(true);
-		let shown = false;
-		try {
-			await api.getSWR<Creator[]>('/creators/', (d) => {
-				shown = true;
-				setRows(d);
-				setLoading(false);
-			});
-		} catch (e) {
-			if (!shown) setError((e as Error).message);
-		} finally {
-			setLoading(false);
-		}
-	}, []);
-
-	React.useEffect(() => {
-		load();
-	}, [load]);
+	React.useEffect(() => setPage(1), [debouncedSearch, relFilter, statusFilter, pageSize]);
 
 	function startAdd() {
 		setEditing(null);
@@ -64,23 +78,29 @@ export default function CreatorsPage() {
 
 	async function submit(form: CreatorForm) {
 		try {
+			const isNonExclusive = form.relation === 'Non-Exclusive';
 			const payload = {
 				name: form.name,
 				category: form.niche,
 				relationship: form.relation,
-				status: form.status,
-				doj: isNaN(form.doj.getTime()) ? null : form.doj.toISOString().slice(0, 10),
-				profile_url: form.url[0] ?? '',
+				status: isNonExclusive ? 'Active' : form.status,
+				doj: isNonExclusive ? null : (isNaN(form.doj.getTime()) ? null : form.doj.toISOString().slice(0, 10)),
+				profile_url: serializeCreatorLinks(form.url),
 				location: form.location,
 				ops_manager: form.talent_manager
 			};
 			let creatorId: number;
 			if (editing) {
-				await api.patch(`/creators/${editing.id}/`, { ...payload, version: editing.version });
+				await updateMutation.mutateAsync({
+					id: editing.id,
+					payload: { ...payload, version: editing.version }
+				});
 				creatorId = editing.id;
+				toast.success('Creator updated.');
 			} else {
-				const created = await api.post<Creator>('/creators/', payload);
+				const created = await createMutation.mutateAsync(payload);
 				creatorId = created.id;
+				toast.success('Creator created.');
 			}
 
 			const failed: string[] = [];
@@ -95,43 +115,33 @@ export default function CreatorsPage() {
 				setAttachError(
 					`Creator saved, but these attachments failed to upload: ${failed.join(', ')}. Re-open Edit to retry.`
 				);
-				await load();
 				return;
 			}
 			setAddOpen(false);
-			await load();
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Creator could not be saved.', { description: (e as Error).message });
 			if (e instanceof ConflictError) {
 				setAddOpen(false);
-				await load();
 			}
 		}
 	}
 
+	const [deletingCreator, setDeletingCreator] = React.useState<Creator | null>(null);
+
 	async function remove(r: Creator) {
-		if (!confirm(`Delete creator "${r.name}"?`)) return;
-		try {
-			await api.del(`/creators/${r.id}/`);
-			await load();
-		} catch (e) {
-			alert((e as Error).message);
-		}
+		setDeletingCreator(r);
 	}
 
-	const filtered = React.useMemo(() => {
-		const needle = q.trim().toLowerCase();
-		return rows.filter((r) => {
-			if (relFilter !== 'All' && r.relationship !== relFilter) return false;
-			if (statusFilter !== 'All' && (r.status ?? 'Active') !== statusFilter) return false;
-			if (!needle) return true;
-			return (
-				r.name?.toLowerCase().includes(needle) ||
-				r.category?.toLowerCase().includes(needle) ||
-				r.ops_manager?.toLowerCase().includes(needle)
-			);
-		});
-	}, [rows, q, relFilter, statusFilter]);
+	async function confirmDelete() {
+		if (!deletingCreator) return;
+		try {
+			await deleteMutation.mutateAsync(deletingCreator.id);
+			toast.success('Creator deleted.');
+			setDeletingCreator(null);
+		} catch (e) {
+			toast.error('Creator could not be deleted.', { description: (e as Error).message });
+		}
+	}
 
 	const initialForm = React.useMemo<CreatorForm>(
 		() =>
@@ -142,7 +152,7 @@ export default function CreatorsPage() {
 						relation: editing.relationship,
 						status: editing.status ?? 'Active',
 						doj: editing.doj ? new Date(editing.doj) : EMPTY_FORM.doj,
-						url: editing.profile_url ? [editing.profile_url] : [],
+						url: parseCreatorLinks(editing.profile_url),
 						location: editing.location,
 						talent_manager: editing.ops_manager,
 						attachments: []
@@ -158,14 +168,13 @@ export default function CreatorsPage() {
 				header: 'Creator Name',
 				meta: { tdClassName: 'font-medium' },
 				cell: ({ row }) => (
-					<button
-						type="button"
-						onClick={() => startEdit(row.original)}
+					<Link
+						href={`/creators/${row.original.id}`}
 						className="inline-link text-left"
-						title={`View / edit ${row.original.name}`}
+						title={`View ${row.original.name}`}
 					>
 						{row.original.name}
-					</button>
+					</Link>
 				)
 			},
 			{
@@ -201,10 +210,10 @@ export default function CreatorsPage() {
 				header: 'URL',
 				enableSorting: false,
 				cell: ({ row }) =>
-					row.original.profile_url && (
+					parseCreatorLinks(row.original.profile_url)[0] && (
 						<a
 							className="inline-link text-[13px]"
-							href={row.original.profile_url}
+							href={parseCreatorLinks(row.original.profile_url)[0]}
 							target="_blank"
 							rel="noopener"
 						>
@@ -226,14 +235,29 @@ export default function CreatorsPage() {
 				id: 'actions',
 				header: 'Actions',
 				enableSorting: false,
-				meta: { thClassName: 'w-[120px]' },
+				meta: { thClassName: 'w-[90px]' },
 				cell: ({ row }) => (
-					<div className="flex gap-1">
-						<Button variant="ghost" onClick={() => startEdit(row.original)}>
-							Edit
+					<div className="flex gap-0.5 justify-end">
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => setConfirmEditing(row.original)}
+							aria-label="Edit creator"
+							title="Edit creator"
+						>
+							<Icon name="edit" size={14} />
 						</Button>
-						<Button variant="danger" onClick={() => remove(row.original)}>
-							Del
+						<Button
+							variant="ghost"
+							size="sm"
+							onClick={() => remove(row.original)}
+							aria-label="Delete creator"
+							title="Delete creator"
+							style={{ color: 'var(--color-danger)' }}
+							onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-danger-bg)')}
+							onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+						>
+							<Icon name="trash" size={14} />
 						</Button>
 					</div>
 				)
@@ -246,34 +270,15 @@ export default function CreatorsPage() {
 	return (
 		<>
 			<section className="space-y-6">
-				<header className="flex items-end justify-between flex-wrap gap-3">
-					<h1
-						className="page-title text-[28px] leading-[1.2] font-bold"
-						style={{ color: 'var(--n-fg)' }}
-					>
-						Creator Database
-					</h1>
-					<Button variant="primary" onClick={startAdd}>
+				<PageHeader
+					title="Creator Database"
+					description="Manage creator profiles, relationships, status, and ownership."
+					actions={<Button variant="primary" onClick={startAdd}>
 						<Icon name="plus" size={14} /> Add Creator
-					</Button>
-				</header>
+					</Button>}
+				/>
 
-				<div className="flex flex-wrap items-center gap-2">
-					<div className="relative flex-1 min-w-[260px]">
-						<span
-							className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none"
-							style={{ color: 'var(--n-fg-subtle)' }}
-						>
-							<Icon name="search" size={14} />
-						</span>
-						<input
-							type="text"
-							placeholder="Search name, niche, talent manager…"
-							className="h-8 w-full rounded pl-8 pr-2 text-[14px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors placeholder:text-[var(--n-fg-subtle)]"
-							value={q}
-							onChange={(e) => setQ(e.target.value)}
-						/>
-					</div>
+				<FilterToolbar search={{ value: q, onChange: setQ, placeholder: 'Search name, niche, talent manager…' }} resultCount={total} resultLabel={total === 1 ? 'creator' : 'creators'}>
 					<div className="seg-toggle">
 						{REL_FILTERS.map((f) => (
 							<button
@@ -298,26 +303,15 @@ export default function CreatorsPage() {
 							</button>
 						))}
 					</div>
-				</div>
+				</FilterToolbar>
 
-				{loading ? (
-					<div className="text-[14px] py-8 text-center" style={{ color: 'var(--n-fg-subtle)' }}>
-						Loading…
-					</div>
-				) : error ? (
-					<div
-						className="text-[14px] rounded p-3"
-						style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
-					>
-						Error: {error}
-					</div>
+				{error ? (
+					<QueryErrorState description="The creator database is temporarily unavailable." onRetry={() => creatorsQuery.refetch()} />
 				) : (
-					<DataTable
-						data={filtered}
-						columns={columns}
-						numbered
-						emptyMessage="No creators match."
-					/>
+					<div className="server-table-wrap">
+						<DataTable data={rows} columns={columns} loading={loading} numbered pagination={false} rowOffset={(page - 1) * pageSize} emptyMessage="No creators match the current filters." />
+						{!loading && total > 0 && <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />}
+					</div>
 				)}
 			</section>
 
@@ -332,6 +326,35 @@ export default function CreatorsPage() {
 				requireAttachments={!editing}
 				creatorId={editing?.id ?? null}
 			/>
+			<ConfirmDialog open={confirmEditing !== null} onOpenChange={(value) => { if (!value) setConfirmEditing(null); }} title="Edit this creator?" description={`You are about to update ${confirmEditing?.name ?? 'this creator'}’s master profile.`} confirmLabel="Continue to edit" onConfirm={() => { if (confirmEditing) startEdit(confirmEditing); setConfirmEditing(null); }} />
+
+			<Dialog
+				open={deletingCreator !== null}
+				onOpenChange={(open) => {
+					if (!open) setDeletingCreator(null);
+				}}
+				title="Delete Creator"
+				className="max-w-md"
+				footer={
+					<>
+						<Button variant="outline" onClick={() => setDeletingCreator(null)}>
+							Cancel
+						</Button>
+						<Button variant="danger" onClick={confirmDelete}>
+							Delete
+						</Button>
+					</>
+				}
+			>
+				<div className="space-y-2 text-[14px]">
+					<p style={{ color: 'var(--n-fg)' }}>
+						Are you sure you want to delete <strong>{deletingCreator?.name}</strong>?
+					</p>
+					<p style={{ color: 'var(--n-fg-subtle)' }}>
+						This creator will be removed from the master database. This action cannot be undone.
+					</p>
+				</div>
+			</Dialog>
 		</>
 	);
 }

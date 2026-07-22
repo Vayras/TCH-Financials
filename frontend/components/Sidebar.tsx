@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Icon from '@/components/ui/Icon';
-import { FiscalYearProvider, useFiscalYear, FY_OPTIONS, fyLabel } from '@/lib/fiscal-year';
+import { FiscalYearProvider, useFiscalYear, fyLabel } from '@/lib/fiscal-year';
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
 
 function UserFooter({ collapsed }: { collapsed: boolean }) {
@@ -59,7 +59,21 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
 }
 
 function GlobalFySelect() {
-	const { fyStart, setFyStart } = useFiscalYear();
+	const { fyStart, setFyStart, fyOptions } = useFiscalYear();
+	// fyStart is null until the client useEffect runs — render a disabled skeleton to avoid layout shift.
+	if (fyStart === null) {
+		return (
+			<label className="ml-auto flex items-center gap-1.5">
+				<span
+					className="text-[11.5px] font-medium uppercase"
+					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
+				>
+					Fiscal Year
+				</span>
+				<select disabled className="h-7 rounded px-2 pr-7 text-[13px] opacity-40 bg-[var(--n-bg-soft)] border border-[var(--n-border)]" />
+			</label>
+		);
+	}
 	return (
 		<label className="ml-auto flex items-center gap-1.5">
 			<span
@@ -79,7 +93,7 @@ function GlobalFySelect() {
 				value={fyStart}
 				onChange={(e) => setFyStart(Number(e.target.value))}
 			>
-				{FY_OPTIONS.map((y) => (
+				{fyOptions.map((y) => (
 					<option key={y} value={y}>
 						{fyLabel(y)}
 					</option>
@@ -92,6 +106,7 @@ function GlobalFySelect() {
 const NAV = [
 	{ href: '/', label: 'Overview', icon: 'home' },
 	{ href: '/commercial', label: 'Campaign', icon: 'briefcase' },
+	{ href: '/payments', label: 'Payments', icon: 'credit-card' },
 	{ href: '/creators', label: 'Creators', icon: 'users' },
 	{ href: '/alerts', label: 'Alerts', icon: 'bell' },
 	{ href: '/employees', label: 'Employees', icon: 'user-cog' },

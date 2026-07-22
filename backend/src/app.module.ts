@@ -8,6 +8,8 @@ import { AnalyticsService } from './analytics/analytics.service';
 import { SupabaseAuthGuard } from './auth/supabase-auth.guard';
 import { CampaignsController } from './resources/campaigns.controller';
 import { CreatorsController } from './resources/creators.controller';
+import { CreatorInvoicesController } from './resources/creator-invoices.controller';
+import { DealDocumentsController } from './resources/deal-documents.controller';
 import { DealsController } from './resources/deals.controller';
 import { DocumentsController } from './resources/documents.controller';
 import {
@@ -21,6 +23,8 @@ import {
     AnalyticsController,
     CampaignsController,
     CreatorsController,
+    CreatorInvoicesController,
+    DealDocumentsController,
     DealsController,
     DocumentsController,
     ContractingController,

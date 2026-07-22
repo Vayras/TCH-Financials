@@ -1,0 +1,45 @@
+name: Deploy production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tch-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy frontend and backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Configure restricted SSH access
+        env:
+          DEPLOY_PRIVATE_KEY: ${{ secrets.TCH_DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.TCH_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > "$HOME/.ssh/tch_deploy"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/tch_deploy" "$HOME/.ssh/known_hosts"
+
+      - name: Deploy latest main release
+        env:
+          DEPLOY_HOST: ${{ secrets.TCH_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.TCH_DEPLOY_USER }}
+        run: |
+          ssh \
+            -i "$HOME/.ssh/tch_deploy" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=4 \
+            "$DEPLOY_USER@$DEPLOY_HOST"

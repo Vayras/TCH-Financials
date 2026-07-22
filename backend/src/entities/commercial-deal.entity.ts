@@ -19,6 +19,17 @@ export class CommercialDeal {
   @Column({ name: 'e_invoice_date', type: 'date', nullable: true })
   eInvoiceDate: string | null;
 
+  // Queryable denormalisation of the billing period. Kept in sync on every
+  // deal write so FY/month filtering and pagination can happen in Postgres.
+  @Column({ name: 'billing_period', type: 'date', nullable: true })
+  billingPeriod: string | null;
+
+  @Column({ name: 'billing_fy_start', type: 'int', nullable: true })
+  billingFyStart: number | null;
+
+  @Column({ name: 'billing_month', type: 'smallint', nullable: true })
+  billingMonth: number | null;
+
   @Column({ name: 'creator_id', type: 'bigint', nullable: true })
   creatorId: string | null;
 
@@ -135,6 +146,11 @@ export class CommercialDeal {
 
   @Column({ type: 'text', default: '' })
   comments: string;
+
+  // Set when both invoices are on file (see DealDocumentsController) — the
+  // anchor date for the "clear payment" alert's Wednesday-cycle math.
+  @Column({ name: 'completed_at', type: 'date', nullable: true })
+  completedAt: string | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

@@ -2,6 +2,7 @@ import type { Deal } from '@/lib/api';
 
 export type DealForm = {
 	confirmation_date: string;
+	e_invoice_number: string;
 	e_invoice_date: string;
 	creator: string;
 	tch_poc: string;
@@ -24,7 +25,17 @@ export type DealForm = {
 export type ShareForm = {
 	creator: string;
 	total_fee: string;
-	agency_fee_inr: string;
+	agency_fee_pct: string;
+	creator_fee?: string;
+	ro_number?: string;
+};
+
+export const EMPTY_SHARE: ShareForm = {
+	creator: '',
+	total_fee: '',
+	agency_fee_pct: '',
+	creator_fee: '',
+	ro_number: ''
 };
 
 export type DirFilter = 'All' | 'Inbound' | 'Outbound';
@@ -47,5 +58,6 @@ export type CreatorGroup = {
 	name: string;
 	relationship?: string;
 	deals: Deal[];
+	dealCount?: number;
 	total: number;
 };

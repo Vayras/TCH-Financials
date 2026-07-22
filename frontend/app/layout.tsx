@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Host_Grotesk } from 'next/font/google';
 import './globals.css';
 import AuthGuard from '@/components/AuthGuard';
+import QueryProvider from '@/components/QueryProvider';
+import { Toaster } from 'sonner';
 
 // Self-hosted via next/font: fonts are downloaded at build time and served
 // from our own origin with no render-blocking Google Fonts CSS request.
@@ -25,7 +27,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 				<meta name="text-scale" content="scale" />
 			</head>
 			<body>
-				<AuthGuard>{children}</AuthGuard>
+				<QueryProvider>
+					<AuthGuard>{children}</AuthGuard>
+					<Toaster position="top-right" richColors closeButton />
+				</QueryProvider>
 			</body>
 		</html>
 	);

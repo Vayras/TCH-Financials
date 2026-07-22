@@ -1,11 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import type { Deal } from '@/lib/api';
+import type { Deal, DealDocument } from '@/lib/api';
 import { creatorNamesOf } from '@/lib/deals';
 import { inr } from '@/lib/utils';
 import Dialog from '@/components/ui/Dialog';
 import Button from '@/components/ui/Button';
+import Icon from '@/components/ui/Icon';
 
 // One label/value pair in the read-only campaign detail modal.
 function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
@@ -18,6 +19,13 @@ function DetailField({ label, value }: { label: string; value: React.ReactNode }
 	);
 }
 
+// Y/N status flag as a tick: green check for yes, muted cross for no.
+function StatusTick({ flag }: { flag: string }) {
+	if (flag === 'Y') return <Icon name="check" size={16} className="text-[#15803d]" />;
+	if (flag === 'N') return <Icon name="x" size={16} className="text-[var(--n-fg-subtle)]" />;
+	return <>—</>;
+}
+
 function DetailSection({ title }: { title: string }) {
 	return (
 		<div className="col-span-full border-t pt-3 mt-1" style={{ borderColor: 'var(--n-border)' }}>
@@ -28,12 +36,78 @@ function DetailSection({ title }: { title: string }) {
 
 export interface CampaignDetailModalProps {
 	deal: Deal | null;
+	docs: DealDocument[];
 	onClose: () => void;
 	onEdit: (d: Deal) => void;
-	onDelete: (d: Deal) => void;
+	onDelete: (d: Deal) => void | Promise<void>;
 }
 
-export function CampaignDetailModal({ deal, onClose, onEdit, onDelete }: CampaignDetailModalProps) {
+export function CampaignDetailModal({ deal, docs, onClose, onEdit, onDelete }: CampaignDetailModalProps) {
+	const [confirmingDelete, setConfirmingDelete] = React.useState(false);
+
+	// Reset confirmation state whenever the modal opens a new deal or closes.
+	React.useEffect(() => {
+		setConfirmingDelete(false);
+	}, [deal]);
+
+	const dealLabel = deal
+		? [deal.brand, deal.campaign].filter(Boolean).join(' · ') || 'this campaign'
+		: 'this campaign';
+
+	const footer = confirmingDelete ? (
+		// ── Inline delete confirmation ─────────────────────────────────────────
+		<div className="flex items-center gap-3 w-full">
+			<div className="flex-1 min-w-0">
+				<p className="text-[13px] font-medium truncate" style={{ color: 'var(--n-fg)' }}>
+					Delete &ldquo;{dealLabel}&rdquo;?
+				</p>
+				<p className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
+					This cannot be undone.
+				</p>
+			</div>
+			<Button
+				variant="outline"
+				onClick={() => setConfirmingDelete(false)}
+			>
+				Cancel
+			</Button>
+			<Button
+				variant="danger"
+				onClick={async () => {
+					if (deal) {
+						onClose();
+						await onDelete(deal);
+					}
+				}}
+			>
+				Delete
+			</Button>
+		</div>
+	) : (
+		// ── Normal footer ──────────────────────────────────────────────────────
+		<>
+			<Button
+				variant="danger"
+				className="mr-auto"
+				onClick={() => setConfirmingDelete(true)}
+			>
+				Delete
+			</Button>
+			<Button variant="outline" onClick={onClose}>Close</Button>
+			<Button
+				variant="primary"
+				onClick={() => {
+					if (deal) {
+						onClose();
+						onEdit(deal);
+					}
+				}}
+			>
+				Edit
+			</Button>
+		</>
+	);
+
 	return (
 		<Dialog
 			open={deal !== null}
@@ -42,34 +116,7 @@ export function CampaignDetailModal({ deal, onClose, onEdit, onDelete }: Campaig
 			}}
 			title={deal ? `${deal.brand || 'Campaign'}${deal.campaign ? ` · ${deal.campaign}` : ''}` : 'Campaign'}
 			className="max-w-4xl"
-			footer={
-				<>
-					<Button
-						variant="danger"
-						className="mr-auto"
-						onClick={() => {
-							if (deal) {
-								onClose();
-								onDelete(deal);
-							}
-						}}
-					>
-						Delete
-					</Button>
-					<Button variant="outline" onClick={onClose}>Close</Button>
-					<Button
-						variant="primary"
-						onClick={() => {
-							if (deal) {
-								onClose();
-								onEdit(deal);
-							}
-						}}
-					>
-						Edit
-					</Button>
-				</>
-			}
+			footer={footer}
 		>
 			{deal && (
 				<div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
@@ -86,6 +133,7 @@ export function CampaignDetailModal({ deal, onClose, onEdit, onDelete }: Campaig
 					<DetailField label="E-Invoice #" value={deal.e_invoice_number} />
 					<DetailField label="Campaign" value={deal.campaign} />
 					<DetailField label="Campaign Status" value={deal.campaign_status} />
+					<DetailField label="Billing Entity" value={deal.billing_entity} />
 					<DetailField label="Deliverables" value={deal.deliverables} />
 					<DetailField label="RO #" value={deal.ro_number} />
 
@@ -93,32 +141,42 @@ export function CampaignDetailModal({ deal, onClose, onEdit, onDelete }: Campaig
 						<>
 							<DetailSection title="Creator split" />
 							{deal.creator_shares.map((s, i) => (
-								<DetailField key={s.id ?? i} label={s.creator_name || s.creator_name_raw || `Creator ${i + 1}`} value={`Fee ₹ ${inr(s.total_fee)} · Agency ₹ ${inr(s.agency_fee_inr)}`} />
+								<DetailField
+									key={s.id ?? i}
+									label={s.creator_name || s.creator_name_raw || `Creator ${i + 1}`}
+									value={`Fee ₹ ${inr(s.total_fee)} · Agency ₹ ${inr(s.agency_fee_inr)}`}
+								/>
 							))}
 						</>
 					)}
 
-					<DetailSection title="Client Invoice (TCH → Client)" />
-					<DetailField label="Invoice #" value={deal.client_invoice_number} />
-					<DetailField label="Invoice Date" value={deal.client_invoice_date} />
-					<DetailField label="Invoice Amount" value={Number(deal.client_invoice_amount) > 0 ? `₹ ${inr(deal.client_invoice_amount)}` : '—'} />
-					<DetailField label="Payment Status" value={deal.client_payment_status} />
-					<DetailField label="Amount Received" value={Number(deal.client_payment_received_amount) > 0 ? `₹ ${inr(deal.client_payment_received_amount)}` : '—'} />
-					<DetailField label="Payment Date" value={deal.client_payment_date} />
-
-					<DetailSection title="Creator Invoice (Creator → TCH)" />
-					<DetailField label="Invoice #" value={deal.creator_invoice_number} />
-					<DetailField label="Invoice Date" value={deal.creator_invoice_date} />
-					<DetailField label="Invoice Amount" value={Number(deal.creator_invoice_amount) > 0 ? `₹ ${inr(deal.creator_invoice_amount)}` : '—'} />
-					<DetailField label="Payment Status" value={deal.creator_payment_status} />
-					<DetailField label="Payment Cycle" value={deal.creator_payment_cycle ? deal.creator_payment_cycle.replace('Net', 'Net ') : ''} />
-					<DetailField label="Payment Date" value={deal.creator_payment_date} />
-
 					<DetailSection title="Status" />
-					<DetailField label="Campaign Over" value={deal.campaign_over === 'Y' ? 'Yes' : deal.campaign_over === 'N' ? 'No' : '—'} />
-					<DetailField label="Invoice Received" value={deal.invoice_received === 'Y' ? 'Yes' : deal.invoice_received === 'N' ? 'No' : '—'} />
-					<DetailField label="Payment Cleared" value={deal.payment_cleared === 'Y' ? 'Yes' : deal.payment_cleared === 'N' ? 'No' : '—'} />
-					<DetailField label="Payment Received" value={deal.payment_received === 'Y' ? 'Yes' : deal.payment_received === 'N' ? 'No' : '—'} />
+					<DetailField label="Campaign Over" value={<StatusTick flag={deal.campaign_over} />} />
+					<DetailField label="Payment Cleared" value={<StatusTick flag={deal.payment_cleared} />} />
+
+					{docs.length > 0 && (
+						<>
+							<DetailSection title="Uploaded Invoices" />
+							{docs.map((doc) => (
+								<DetailField
+									key={doc.id}
+									label={doc.doc_type === 'ClientInvoice' ? 'Client Invoice' : 'Creator Invoice'}
+									value={
+										<a
+											href={doc.file}
+											target="_blank"
+											rel="noopener"
+											className="underline font-medium hover:text-[var(--n-accent)]"
+											style={{ color: 'var(--n-accent)' }}
+											title={doc.label}
+										>
+											{doc.label || doc.file.split('/').pop()} ↗
+										</a>
+									}
+								/>
+							))}
+						</>
+					)}
 
 					{deal.comments && (
 						<>

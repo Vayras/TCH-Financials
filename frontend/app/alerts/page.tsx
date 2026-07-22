@@ -1,18 +1,19 @@
 'use client';
 
 import * as React from 'react';
-import { api, type AlertsPayload, type AlertItem, type AlertSeverity } from '@/lib/api';
+import { toast } from 'sonner';
+import PageHeader from '@/components/PageHeader';
+import { type AlertItem, type AlertSeverity } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
 import Tag from '@/components/ui/Tag';
-
-type State =
-	| { kind: 'loading' }
-	| { kind: 'error'; message: string }
-	| { kind: 'ok'; data: AlertsPayload };
-type SectionKey = 'urgent' | 'bd' | 'health' | 'docs' | 'seasonal';
-type FilterKey = 'all' | SectionKey;
+import {
+	useAlertsQuery,
+	useDismissAlertsMutation,
+	useRestoreAllAlertsMutation
+} from './queries';
+import { type AlertsState, type AlertSectionKey, type AlertFilterKey } from '@/lib/types';
 
 function sevTone(s: AlertSeverity): 'no' | 'markup' | 'neutral' {
 	if (s === 'high') return 'no';
@@ -24,7 +25,7 @@ function sevLabel(s: AlertSeverity): string {
 }
 
 const SECTION_META: Record<
-	SectionKey,
+	AlertSectionKey,
 	{ title: string; subtitle: string; icon: string; accent: string; accentBg: string }
 > = {
 	urgent: {
@@ -33,6 +34,13 @@ const SECTION_META: Record<
 		icon: 'alert-triangle',
 		accent: '#c0432e',
 		accentBg: '#fbe9e4'
+	},
+	payments: {
+		title: 'Payments',
+		subtitle: 'Creator invoices to collect and Wednesday payment-cycle dues',
+		icon: 'credit-card',
+		accent: '#1f6f43',
+		accentBg: '#dcedda'
 	},
 	bd: {
 		title: 'BD Opportunities',
@@ -64,41 +72,33 @@ const SECTION_META: Record<
 	}
 };
 
-const ORDER: SectionKey[] = ['urgent', 'bd', 'health', 'docs', 'seasonal'];
-const FILTERS: FilterKey[] = ['all', 'urgent', 'bd', 'health', 'docs', 'seasonal'];
+const ORDER: AlertSectionKey[] = ['urgent', 'payments', 'bd', 'health', 'docs', 'seasonal'];
+const FILTERS: AlertFilterKey[] = ['all', 'urgent', 'payments', 'bd', 'health', 'docs', 'seasonal'];
 
-function filterLabel(f: FilterKey): string {
+function filterLabel(f: AlertFilterKey): string {
 	if (f === 'all') return 'All';
 	if (f === 'bd') return 'BD';
 	if (f === 'urgent') return 'Urgent';
+	if (f === 'payments') return 'Payments';
 	if (f === 'health') return 'Health';
 	if (f === 'docs') return 'Docs';
 	return 'Seasonal';
 }
 
 export default function AlertsPage() {
-	const [pageState, setPageState] = React.useState<State>({ kind: 'loading' });
-	const [activeSection, setActiveSection] = React.useState<FilterKey>('all');
+	const { data: alertsData, isLoading, error: queryError, refetch } = useAlertsQuery();
+	const dismissMutation = useDismissAlertsMutation();
+	const restoreAllMutation = useRestoreAllAlertsMutation();
+
+	const [activeSection, setActiveSection] = React.useState<AlertFilterKey>('all');
 	const [busy, setBusy] = React.useState(false);
 
-	const load = React.useCallback(async () => {
-		setPageState({ kind: 'loading' });
-		let shown = false;
-		try {
-			await api.getSWR<AlertsPayload>('/alerts/', (d) => {
-				shown = true;
-				setPageState({ kind: 'ok', data: d });
-			});
-		} catch (e) {
-			// Keep the cached payload on screen if we showed one; a failed
-			// refresh shouldn't blank a working page.
-			if (!shown) setPageState({ kind: 'error', message: (e as Error).message });
-		}
-	}, []);
-
-	React.useEffect(() => {
-		load();
-	}, [load]);
+	const pageState = React.useMemo<AlertsState>(() => {
+		if (isLoading) return { kind: 'loading' };
+		if (queryError) return { kind: 'error', message: queryError.message };
+		if (alertsData) return { kind: 'ok', data: alertsData };
+		return { kind: 'loading' };
+	}, [isLoading, queryError, alertsData]);
 
 	// Dismiss alerts by key: persist server-side, drop from local state without
 	// a full reload (alerts are recomputed on every GET, so the next load stays
@@ -107,71 +107,44 @@ export default function AlertsPage() {
 		if (keys.length === 0) return;
 		setBusy(true);
 		try {
-			await api.post('/alerts/dismiss/', { keys });
-			const gone = new Set(keys);
-			setPageState((prev) => {
-				if (prev.kind !== 'ok') return prev;
-				const d = prev.data;
-				const sections = (['urgent', 'bd', 'health', 'docs', 'seasonal'] as const).map(
-					(k) => [k, d[k].filter((it) => !gone.has(it.key))] as const
-				);
-				const next = { ...d, dismissed_count: d.dismissed_count + keys.length };
-				for (const [k, items] of sections) {
-					next[k] = items;
-					next.counts = { ...next.counts, [k]: items.length };
-				}
-				return { kind: 'ok', data: next };
-			});
+			await dismissMutation.mutateAsync(keys);
+			toast.success(keys.length === 1 ? 'Alert dismissed.' : `${keys.length} alerts dismissed.`);
 		} catch (e) {
-			setPageState({ kind: 'error', message: (e as Error).message });
+			toast.error('Alerts could not be dismissed.', { description: (e as Error).message });
 		} finally {
 			setBusy(false);
 		}
-	}, []);
+	}, [dismissMutation]);
 
 	const restoreAll = React.useCallback(async () => {
 		setBusy(true);
 		try {
-			await api.post('/alerts/restore/', {});
-			await load();
+			await restoreAllMutation.mutateAsync();
+			toast.success('Dismissed alerts restored.');
 		} catch (e) {
-			setPageState({ kind: 'error', message: (e as Error).message });
+			toast.error('Alerts could not be restored.', { description: (e as Error).message });
 		} finally {
 			setBusy(false);
 		}
-	}, [load]);
+	}, [restoreAllMutation]);
 
 	const alerts = pageState.kind === 'ok' ? pageState.data : null;
 
-	function listFor(key: SectionKey): AlertItem[] {
+	function listFor(key: AlertSectionKey): AlertItem[] {
 		if (!alerts) return [];
 		return alerts[key] ?? [];
 	}
-	function shouldShow(key: SectionKey): boolean {
+	function shouldShow(key: AlertSectionKey): boolean {
 		if (activeSection === 'all') return true;
 		return activeSection === key;
 	}
 
 	return (
 		<section className="space-y-6">
-			<header className="space-y-2">
-				<div
-					className="text-[12px] font-medium uppercase"
-					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
-				>
-					Workspace · Alerts
-				</div>
-				<h1
-					className="page-title text-[28px] leading-[1.2] font-bold"
-					style={{ color: 'var(--n-fg)' }}
-				>
-					Intelligence Alerts
-				</h1>
-				<p className="text-[15px] max-w-[720px]" style={{ color: 'var(--n-fg-muted)' }}>
+			<PageHeader eyebrow="Workspace · Alerts" title="Intelligence Alerts" description={<>
 					Formula-derived signals from Commercial Tracking, Creators, and Documents. No AI — just
 					thresholds applied to the live database, recomputed on every load.
-				</p>
-			</header>
+				</>} />
 
 			<div
 				className="flex flex-wrap items-center gap-2 pb-3"
@@ -190,10 +163,11 @@ export default function AlertsPage() {
 								<span className="ml-1 text-[11px]" style={{ color: 'var(--n-fg-subtle)' }}>
 									{f === 'all'
 										? alerts.counts.urgent +
-											alerts.counts.bd +
-											alerts.counts.health +
-											alerts.counts.docs +
-											alerts.counts.seasonal
+										alerts.counts.payments +
+										alerts.counts.bd +
+										alerts.counts.health +
+										alerts.counts.docs +
+										alerts.counts.seasonal
 										: alerts.counts[f]}
 								</span>
 							)}
@@ -226,7 +200,7 @@ export default function AlertsPage() {
 							<Icon name="x" size={14} /> Clear {activeSection === 'all' ? 'all' : filterLabel(activeSection)}
 						</Button>
 					)}
-					<Button variant="ghost" onClick={load}>
+					<Button variant="ghost" onClick={() => refetch()}>
 						<Icon name="refresh" size={14} /> Refresh
 					</Button>
 				</div>
@@ -248,13 +222,14 @@ export default function AlertsPage() {
 					const payload = pageState.data;
 					const totalCount =
 						payload.counts.urgent +
+						payload.counts.payments +
 						payload.counts.bd +
 						payload.counts.health +
 						payload.counts.docs +
 						payload.counts.seasonal;
 					return (
 						<>
-							<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+							<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
 								{ORDER.map((key) => {
 									const meta = SECTION_META[key];
 									return (

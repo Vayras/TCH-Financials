@@ -3,121 +3,121 @@
 import * as React from 'react';
 import type { Deal } from '@/lib/api';
 import type { CampaignGroup, CreatorGroup } from '@/types/deal';
-import { billingPeriodOf, creatorLabel, creatorNamesOf, dirTone, monthYearLabel, relTone } from '@/lib/deals';
+import { relTone } from '@/lib/deals';
 import { inr } from '@/lib/utils';
-import Button from '@/components/ui/Button';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
 
-function ExpandButton({ expanded, onClick }: { expanded: boolean; onClick: () => void }) {
-	return (
-		<button
-			type="button"
-			aria-label={expanded ? 'Collapse deals' : 'Expand deals'}
-			onClick={onClick}
-			className="h-5 w-5 inline-flex items-center justify-center rounded-[3px] border border-[var(--n-border)] text-[var(--n-fg-muted)] hover:bg-[var(--n-accent)] hover:border-[var(--n-accent)] hover:text-white transition-colors"
-		>
-			<Icon name="chevron-right" size={13} className={expanded ? 'rotate-90 transition-transform' : 'transition-transform'} />
-		</button>
-	);
-}
-
-function TotalFee({ total }: { total: number }) {
-	return (
-		<div className="text-[13px]">
-			<div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Total Fee</div>
-			<div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{inr(total)}</div>
-		</div>
-	);
-}
-
-function DealRow({ r, headline, onView }: { r: Deal; headline: string; onView: (d: Deal) => void }) {
-	return (
-		<div className="flex items-center gap-2 text-[13px]">
-			<div className="min-w-0 flex-1">
-				<div className="font-medium truncate" style={{ color: 'var(--n-fg)' }}>{headline}</div>
-				<div className="tabular-nums" style={{ color: 'var(--n-fg-muted)' }}>
-					{inr(r.total_fee)} · {monthYearLabel(billingPeriodOf(r))}
-				</div>
-			</div>
-			<Tag tone={dirTone(r.direction)}>{r.direction}</Tag>
-			<Button variant="primary" onClick={() => onView(r)}>View</Button>
-		</div>
-	);
-}
-
 export function CampaignGroupCard({ group, onView }: { group: CampaignGroup; onView: (d: Deal) => void }) {
-	const [expanded, setExpanded] = React.useState(false);
+	const handleCardClick = () => {
+		if (group.deals.length > 0) {
+			onView(group.deals[0]);
+		}
+	};
+
 	return (
-		<div className="rounded-lg p-4 flex flex-col gap-3 transition-colors hover:border-[var(--n-accent)]" style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}>
+		<div
+			onClick={handleCardClick}
+			className="rounded-xl p-4 flex flex-col justify-between gap-4 cursor-pointer transition-all duration-150 hover:shadow-md hover:border-[var(--n-accent)] group"
+			style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
+		>
 			<div className="flex items-start justify-between gap-2">
-				<div className="min-w-0">
-					<div className="font-semibold text-[15px] truncate" title={group.name} style={{ color: 'var(--n-fg)' }}>{group.name}</div>
+				<div className="min-w-0 flex-1">
+					<div
+						className="font-semibold text-[15px] truncate transition-colors group-hover:text-[var(--n-accent)]"
+						title={group.name}
+						style={{ color: 'var(--n-fg)' }}
+					>
+						{group.name}
+					</div>
 					{group.brand && group.brand !== group.name && (
-						<div className="text-[13px] mt-0.5 truncate" style={{ color: 'var(--n-fg-muted)' }}>{group.brand}</div>
+						<div className="text-[13px] mt-0.5 truncate" style={{ color: 'var(--n-fg-muted)' }}>
+							{group.brand}
+						</div>
 					)}
 				</div>
-				{group.status && <Tag tone={group.status === 'Over' ? 'neutral' : 'yes'}>{group.status}</Tag>}
-			</div>
-			<div>
-				<div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>
-					Creator{group.creatorNames.length === 1 ? '' : 's'}{group.creatorNames.length > 0 ? ` · ${group.creatorNames.length}` : ''}
-				</div>
-				<div className="text-[13px] mt-0.5" style={{ color: 'var(--n-fg)' }}>
-					{group.creatorNames.length > 0 ? group.creatorNames.join(', ') : '—'}
+				<div className="flex flex-col items-end gap-1 shrink-0">
+					{group.status && <Tag tone={group.status === 'Over' ? 'neutral' : 'yes'}>{group.status}</Tag>}
 				</div>
 			</div>
-			<TotalFee total={group.total} />
-			<div className="flex items-center justify-between gap-2 pt-1">
-				<div className="text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>
-					{group.deals.length} deal{group.deals.length === 1 ? '' : 's'}
+
+			<div className="grid grid-cols-3 gap-3 pt-2 border-t" style={{ borderColor: 'var(--n-border)' }}>
+				<div>
+					<div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>
+						Creators
+					</div>
+					<div className="text-[14px] font-semibold mt-0.5 flex items-center gap-1.5" style={{ color: 'var(--n-fg)' }}>
+						<Icon name="users" size={14} className="text-[var(--n-fg-subtle)]" />
+						{group.creatorNames.length}
+					</div>
 				</div>
-				<ExpandButton expanded={expanded} onClick={() => setExpanded((e) => !e)} />
+				<div>
+					<div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>
+						Direction
+					</div>
+					<div className="mt-0.5">
+						{group.deals[0]?.direction ? (
+							<Tag tone={group.deals[0].direction === 'Outbound' ? 'outbound' : 'inbound'}>
+								{group.deals[0].direction}
+							</Tag>
+						) : (
+							<span className="text-[13px] font-medium" style={{ color: 'var(--n-fg-muted)' }}>—</span>
+						)}
+					</div>
+				</div>
+				<div>
+					<div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>
+						Total Fee
+					</div>
+					<div className="text-[14px] font-bold tabular-nums mt-0.5" style={{ color: 'var(--n-fg)' }}>
+						₹{inr(group.total)}
+					</div>
+				</div>
 			</div>
-			{expanded && (
-				<div className="space-y-2 pt-2 border-t" style={{ borderColor: 'var(--n-border)' }}>
-					{group.deals.map((r) => (
-						<DealRow key={r.id} r={r} headline={creatorLabel(creatorNamesOf(r))} onView={onView} />
-					))}
-				</div>
-			)}
 		</div>
 	);
 }
 
 export function CreatorGroupCard({ group, onView }: { group: CreatorGroup; onView: (d: Deal) => void }) {
-	const [expanded, setExpanded] = React.useState(false);
+	const handleCardClick = () => {
+		if (group.deals.length > 0) {
+			onView(group.deals[0]);
+		}
+	};
+
 	return (
-		<div className="rounded-lg p-4 flex flex-col gap-3 transition-colors hover:border-[var(--n-accent)]" style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}>
+		<div
+			onClick={handleCardClick}
+			className="rounded-xl p-4 flex flex-col justify-between gap-4 cursor-pointer transition-all duration-150 hover:shadow-md hover:border-[var(--n-accent)] group"
+			style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
+		>
 			<div className="flex items-start justify-between gap-2">
-				<div>
-					<div className="font-semibold text-[15px]" style={{ color: 'var(--n-fg)' }}>{group.name}</div>
+				<div className="min-w-0 flex-1">
+					<div
+						className="font-semibold text-[15px] truncate transition-colors group-hover:text-[var(--n-accent)]"
+						style={{ color: 'var(--n-fg)' }}
+					>
+						{group.name}
+					</div>
 					<div className="text-[13px] mt-0.5" style={{ color: 'var(--n-fg-muted)' }}>
-						{group.deals.length} deal{group.deals.length === 1 ? '' : 's'}
+						{group.dealCount ?? group.deals.length} deal{(group.dealCount ?? group.deals.length) === 1 ? '' : 's'}
 					</div>
 				</div>
-				<div className="flex items-center gap-2">
-					{group.relationship && (
-						<Tag tone={relTone(group.relationship)}>
-							{group.relationship === 'NonTCH' ? 'Non TCH' : group.relationship}
-						</Tag>
-					)}
-					<ExpandButton expanded={expanded} onClick={() => setExpanded((e) => !e)} />
+				{group.relationship && (
+					<Tag tone={relTone(group.relationship)}>
+						{group.relationship === 'NonTCH' ? 'Non TCH' : group.relationship}
+					</Tag>
+				)}
+			</div>
+
+			<div className="pt-2 border-t" style={{ borderColor: 'var(--n-border)' }}>
+				<div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>
+					Total Fee
+				</div>
+				<div className="text-[14px] font-bold tabular-nums mt-0.5" style={{ color: 'var(--n-fg)' }}>
+					₹{inr(group.total)}
 				</div>
 			</div>
-			<TotalFee total={group.total} />
-			{expanded && (
-				<div className="space-y-2 pt-2 border-t" style={{ borderColor: 'var(--n-border)' }}>
-					{group.deals.map((r) => (
-						<DealRow
-							key={r.id}
-							r={r}
-							headline={`${r.brand || '—'}${r.campaign ? ` · ${r.campaign}` : ''}`}
-							onView={onView}
-						/>
-					))}
-				</div>
-			)}
 		</div>
 	);
 }

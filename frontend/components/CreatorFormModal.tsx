@@ -13,6 +13,8 @@ import Tag from '@/components/ui/Tag';
 import { formatDocDate } from '@/lib/utils';
 import type { AttachmentType, CreatorForm } from '@/types/creator';
 import { ATTACH_SLOTS, REL, STATUS } from '@/lib/creators';
+import { toast } from 'sonner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 // react-hook-form works with input-native values: dates as yyyy-mm-dd
 // strings, files as FileList, and field arrays as objects. Convert to/from
@@ -109,6 +111,7 @@ export function CreatorFormModal({
 	// Documents already on file (edit mode only).
 	const [existingDocs, setExistingDocs] = React.useState<CreatorDocument[]>([]);
 	const [docsLoading, setDocsLoading] = React.useState(false);
+	const [deletingDoc, setDeletingDoc] = React.useState<number | null>(null);
 
 	const loadDocs = React.useCallback(async () => {
 		if (!creatorId) return;
@@ -116,7 +119,7 @@ export function CreatorFormModal({
 		try {
 			setExistingDocs(await api.get<CreatorDocument[]>(`/creator-documents/?creator=${creatorId}`));
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Creator documents could not be loaded.', { description: (e as Error).message });
 		} finally {
 			setDocsLoading(false);
 		}
@@ -132,12 +135,13 @@ export function CreatorFormModal({
 	}, [open, initial, reset, creatorId, loadDocs]);
 
 	async function deleteDoc(id: number) {
-		if (!confirm('Delete this document?')) return;
 		try {
 			await api.del(`/creator-documents/${id}/`);
 			await loadDocs();
+			setDeletingDoc(null);
+			toast.success('Document deleted.');
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Document could not be deleted.', { description: (e as Error).message });
 		}
 	}
 
@@ -180,7 +184,7 @@ export function CreatorFormModal({
 						placeholder="Saili Satwe"
 					/>
 					{errors.name && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+						<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 							{errors.name.message}
 						</div>
 					)}
@@ -192,7 +196,7 @@ export function CreatorFormModal({
 						placeholder="Lifestyle / Fashion"
 					/>
 					{errors.niche && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+						<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 							{errors.niche.message}
 						</div>
 					)}
@@ -205,38 +209,52 @@ export function CreatorFormModal({
 						placeholder="Select relation…"
 					/>
 					{errors.relation && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+						<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 							{errors.relation.message}
 						</div>
 					)}
 				</div>
-				<div>
-					<Label>Status</Label>
-					<Select
-						{...register('status', { required: 'Status is required' })}
-						options={STATUS}
-						placeholder="Select status…"
-					/>
-					{errors.status && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
-							{errors.status.message}
-						</div>
-					)}
-				</div>
-				<div>
-					<Label>DOJ</Label>
-					<Input type="date" {...register('doj', { required: 'DOJ is required' })} />
-					{errors.doj && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
-							{errors.doj.message}
-						</div>
-					)}
-				</div>
+				{relation !== 'Non-Exclusive' && (
+					<div>
+						<Label>Status</Label>
+						<Select
+							{...register('status', {
+								required: relation !== 'Non-Exclusive' ? 'Status is required' : false
+							})}
+							options={STATUS}
+							placeholder="Select status…"
+						/>
+						{errors.status && (
+							<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
+								{errors.status.message}
+							</div>
+						)}
+					</div>
+				)}
+				{relation !== 'Non-Exclusive' && (
+					<div>
+						<Label>DOJ</Label>
+						<Input
+							type="date"
+							{...register('doj', {
+								required: relation !== 'Non-Exclusive' ? 'DOJ is required' : false
+							})}
+						/>
+						{errors.doj && (
+							<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
+								{errors.doj.message}
+							</div>
+						)}
+					</div>
+				)}
 				<div>
 					<Label>Location</Label>
-					<Input {...register('location', { required: 'Location is required' })} placeholder="Mumbai" />
+					<Input
+						{...register('location', { required: 'Location is required' })}
+						placeholder="Mumbai"
+					/>
 					{errors.location && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+						<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 							{errors.location.message}
 						</div>
 					)}
@@ -248,7 +266,7 @@ export function CreatorFormModal({
 						placeholder="Arzoo / Akshita"
 					/>
 					{errors.talent_manager && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+						<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 							{errors.talent_manager.message}
 						</div>
 					)}
@@ -273,7 +291,7 @@ export function CreatorFormModal({
 						</Button>
 					</div>
 					{(urlError || errors.url) && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+						<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 							{urlError ?? 'URL cannot be empty'}
 						</div>
 					)}
@@ -319,7 +337,7 @@ export function CreatorFormModal({
 												Uploaded {formatDocDate(d.uploaded_at)}
 											</div>
 										</div>
-										<Button variant="danger" onClick={() => deleteDoc(d.id)}>
+										<Button variant="danger" onClick={() => setDeletingDoc(d.id)}>
 											Del
 										</Button>
 									</li>
@@ -334,14 +352,14 @@ export function CreatorFormModal({
 						className="text-[11.5px] font-medium uppercase mb-2"
 						style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
 					>
-						{requireAttachments ? 'Attachments (required)' : 'Upload / replace documents'}
+						{requireAttachments && relation !== 'Non-Exclusive' ? 'Attachments (required)' : 'Upload / replace documents'}
 					</div>
 					<div className="grid grid-cols-2 gap-3">
 						{slots.map((slot) => (
 							<div key={slot.key}>
 								<Label>
 									{slot.label}
-									{requireAttachments ? ' *' : ''}
+									{requireAttachments && relation !== 'Non-Exclusive' ? ' *' : ''}
 									{!requireAttachments && onFileTypes.has(slot.key) && (
 										<span className="ml-1" style={{ color: 'var(--n-fg-subtle)' }}>
 											(on file ✓)
@@ -354,6 +372,7 @@ export function CreatorFormModal({
 									{...register(`attachments.${slot.key}`, {
 										validate: (v) => {
 											if (!requireAttachments) return true;
+											if (getValues('relation') === 'Non-Exclusive') return true;
 											if (slot.exclusiveOnly && getValues('relation') !== 'Exclusive') return true;
 											return (v && v.length > 0) || `${slot.label} is required`;
 										}
@@ -361,7 +380,7 @@ export function CreatorFormModal({
 									className="block w-full text-[12.5px] file:mr-2 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-2 file:py-1 file:text-[12.5px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
 								/>
 								{errors.attachments?.[slot.key] && (
-									<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+									<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 										{errors.attachments[slot.key]?.message}
 									</div>
 								)}
@@ -372,12 +391,13 @@ export function CreatorFormModal({
 				{error && (
 					<div
 						className="col-span-2 text-[12px] rounded p-2"
-						style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
+						style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid var(--color-danger-border)' }}
 					>
 						{error}
 					</div>
 				)}
 			</form>
+			<ConfirmDialog open={deletingDoc !== null} onOpenChange={(value) => { if (!value) setDeletingDoc(null); }} title="Delete document?" description="This creator document will be permanently removed." confirmLabel="Delete document" confirmVariant="danger" onConfirm={() => { if (deletingDoc !== null) return deleteDoc(deletingDoc); }} />
 		</Dialog>
 	);
 }
