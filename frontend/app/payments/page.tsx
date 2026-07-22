@@ -4,6 +4,8 @@ import * as React from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { type Deal, type DealDocument, type CreatorInvoice } from '@/lib/api';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { cn, formatDocDate, inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import { creatorLabel, creatorNamesOf } from '@/lib/deals';
@@ -86,6 +88,7 @@ export default function PaymentsPage() {
 	const [uploadDeal, setUploadDeal] = React.useState<Deal | null>(null);
 	const [clientFile, setClientFile] = React.useState<File | null>(null);
 	const [saving, setSaving] = React.useState(false);
+	const [confirmPaidDeal, setConfirmPaidDeal] = React.useState<Deal | null>(null);
 
 	// Completed campaigns are the payments universe — they appear the moment
 	// they're marked completed, and stay until every invoice is in and cleared.
@@ -168,8 +171,9 @@ export default function PaymentsPage() {
 				creatorFile: null
 			});
 			closeUpload();
+			toast.success('Client invoice uploaded.');
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Invoice could not be uploaded.', { description: (e as Error).message });
 		} finally {
 			setSaving(false);
 		}
@@ -178,11 +182,12 @@ export default function PaymentsPage() {
 	async function markPaid(deal: Deal) {
 		const amount = deal.creator_invoice_amount || deal.creator_fee;
 		const creatorName = creatorLabel(creatorNamesOf(deal));
-		if (!confirm(`Mark ₹${inr(amount) || amount || '0'} to ${creatorName} as paid?`)) return;
 		try {
 			await markPaidMutation.mutateAsync({ id: deal.id, version: deal.version });
+			setConfirmPaidDeal(null);
+			toast.success(`Payment to ${creatorName} marked as paid.`);
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Payment could not be updated.', { description: (e as Error).message });
 		}
 	}
 
@@ -273,7 +278,7 @@ export default function PaymentsPage() {
 								Upload
 							</Button>
 							{canMarkPaid && (
-								<Button variant="primary" onClick={() => markPaid(deal)}>
+								<Button variant="primary" onClick={() => setConfirmPaidDeal(deal)}>
 									Mark paid
 								</Button>
 							)}
@@ -404,6 +409,7 @@ export default function PaymentsPage() {
 					</div>
 				)}
 			</Dialog>
+			<ConfirmDialog open={confirmPaidDeal !== null} onOpenChange={(value) => { if (!value) setConfirmPaidDeal(null); }} title="Mark payment as paid?" description={confirmPaidDeal ? `Confirm payment of ₹${inr(confirmPaidDeal.creator_invoice_amount || confirmPaidDeal.creator_fee) || '0'} to ${creatorLabel(creatorNamesOf(confirmPaidDeal))}.` : ''} confirmLabel="Mark paid" pending={markPaidMutation.isPending} onConfirm={() => { if (confirmPaidDeal) return markPaid(confirmPaidDeal); }} />
 		</>
 	);
 }

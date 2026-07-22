@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { toast } from 'sonner';
 import { ConflictError, type CampaignCardGroup, type CreatorCardGroup, type Deal } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
@@ -213,10 +214,13 @@ export default function CommercialPage() {
 			});
 			setOpen(false);
 			if (!editing && deal && deal.id) {
+				toast.success('Campaign created.');
 				router.push(`/commercial/${deal.id}`);
+			} else {
+				toast.success('Campaign updated.');
 			}
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Campaign could not be saved.', { description: (e as Error).message });
 			if (e instanceof ConflictError) {
 				setOpen(false);
 			}

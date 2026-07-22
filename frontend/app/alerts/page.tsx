@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { toast } from 'sonner';
 import PageHeader from '@/components/PageHeader';
 import { type AlertItem, type AlertSeverity } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -107,8 +108,9 @@ export default function AlertsPage() {
 		setBusy(true);
 		try {
 			await dismissMutation.mutateAsync(keys);
+			toast.success(keys.length === 1 ? 'Alert dismissed.' : `${keys.length} alerts dismissed.`);
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Alerts could not be dismissed.', { description: (e as Error).message });
 		} finally {
 			setBusy(false);
 		}
@@ -118,8 +120,9 @@ export default function AlertsPage() {
 		setBusy(true);
 		try {
 			await restoreAllMutation.mutateAsync();
+			toast.success('Dismissed alerts restored.');
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Alerts could not be restored.', { description: (e as Error).message });
 		} finally {
 			setBusy(false);
 		}

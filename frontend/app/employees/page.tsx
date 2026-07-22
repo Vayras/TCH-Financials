@@ -18,6 +18,8 @@ import {
 	useDeleteEmployeeReportMutation
 } from './queries';
 import { type EmployeeForm } from '@/lib/types';
+import { toast } from 'sonner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 const EMPTY_FORM: EmployeeForm = {
 	week_ending: '',
@@ -44,6 +46,8 @@ export default function EmployeesPage() {
 	const [q, setQ] = React.useState('');
 	const [expandedCards, setExpandedCards] = React.useState<Record<string, boolean>>({});
 	const [form, setForm] = React.useState<EmployeeForm>(EMPTY_FORM);
+	const [deleting, setDeleting] = React.useState<EmployeeReport | null>(null);
+	const [confirmEditing, setConfirmEditing] = React.useState<EmployeeReport | null>(null);
 
 	function startAdd() {
 		setEditing(null);
@@ -87,8 +91,9 @@ export default function EmployeesPage() {
 				await createMutation.mutateAsync(payload);
 			}
 			setOpen(false);
+			toast.success(editing ? 'Weekly report updated.' : 'Weekly report created.');
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Weekly report could not be saved.', { description: (e as Error).message });
 			if (e instanceof ConflictError) {
 				setOpen(false);
 			}
@@ -96,11 +101,12 @@ export default function EmployeesPage() {
 	}
 
 	async function remove(r: EmployeeReport) {
-		if (!confirm(`Delete report for "${r.employee_name}" (${r.week_ending})?`)) return;
 		try {
 			await deleteMutation.mutateAsync(r.id);
+			setDeleting(null);
+			toast.success('Weekly report deleted.');
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Weekly report could not be deleted.', { description: (e as Error).message });
 		}
 	}
 
@@ -285,8 +291,8 @@ export default function EmployeesPage() {
 													<div key={r.id} className="text-[13px] space-y-1">
 														<div className="flex items-center gap-2">
 															<div className="min-w-0 flex-1"><div className="font-medium" style={{ color: 'var(--n-fg)' }}>{r.week_ending || 'No date'}</div><div className="truncate" style={{ color: 'var(--n-fg-muted)' }}>{r.paid_confirmations || r.action_points || '—'}</div></div>
-															<Button variant="primary" onClick={() => startEdit(r)}>Edit</Button>
-															<Button variant="danger" onClick={() => remove(r)}>Del</Button>
+													<Button variant="primary" onClick={() => setConfirmEditing(r)}>Edit</Button>
+													<Button variant="danger" onClick={() => setDeleting(r)}>Del</Button>
 														</div>
 													</div>
 												))}
@@ -391,6 +397,8 @@ export default function EmployeesPage() {
 					</div>
 				</div>
 			</Dialog>
+			<ConfirmDialog open={deleting !== null} onOpenChange={(value) => { if (!value) setDeleting(null); }} title="Delete weekly report?" description={`Delete ${deleting?.employee_name ?? 'this employee'}’s report for ${deleting?.week_ending ?? 'this week'}?`} confirmLabel="Delete report" confirmVariant="danger" pending={deleteMutation.isPending} onConfirm={() => { if (deleting) return remove(deleting); }} />
+			<ConfirmDialog open={confirmEditing !== null} onOpenChange={(value) => { if (!value) setConfirmEditing(null); }} title="Edit weekly report?" description={`You are about to update ${confirmEditing?.employee_name ?? 'this employee'}’s report.`} confirmLabel="Continue to edit" onConfirm={() => { if (confirmEditing) startEdit(confirmEditing); setConfirmEditing(null); }} />
 		</>
 	);
 }

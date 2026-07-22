@@ -12,6 +12,10 @@ export function useCreatorsQuery() {
 	});
 }
 
+export function useCreatorQuery(id: number | null) {
+	return useQuery<Creator>({ queryKey: ['creator', id], queryFn: () => api.get<Creator>(`/creators/${id}/`), enabled: id !== null });
+}
+
 export interface CreatorPageParams {
 	page: number;
 	pageSize: number;
@@ -45,6 +49,7 @@ export function useCreateCreatorMutation() {
 			queryClient.invalidateQueries({ queryKey: CREATORS_QUERY_KEY });
 			queryClient.invalidateQueries({ queryKey: ['creators-page'] });
 			queryClient.invalidateQueries({ queryKey: ['overview'] });
+			queryClient.invalidateQueries({ queryKey: ['creator'] });
 		}
 	});
 }

@@ -13,6 +13,8 @@ import Tag from '@/components/ui/Tag';
 import { formatDocDate } from '@/lib/utils';
 import type { AttachmentType, CreatorForm } from '@/types/creator';
 import { ATTACH_SLOTS, REL, STATUS } from '@/lib/creators';
+import { toast } from 'sonner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 // react-hook-form works with input-native values: dates as yyyy-mm-dd
 // strings, files as FileList, and field arrays as objects. Convert to/from
@@ -109,6 +111,7 @@ export function CreatorFormModal({
 	// Documents already on file (edit mode only).
 	const [existingDocs, setExistingDocs] = React.useState<CreatorDocument[]>([]);
 	const [docsLoading, setDocsLoading] = React.useState(false);
+	const [deletingDoc, setDeletingDoc] = React.useState<number | null>(null);
 
 	const loadDocs = React.useCallback(async () => {
 		if (!creatorId) return;
@@ -116,7 +119,7 @@ export function CreatorFormModal({
 		try {
 			setExistingDocs(await api.get<CreatorDocument[]>(`/creator-documents/?creator=${creatorId}`));
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Creator documents could not be loaded.', { description: (e as Error).message });
 		} finally {
 			setDocsLoading(false);
 		}
@@ -132,12 +135,13 @@ export function CreatorFormModal({
 	}, [open, initial, reset, creatorId, loadDocs]);
 
 	async function deleteDoc(id: number) {
-		if (!confirm('Delete this document?')) return;
 		try {
 			await api.del(`/creator-documents/${id}/`);
 			await loadDocs();
+			setDeletingDoc(null);
+			toast.success('Document deleted.');
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Document could not be deleted.', { description: (e as Error).message });
 		}
 	}
 
@@ -333,7 +337,7 @@ export function CreatorFormModal({
 												Uploaded {formatDocDate(d.uploaded_at)}
 											</div>
 										</div>
-										<Button variant="danger" onClick={() => deleteDoc(d.id)}>
+										<Button variant="danger" onClick={() => setDeletingDoc(d.id)}>
 											Del
 										</Button>
 									</li>
@@ -393,6 +397,7 @@ export function CreatorFormModal({
 					</div>
 				)}
 			</form>
+			<ConfirmDialog open={deletingDoc !== null} onOpenChange={(value) => { if (!value) setDeletingDoc(null); }} title="Delete document?" description="This creator document will be permanently removed." confirmLabel="Delete document" confirmVariant="danger" onConfirm={() => { if (deletingDoc !== null) return deleteDoc(deletingDoc); }} />
 		</Dialog>
 	);
 }

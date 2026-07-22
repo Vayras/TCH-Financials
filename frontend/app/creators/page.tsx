@@ -16,6 +16,9 @@ import QueryErrorState from '@/components/QueryErrorState';
 import useDebounce from '@/hooks/useDebounce';
 import { type ColumnDef } from '@tanstack/react-table';
 import type { CreatorForm } from '@/types/creator';
+import { toast } from 'sonner';
+import Link from 'next/link';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import {
 	EMPTY_FORM,
 	REL_FILTERS,
@@ -38,6 +41,7 @@ export default function CreatorsPage() {
 
 	const [addOpen, setAddOpen] = React.useState(false);
 	const [editing, setEditing] = React.useState<Creator | null>(null);
+	const [confirmEditing, setConfirmEditing] = React.useState<Creator | null>(null);
 	const [q, setQ] = React.useState('');
 	const [relFilter, setRelFilter] = React.useState('All');
 	const [statusFilter, setStatusFilter] = React.useState('All');
@@ -91,9 +95,11 @@ export default function CreatorsPage() {
 					payload: { ...payload, version: editing.version }
 				});
 				creatorId = editing.id;
+				toast.success('Creator updated.');
 			} else {
 				const created = await createMutation.mutateAsync(payload);
 				creatorId = created.id;
+				toast.success('Creator created.');
 			}
 
 			const failed: string[] = [];
@@ -112,7 +118,7 @@ export default function CreatorsPage() {
 			}
 			setAddOpen(false);
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Creator could not be saved.', { description: (e as Error).message });
 			if (e instanceof ConflictError) {
 				setAddOpen(false);
 			}
@@ -129,9 +135,10 @@ export default function CreatorsPage() {
 		if (!deletingCreator) return;
 		try {
 			await deleteMutation.mutateAsync(deletingCreator.id);
+			toast.success('Creator deleted.');
 			setDeletingCreator(null);
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Creator could not be deleted.', { description: (e as Error).message });
 		}
 	}
 
@@ -160,14 +167,13 @@ export default function CreatorsPage() {
 				header: 'Creator Name',
 				meta: { tdClassName: 'font-medium' },
 				cell: ({ row }) => (
-					<button
-						type="button"
-						onClick={() => startEdit(row.original)}
+					<Link
+						href={`/creators/${row.original.id}`}
 						className="inline-link text-left"
-						title={`View / edit ${row.original.name}`}
+						title={`View ${row.original.name}`}
 					>
 						{row.original.name}
-					</button>
+					</Link>
 				)
 			},
 			{
@@ -234,7 +240,7 @@ export default function CreatorsPage() {
 						<Button
 							variant="ghost"
 							size="sm"
-							onClick={() => startEdit(row.original)}
+							onClick={() => setConfirmEditing(row.original)}
 							aria-label="Edit creator"
 							title="Edit creator"
 						>
@@ -319,6 +325,7 @@ export default function CreatorsPage() {
 				requireAttachments={!editing}
 				creatorId={editing?.id ?? null}
 			/>
+			<ConfirmDialog open={confirmEditing !== null} onOpenChange={(value) => { if (!value) setConfirmEditing(null); }} title="Edit this creator?" description={`You are about to update ${confirmEditing?.name ?? 'this creator'}’s master profile.`} confirmLabel="Continue to edit" onConfirm={() => { if (confirmEditing) startEdit(confirmEditing); setConfirmEditing(null); }} />
 
 			<Dialog
 				open={deletingCreator !== null}
