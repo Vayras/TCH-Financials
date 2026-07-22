@@ -8,6 +8,7 @@ import { applyMapped } from '../common/apply';
 import { D, isBlank, normalisePct } from '../common/decimal';
 import { syncBillingPeriod } from '../common/fy';
 import { csvValues, paginationParams } from '../common/pagination';
+import { refreshInvoiceCompletion } from '../common/invoice-completion';
 import { dealDto } from '../common/serializers';
 import { versionedUpdate } from '../common/versioned-update';
 import { Campaign, CommercialDeal, DealCreatorShare } from '../entities';
@@ -395,6 +396,7 @@ export class DealsController {
       await repo.save(row);
       const shares = body.creator_shares as SharePayload[] | undefined;
       if (shares?.length) await this.replaceShares(manager, row.id, shares);
+      await refreshInvoiceCompletion(manager, row.id);
       await refreshCampaignStatus(manager, row.campaignId);
       return row.id;
     });
@@ -424,6 +426,7 @@ export class DealsController {
         if (shares !== undefined && shares !== null) {
           await this.replaceShares(manager, row.id, shares);
         }
+        await refreshInvoiceCompletion(manager, row.id);
         // Keep derived campaign status in sync — for the new campaign and,
         // when the deal moved, for the one it left.
         await refreshCampaignStatus(manager, row.campaignId);
