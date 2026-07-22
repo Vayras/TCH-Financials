@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api, type CreatorDocument, type CreatorInvoice, type DealPage } from '@/lib/api';
 import { formatDoj, formatDocDate, inr } from '@/lib/utils';
-import { EMPTY_FORM, relTone, statusTone, uploadCreatorDocument } from '@/lib/creators';
+import { EMPTY_FORM, relTone, statusTone, uploadCreatorDocument, parseCreatorLinks, serializeCreatorLinks } from '@/lib/creators';
 import type { CreatorForm } from '@/types/creator';
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
@@ -36,7 +36,7 @@ export default function CreatorDetailPage() {
 	const initial = React.useMemo<CreatorForm>(() => creator ? {
 		name: creator.name, niche: creator.category, relation: creator.relationship,
 		status: creator.status, doj: creator.doj ? new Date(creator.doj) : EMPTY_FORM.doj,
-		url: creator.profile_url ? [creator.profile_url] : [], location: creator.location,
+		url: parseCreatorLinks(creator.profile_url), location: creator.location,
 		talent_manager: creator.ops_manager, attachments: []
 	} : EMPTY_FORM, [creator]);
 
@@ -47,7 +47,7 @@ export default function CreatorDetailPage() {
 				name: form.name, category: form.niche, relationship: form.relation,
 				status: form.relation === 'Non-Exclusive' ? 'Active' : form.status,
 				doj: form.relation === 'Non-Exclusive' || isNaN(form.doj.getTime()) ? null : form.doj.toISOString().slice(0, 10),
-				profile_url: form.url[0] ?? '', location: form.location, ops_manager: form.talent_manager, version: creator.version
+				profile_url: serializeCreatorLinks(form.url), location: form.location, ops_manager: form.talent_manager, version: creator.version
 			} });
 			for (const attachment of form.attachments) await uploadCreatorDocument(creator.id, attachment.doc_type, attachment.file, attachment.file.name);
 			setEditOpen(false);
@@ -61,6 +61,7 @@ export default function CreatorDetailPage() {
 	const deals = dealsQuery.data?.items ?? [];
 	const invoices = invoicesQuery.data ?? [];
 	const documents = documentsQuery.data ?? [];
+	const links = parseCreatorLinks(creator.profile_url);
 	return (
 		<section className="space-y-6">
 			<div className="text-[13px] text-[var(--n-fg-subtle)]"><Link className="hover:underline" href="/creators">Creators</Link> <span className="mx-2">/</span> {creator.name}</div>
@@ -70,6 +71,14 @@ export default function CreatorDetailPage() {
 			</header>
 			<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
 				{[['Niche', creator.category || '—'], ['Talent manager', creator.ops_manager || '—'], ['Location', creator.location || '—'], ['Joined', formatDoj(creator.doj)]].map(([label, value]) => <div key={label} className="rounded-xl border p-4" style={{ borderColor: 'var(--n-border)' }}><div className="text-[11px] uppercase text-[var(--n-fg-subtle)]">{label}</div><div className="mt-1 text-[14px] font-medium">{value}</div></div>)}
+			</div>
+			<div className="rounded-xl border p-5 space-y-3" style={{ borderColor: 'var(--n-border)' }}>
+				<div className="flex items-center justify-between"><div><h2 className="font-semibold">Links</h2><p className="mt-1 text-[12px] text-[var(--n-fg-subtle)]">Creator profiles, portfolios, and social channels.</p></div><Tag tone="neutral">{links.length}</Tag></div>
+				{links.length ? <div className="flex flex-wrap gap-2">{links.map((link, index) => {
+					let label = `Link ${index + 1}`;
+					try { label = new URL(link).hostname.replace(/^www\./, '') || label; } catch { /* retain the safe fallback */ }
+					return <a key={`${link}-${index}`} href={link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px] font-medium hover:bg-[var(--n-bg-hover)]" style={{ borderColor: 'var(--n-border)' }}><Icon name="external-link" size={13} />{label}</a>;
+				})}</div> : <p className="text-[12px] text-[var(--n-fg-muted)]">No creator links added yet. Use Edit creator to add one.</p>}
 			</div>
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 				<div className="rounded-xl border p-5 space-y-3" style={{ borderColor: 'var(--n-border)' }}><div className="flex justify-between"><h2 className="font-semibold">Campaigns</h2><Tag tone="neutral">{dealsQuery.data?.total ?? deals.length}</Tag></div>{dealsQuery.isLoading ? <p className="text-[12px]">Loading campaigns…</p> : deals.length ? deals.map(deal => <Link key={deal.id} href={`/commercial/${deal.id}`} className="block rounded-lg border p-3 hover:bg-[var(--n-bg-hover)]" style={{ borderColor: 'var(--n-border)' }}><div className="text-[13px] font-medium">{deal.campaign || deal.brand}</div><div className="mt-1 text-[11px] text-[var(--n-fg-subtle)]">{deal.brand} · ₹{inr(deal.total_fee)}</div></Link>) : <p className="text-[12px] text-[var(--n-fg-muted)]">No campaigns assigned yet.</p>}</div>
