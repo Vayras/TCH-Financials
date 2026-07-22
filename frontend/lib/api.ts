@@ -108,9 +108,9 @@ export const api = {
 	del: (path: string) => req<void>(path, { method: 'DELETE' }),
 	// Multipart upload — the browser sets the Content-Type (with boundary),
 	// so we must not send our JSON header here.
-	upload: async <T,>(path: string, form: FormData): Promise<T> => {
+	upload: async <T,>(path: string, form: FormData, method: 'POST' | 'PATCH' | 'PUT' = 'POST'): Promise<T> => {
 		const res = await fetch(`${API_BASE}${path}`, {
-			method: 'POST',
+			method,
 			body: form,
 			headers: await authHeader()
 		});
@@ -137,6 +137,8 @@ export type Creator = {
 	notes: string;
 	version: number;
 };
+
+export type CreatorPage = PaginatedResponse<Creator>;
 
 export type DropOff = {
 	id: number;
@@ -188,6 +190,7 @@ export type CreatorShare = {
 	agency_fee_pct: string;
 	agency_fee_inr: string;
 	creator_fee: string;
+	ro_number?: string;
 };
 
 export type Deal = {
@@ -236,6 +239,45 @@ export type Deal = {
 	version: number;
 };
 
+export type PaginatedResponse<T, TSummary = Record<string, never>> = {
+	items: T[];
+	page: number;
+	page_size: number;
+	total: number;
+	total_pages: number;
+	summary: TSummary;
+};
+
+export type DealPage = PaginatedResponse<Deal, {
+	total_billing: string;
+	deal_count: number;
+}>;
+
+export type CampaignCardGroup = {
+	key: string;
+	name: string;
+	brand: string;
+	status: '' | 'Active' | 'Over';
+	creator_names: string[];
+	total: number;
+	deal_count: number;
+	deal: Deal;
+};
+
+export type CreatorCardGroup = {
+	key: string;
+	name: string;
+	relationship?: string;
+	total: number;
+	deal_count: number;
+	deal: Deal;
+};
+
+export type CommercialGroupPage = PaginatedResponse<CampaignCardGroup | CreatorCardGroup, {
+	total_billing: string;
+	deal_count: number;
+}>;
+
 export type DealDocument = {
 	id: number;
 	deal: number;
@@ -253,6 +295,27 @@ export type CreatorDocument = {
 	label: string;
 	file: string;
 	uploaded_at: string;
+};
+
+export type CreatorInvoice = {
+	id: number;
+	deal: number;
+	campaign_id: number | null;
+	campaign_name: string | null;
+	brand: string;
+	creator: number;
+	creator_name: string;
+	invoice_number: string;
+	invoice_date: string | null;
+	invoice_amount: string;
+	payment_status: '' | 'Pending' | 'Scheduled' | 'Paid' | 'Overdue';
+	payment_cycle: '' | 'Immediate' | 'Net15' | 'Net30' | 'Net45' | 'Net60';
+	payment_date: string | null;
+	label: string;
+	file: string;
+	uploaded_at: string;
+	updated_at: string;
+	version: number;
 };
 
 export type SocialMediaSnapshot = {

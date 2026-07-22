@@ -8,7 +8,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { env } from '../env';
-import { todayISO } from '../common/dates';
+import { refreshInvoiceCompletion } from '../common/invoice-completion';
 import { dealDocumentDto } from '../common/serializers';
 import { CommercialDeal, DealDocument } from '../entities';
 
@@ -80,42 +80,10 @@ export class DealDocumentsController {
     });
     await this.repo().save(row);
 
-    await this.maybeAutoComplete(dealId);
+    await refreshInvoiceCompletion(this.dataSource, dealId);
 
     const saved = await this.repo().findOneBy({ id: row.id });
     return dealDocumentDto(saved!);
-  }
-
-  // After a document is saved, check whether the deal now has at least one
-  // invoice of each kind on file; if so, this is a server-initiated update —
-  // not a user edit — so we bump the deal directly rather than going through
-  // versionedUpdate's optimistic-lock/version-from-client flow.
-  private async maybeAutoComplete(dealId: string): Promise<void> {
-    const docs = await this.repo().find({ where: { dealId } });
-    const hasClient = docs.some((d) => d.docType === 'ClientInvoice');
-    const hasCreator = docs.some((d) => d.docType === 'CreatorInvoice');
-    if (!hasClient || !hasCreator) return;
-
-    const deal = await this.dealRepo().findOneBy({ id: dealId });
-    if (!deal) return;
-
-    let changed = false;
-    if (deal.invoiceReceived !== 'Y') {
-      deal.invoiceReceived = 'Y';
-      changed = true;
-    }
-    if (deal.campaignOver !== 'Y') {
-      deal.campaignOver = 'Y';
-      changed = true;
-    }
-    if (!deal.completedAt) {
-      deal.completedAt = todayISO();
-      changed = true;
-    }
-    if (changed) {
-      deal.version += 1;
-      await this.dealRepo().save(deal);
-    }
   }
 
   @Delete(':id')
@@ -124,6 +92,7 @@ export class DealDocumentsController {
     const row = await this.repo().findOneBy({ id });
     if (!row) throw new NotFoundException({ detail: 'Not found.' });
     await this.repo().delete({ id });
+    await refreshInvoiceCompletion(this.dataSource, row.dealId);
     if (row.file) {
       fs.rm(path.join(env.mediaRoot, row.file), { force: true }, () => undefined);
     }

@@ -5,7 +5,7 @@
 
 import {
   Campaign, CommercialDeal, ContractingCompliance, Creator, CreatorDocument,
-  DealCreatorShare, DealDocument, DropOff, EmployeeWeeklyReport, EventInvite,
+  CreatorInvoice, DealCreatorShare, DealDocument, DropOff, EmployeeWeeklyReport, EventInvite,
   SocialMediaSnapshot,
 } from '../entities';
 
@@ -45,6 +45,29 @@ export function creatorDocumentDto(d: CreatorDocument) {
     label: d.label,
     file: d.file ? `/media/${d.file}` : '',
     uploaded_at: ts(d.uploadedAt),
+  };
+}
+
+export function creatorInvoiceDto(invoice: CreatorInvoice) {
+  return {
+    id: Number(invoice.id),
+    deal: Number(invoice.dealId),
+    campaign_id: num(invoice.deal?.campaignId),
+    campaign_name: invoice.deal?.campaign?.name ?? null,
+    brand: invoice.deal?.brand ?? '',
+    creator: Number(invoice.creatorId),
+    creator_name: invoice.creator?.name ?? '',
+    invoice_number: invoice.invoiceNumber,
+    invoice_date: invoice.invoiceDate,
+    invoice_amount: invoice.invoiceAmount,
+    payment_status: invoice.paymentStatus,
+    payment_cycle: invoice.paymentCycle,
+    payment_date: invoice.paymentDate,
+    label: invoice.label,
+    file: invoice.file ? `/media/${invoice.file}` : '',
+    uploaded_at: ts(invoice.uploadedAt),
+    updated_at: ts(invoice.updatedAt),
+    version: invoice.version,
   };
 }
 
@@ -90,6 +113,7 @@ export function shareDto(s: DealCreatorShare) {
     agency_fee_pct: s.agencyFeePct,
     agency_fee_inr: s.agencyFeeInr,
     creator_fee: s.creatorFee,
+    ro_number: s.roNumber,
   };
 }
 

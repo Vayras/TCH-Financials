@@ -2,7 +2,10 @@
 
 import * as React from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { type Deal, type DealDocument } from '@/lib/api';
+import { type Deal, type DealDocument, type CreatorInvoice } from '@/lib/api';
+import Link from 'next/link';
+import { toast } from 'sonner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { cn, formatDocDate, inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import { creatorLabel, creatorNamesOf } from '@/lib/deals';
@@ -19,9 +22,13 @@ import Label from '@/components/ui/Label';
 import Dialog from '@/components/ui/Dialog';
 import MetricCard from '@/components/MetricCard';
 import DataTable from '@/components/DataTable';
+import PageHeader from '@/components/PageHeader';
+import FilterToolbar from '@/components/FilterToolbar';
+import QueryErrorState from '@/components/QueryErrorState';
 import {
 	useDealsQuery,
 	useDealDocumentsQuery,
+	useCreatorInvoicesQuery,
 	useMarkPaidMutation,
 	useUploadInvoiceMutation
 } from './queries';
@@ -65,10 +72,11 @@ function InvoiceTag({
 export default function PaymentsPage() {
 	const { fyStart } = useFiscalYear();
 
-	const { data: rows = [], isLoading: dealsLoading, error: dealsError } = useDealsQuery(fyStart);
+	const { data: rows = [], isLoading: dealsLoading, error: dealsError, refetch: refetchDeals } = useDealsQuery(fyStart);
 	const { data: docs = [], isLoading: docsLoading } = useDealDocumentsQuery();
+	const { data: creatorInvoices = [], isLoading: creatorInvoicesLoading } = useCreatorInvoicesQuery();
 
-	const loading = dealsLoading || docsLoading;
+	const loading = dealsLoading || docsLoading || creatorInvoicesLoading;
 	const error = dealsError ? dealsError.message : null;
 
 	const markPaidMutation = useMarkPaidMutation(fyStart);
@@ -79,8 +87,8 @@ export default function PaymentsPage() {
 	const [uploadOpen, setUploadOpen] = React.useState(false);
 	const [uploadDeal, setUploadDeal] = React.useState<Deal | null>(null);
 	const [clientFile, setClientFile] = React.useState<File | null>(null);
-	const [creatorFile, setCreatorFile] = React.useState<File | null>(null);
 	const [saving, setSaving] = React.useState(false);
+	const [confirmPaidDeal, setConfirmPaidDeal] = React.useState<Deal | null>(null);
 
 	// Completed campaigns are the payments universe — they appear the moment
 	// they're marked completed, and stay until every invoice is in and cleared.
@@ -97,10 +105,15 @@ export default function PaymentsPage() {
 		}
 		return map;
 	}, [docs]);
+	const creatorInvoicesByDeal = React.useMemo(() => {
+		const map = new Map<number, CreatorInvoice[]>();
+		for (const invoice of creatorInvoices) map.set(invoice.deal, [...(map.get(invoice.deal) ?? []), invoice]);
+		return map;
+	}, [creatorInvoices]);
 
 	const statusOf = React.useCallback(
-		(deal: Deal): PaymentStatus => paymentStatusOf(deal, docsByDeal.get(deal.id) ?? [], today),
-		[docsByDeal, today]
+		(deal: Deal): PaymentStatus => paymentStatusOf(deal, docsByDeal.get(deal.id) ?? [], today, creatorInvoicesByDeal.get(deal.id) ?? []),
+		[docsByDeal, creatorInvoicesByDeal, today]
 	);
 
 	const metrics = React.useMemo(() => {
@@ -136,7 +149,6 @@ export default function PaymentsPage() {
 	function startUpload(deal: Deal) {
 		setUploadDeal(deal);
 		setClientFile(null);
-		setCreatorFile(null);
 		setUploadOpen(true);
 	}
 
@@ -147,7 +159,7 @@ export default function PaymentsPage() {
 
 	async function saveUpload() {
 		if (!uploadDeal) return;
-		if (!clientFile && !creatorFile) {
+		if (!clientFile) {
 			closeUpload();
 			return;
 		}
@@ -156,11 +168,12 @@ export default function PaymentsPage() {
 			await uploadInvoiceMutation.mutateAsync({
 				dealId: uploadDeal.id,
 				clientFile,
-				creatorFile
+				creatorFile: null
 			});
 			closeUpload();
+			toast.success('Client invoice uploaded.');
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Invoice could not be uploaded.', { description: (e as Error).message });
 		} finally {
 			setSaving(false);
 		}
@@ -169,11 +182,12 @@ export default function PaymentsPage() {
 	async function markPaid(deal: Deal) {
 		const amount = deal.creator_invoice_amount || deal.creator_fee;
 		const creatorName = creatorLabel(creatorNamesOf(deal));
-		if (!confirm(`Mark ₹${inr(amount) || amount || '0'} to ${creatorName} as paid?`)) return;
 		try {
 			await markPaidMutation.mutateAsync({ id: deal.id, version: deal.version });
+			setConfirmPaidDeal(null);
+			toast.success(`Payment to ${creatorName} marked as paid.`);
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Payment could not be updated.', { description: (e as Error).message });
 		}
 	}
 
@@ -219,12 +233,13 @@ export default function PaymentsPage() {
 					const deal = row.original;
 					const docsForDeal = docsByDeal.get(deal.id) ?? [];
 					const clientDoc = docsForDeal.find((d) => d.doc_type === 'ClientInvoice');
-					const creatorDoc = docsForDeal.find((d) => d.doc_type === 'CreatorInvoice');
+					const creatorCount = creatorInvoicesByDeal.get(deal.id)?.length ?? 0;
+					const requiredCount = deal.creator_shares?.length || (deal.creator ? 1 : 0);
 					const received = deal.invoice_received === 'Y';
 					return (
 						<div className="flex gap-1">
 							<InvoiceTag label="Client" doc={clientDoc} fallbackYes={received} />
-							<InvoiceTag label="Creator" doc={creatorDoc} fallbackYes={received} />
+							<Tag tone={creatorCount >= requiredCount ? 'yes' : 'no'}>Creators {creatorCount}/{requiredCount}</Tag>
 						</div>
 					);
 				}
@@ -263,7 +278,7 @@ export default function PaymentsPage() {
 								Upload
 							</Button>
 							{canMarkPaid && (
-								<Button variant="primary" onClick={() => markPaid(deal)}>
+								<Button variant="primary" onClick={() => setConfirmPaidDeal(deal)}>
 									Mark paid
 								</Button>
 							)}
@@ -272,7 +287,7 @@ export default function PaymentsPage() {
 				}
 			}
 		],
-		[docsByDeal, statusOf]
+		[docsByDeal, creatorInvoicesByDeal, statusOf]
 	);
 
 	const existingDocs = uploadDeal ? (docsByDeal.get(uploadDeal.id) ?? []) : [];
@@ -280,11 +295,7 @@ export default function PaymentsPage() {
 	return (
 		<>
 			<section className="space-y-6">
-				<header className="flex items-end justify-between flex-wrap gap-3">
-					<h1 className="page-title text-[28px] leading-[1.2] font-bold" style={{ color: 'var(--n-fg)' }}>
-						Payments
-					</h1>
-				</header>
+				<PageHeader title="Payments" description="Track invoice readiness, payment deadlines, and cleared campaigns." />
 
 				<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
 					<MetricCard
@@ -300,34 +311,21 @@ export default function PaymentsPage() {
 					<MetricCard label="Cleared" value={metrics.clearedCount} />
 				</div>
 
-				<div className="seg-toggle flex-wrap">
-					{FILTER_OPTIONS.map((f) => (
-						<button
-							key={f.key}
-							type="button"
-							className={cn(statusFilter === f.key && 'active')}
-							onClick={() => setStatusFilter(f.key)}
-						>
-							{f.label}
-						</button>
-					))}
-				</div>
+				<FilterToolbar resultCount={filtered.length} resultLabel={filtered.length === 1 ? 'payment' : 'payments'}>
+					<div className="seg-toggle flex-wrap">
+						{FILTER_OPTIONS.map((f) => (
+							<button key={f.key} type="button" className={cn(statusFilter === f.key && 'active')} onClick={() => setStatusFilter(f.key)}>{f.label}</button>
+						))}
+					</div>
+				</FilterToolbar>
 
-				{loading ? (
-					<div className="text-[14px] py-8 text-center" style={{ color: 'var(--n-fg-subtle)' }}>
-						Loading…
-					</div>
-				) : error ? (
-					<div
-						className="text-[14px] rounded p-3"
-						style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
-					>
-						Error: {error}
-					</div>
+				{error ? (
+					<QueryErrorState description="Payment information is temporarily unavailable." onRetry={() => refetchDeals()} />
 				) : (
 					<DataTable
 						data={filtered}
 						columns={columns}
+						loading={loading}
 						numbered
 						emptyMessage="No completed campaigns match."
 					/>
@@ -352,7 +350,7 @@ export default function PaymentsPage() {
 						</Button>
 						<Button
 							variant="primary"
-							disabled={saving || (!clientFile && !creatorFile)}
+							disabled={saving || !clientFile}
 							onClick={saveUpload}
 						>
 							{saving ? 'Uploading…' : 'Upload'}
@@ -362,7 +360,7 @@ export default function PaymentsPage() {
 			>
 				{uploadDeal && (
 					<div className="space-y-4">
-						<div className="grid grid-cols-2 gap-3">
+						<div className="space-y-3">
 							<div>
 								<Label>Client invoice (TCH → Client)</Label>
 								<input
@@ -372,15 +370,9 @@ export default function PaymentsPage() {
 									className="block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
 								/>
 							</div>
-							<div>
-								<Label>Creator (influencer) invoice</Label>
-								<input
-									type="file"
-									accept="image/*,application/pdf"
-									onChange={(e) => setCreatorFile(e.target.files?.[0] ?? null)}
-									className="block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
-								/>
-							</div>
+							<p className="text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>
+								Creator invoices are uploaded individually on the <Link className="inline-link" href={`/commercial/${uploadDeal.id}`}>campaign page</Link>.
+							</p>
 						</div>
 
 						{existingDocs.length > 0 && (
@@ -417,6 +409,7 @@ export default function PaymentsPage() {
 					</div>
 				)}
 			</Dialog>
+			<ConfirmDialog open={confirmPaidDeal !== null} onOpenChange={(value) => { if (!value) setConfirmPaidDeal(null); }} title="Mark payment as paid?" description={confirmPaidDeal ? `Confirm payment of ₹${inr(confirmPaidDeal.creator_invoice_amount || confirmPaidDeal.creator_fee) || '0'} to ${creatorLabel(creatorNamesOf(confirmPaidDeal))}.` : ''} confirmLabel="Mark paid" pending={markPaidMutation.isPending} onConfirm={() => { if (confirmPaidDeal) return markPaid(confirmPaidDeal); }} />
 		</>
 	);
 }

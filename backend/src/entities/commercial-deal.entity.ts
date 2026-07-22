@@ -19,6 +19,17 @@ export class CommercialDeal {
   @Column({ name: 'e_invoice_date', type: 'date', nullable: true })
   eInvoiceDate: string | null;
 
+  // Queryable denormalisation of the billing period. Kept in sync on every
+  // deal write so FY/month filtering and pagination can happen in Postgres.
+  @Column({ name: 'billing_period', type: 'date', nullable: true })
+  billingPeriod: string | null;
+
+  @Column({ name: 'billing_fy_start', type: 'int', nullable: true })
+  billingFyStart: number | null;
+
+  @Column({ name: 'billing_month', type: 'smallint', nullable: true })
+  billingMonth: number | null;
+
   @Column({ name: 'creator_id', type: 'bigint', nullable: true })
   creatorId: string | null;
 

@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import { toast } from 'sonner';
+import PageHeader from '@/components/PageHeader';
 import { type AlertItem, type AlertSeverity } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
@@ -106,8 +108,9 @@ export default function AlertsPage() {
 		setBusy(true);
 		try {
 			await dismissMutation.mutateAsync(keys);
+			toast.success(keys.length === 1 ? 'Alert dismissed.' : `${keys.length} alerts dismissed.`);
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Alerts could not be dismissed.', { description: (e as Error).message });
 		} finally {
 			setBusy(false);
 		}
@@ -117,8 +120,9 @@ export default function AlertsPage() {
 		setBusy(true);
 		try {
 			await restoreAllMutation.mutateAsync();
+			toast.success('Dismissed alerts restored.');
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Alerts could not be restored.', { description: (e as Error).message });
 		} finally {
 			setBusy(false);
 		}
@@ -137,24 +141,10 @@ export default function AlertsPage() {
 
 	return (
 		<section className="space-y-6">
-			<header className="space-y-2">
-				<div
-					className="text-[12px] font-medium uppercase"
-					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
-				>
-					Workspace · Alerts
-				</div>
-				<h1
-					className="page-title text-[28px] leading-[1.2] font-bold"
-					style={{ color: 'var(--n-fg)' }}
-				>
-					Intelligence Alerts
-				</h1>
-				<p className="text-[15px] max-w-[720px]" style={{ color: 'var(--n-fg-muted)' }}>
+			<PageHeader eyebrow="Workspace · Alerts" title="Intelligence Alerts" description={<>
 					Formula-derived signals from Commercial Tracking, Creators, and Documents. No AI — just
 					thresholds applied to the live database, recomputed on every load.
-				</p>
-			</header>
+				</>} />
 
 			<div
 				className="flex flex-wrap items-center gap-2 pb-3"

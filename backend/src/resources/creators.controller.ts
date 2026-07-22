@@ -1,6 +1,6 @@
 import {
   BadRequestException, Body, Controller, Delete, Get, HttpCode,
-  NotFoundException, Param, Patch, Post, Put,
+  NotFoundException, Param, Patch, Post, Put, Query,
 } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -8,6 +8,7 @@ import { applyMapped, rethrowUnique } from '../common/apply';
 import { isBlank } from '../common/decimal';
 import { creatorDto } from '../common/serializers';
 import { versionedUpdate } from '../common/versioned-update';
+import { paginationParams } from '../common/pagination';
 import { Creator } from '../entities';
 
 const FIELDS = {
@@ -77,9 +78,48 @@ export class CreatorsController {
   }
 
   @Get()
-  async list() {
-    const rows = await this.repo().find({ order: { name: 'ASC' } });
-    return rows.map(creatorDto);
+  async list(
+    @Query('page') page?: string,
+    @Query('page_size') pageSize?: string,
+    @Query('search') search?: string,
+    @Query('relationship') relationship?: string,
+    @Query('status') status?: string,
+    @Query('sort_by') sortBy?: string,
+    @Query('sort_order') sortOrder?: string,
+  ) {
+    const pagination = paginationParams(page, pageSize);
+    const qb = this.repo().createQueryBuilder('creator');
+    if (search?.trim()) {
+      qb.andWhere(`(
+        creator.name ILIKE :search OR creator.category ILIKE :search OR
+        creator.ops_manager ILIKE :search OR creator.location ILIKE :search
+      )`, { search: `%${search.trim()}%` });
+    }
+    if (relationship) qb.andWhere('creator.relationship = :relationship', { relationship });
+    if (status) qb.andWhere('creator.status = :status', { status });
+
+    const sortMap: Record<string, string> = {
+      name: 'creator.name', category: 'creator.category', relationship: 'creator.relationship',
+      status: 'creator.status', doj: 'creator.doj', location: 'creator.location',
+      ops_manager: 'creator.opsManager', created_at: 'creator.createdAt',
+    };
+    const sortKey = sortBy ?? 'name';
+    if (!sortMap[sortKey]) {
+      throw new BadRequestException({ detail: `sort_by must be one of: ${Object.keys(sortMap).join(', ')}.` });
+    }
+    const requestedOrder = (sortOrder ?? 'asc').toLowerCase();
+    if (requestedOrder !== 'asc' && requestedOrder !== 'desc') {
+      throw new BadRequestException({ detail: 'sort_order must be asc or desc.' });
+    }
+    qb.orderBy(sortMap[sortKey], requestedOrder.toUpperCase() as 'ASC' | 'DESC').addOrderBy('creator.id', 'ASC');
+
+    if (!pagination.requested) return (await qb.getMany()).map(creatorDto);
+    const total = await qb.getCount();
+    const rows = await qb.skip((pagination.page - 1) * pagination.pageSize).take(pagination.pageSize).getMany();
+    return {
+      items: rows.map(creatorDto), page: pagination.page, page_size: pagination.pageSize,
+      total, total_pages: Math.max(1, Math.ceil(total / pagination.pageSize)), summary: {},
+    };
   }
 
   @Get(':id')
