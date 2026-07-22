@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import PageHeader from '@/components/PageHeader';
 import { type AlertItem, type AlertSeverity } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
@@ -137,24 +138,10 @@ export default function AlertsPage() {
 
 	return (
 		<section className="space-y-6">
-			<header className="space-y-2">
-				<div
-					className="text-[12px] font-medium uppercase"
-					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
-				>
-					Workspace · Alerts
-				</div>
-				<h1
-					className="page-title text-[28px] leading-[1.2] font-bold"
-					style={{ color: 'var(--n-fg)' }}
-				>
-					Intelligence Alerts
-				</h1>
-				<p className="text-[15px] max-w-[720px]" style={{ color: 'var(--n-fg-muted)' }}>
+			<PageHeader eyebrow="Workspace · Alerts" title="Intelligence Alerts" description={<>
 					Formula-derived signals from Commercial Tracking, Creators, and Documents. No AI — just
 					thresholds applied to the live database, recomputed on every load.
-				</p>
-			</header>
+				</>} />
 
 			<div
 				className="flex flex-wrap items-center gap-2 pb-3"

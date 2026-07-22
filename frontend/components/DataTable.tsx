@@ -11,6 +11,7 @@ import {
 	type SortingState
 } from '@tanstack/react-table';
 import { cn } from '@/lib/utils';
+import Pagination from '@/components/Pagination';
 
 declare module '@tanstack/react-table' {
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -30,15 +31,25 @@ export interface DataTableProps<T> {
 	/** Prepend a "#" column numbered by display order (follows sorting). */
 	numbered?: boolean;
 	emptyMessage?: string;
+	loading?: boolean;
+	pageSize?: number;
+	pagination?: boolean;
+	rowOffset?: number;
 }
 
 export function DataTable<T>({
 	data,
 	columns,
 	numbered = false,
-	emptyMessage = 'No rows.'
+	emptyMessage = 'No rows.',
+	loading = false,
+	pageSize: initialPageSize = 25,
+	pagination = true,
+	rowOffset = 0
 }: DataTableProps<T>) {
 	const [sorting, setSorting] = React.useState<SortingState>([]);
+	const [page, setPage] = React.useState(1);
+	const [pageSize, setPageSize] = React.useState(initialPageSize);
 
 	const table = useReactTable({
 		data,
@@ -49,11 +60,15 @@ export function DataTable<T>({
 		getSortedRowModel: getSortedRowModel()
 	});
 
-	const rows = table.getRowModel().rows;
+	const allRows = table.getRowModel().rows;
+	const pages = Math.max(1, Math.ceil(allRows.length / pageSize));
+	React.useEffect(() => setPage(1), [data, sorting, pageSize]);
+	React.useEffect(() => { if (page > pages) setPage(pages); }, [page, pages]);
+	const rows = pagination ? allRows.slice((page - 1) * pageSize, page * pageSize) : allRows;
 	const colCount = table.getVisibleLeafColumns().length + (numbered ? 1 : 0);
 
 	return (
-		<div className="tbl-card">
+		<div className="tbl-card" aria-busy={loading}>
 			<div className="scroll-x">
 				<table className="grid-table">
 					<thead>
@@ -83,11 +98,15 @@ export function DataTable<T>({
 						))}
 					</thead>
 					<tbody>
-						{rows.map((row, i) => (
+						{loading ? Array.from({ length: 6 }).map((_, i) => (
+							<tr key={`skeleton-${i}`} className="table-skeleton-row" aria-hidden="true">
+								<td colSpan={colCount}><span /></td>
+							</tr>
+						)) : rows.map((row, i) => (
 							<tr key={row.id}>
 								{numbered && (
 									<td className="num" style={{ color: 'var(--n-fg-subtle)' }}>
-										{i + 1}
+										{rowOffset + (page - 1) * pageSize + i + 1}
 									</td>
 								)}
 								{row.getVisibleCells().map((cell) => (
@@ -101,7 +120,7 @@ export function DataTable<T>({
 								))}
 							</tr>
 						))}
-						{rows.length === 0 && (
+						{!loading && rows.length === 0 && (
 							<tr>
 								<td
 									colSpan={colCount}
@@ -115,6 +134,9 @@ export function DataTable<T>({
 					</tbody>
 				</table>
 			</div>
+			{!loading && pagination && allRows.length > 0 && (
+				<Pagination page={page} pageSize={pageSize} total={allRows.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
+			)}
 		</div>
 	);
 }

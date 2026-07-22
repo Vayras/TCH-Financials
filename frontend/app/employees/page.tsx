@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import PageHeader from '@/components/PageHeader';
+import QueryErrorState from '@/components/QueryErrorState';
 import { ConflictError, type EmployeeReport } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import Button from '@/components/ui/Button';
@@ -30,7 +32,7 @@ const EMPTY_FORM: EmployeeForm = {
 };
 
 export default function EmployeesPage() {
-	const { data: rows = [], isLoading: loading, error: queryError } = useEmployeeReportsQuery();
+	const { data: rows = [], isLoading: loading, error: queryError, refetch } = useEmployeeReportsQuery();
 	const createMutation = useCreateEmployeeReportMutation();
 	const updateMutation = useUpdateEmployeeReportMutation();
 	const deleteMutation = useDeleteEmployeeReportMutation();
@@ -147,34 +149,12 @@ export default function EmployeesPage() {
 	return (
 		<>
 			<section className="space-y-6">
-				<header className="space-y-2">
-					<div
-						className="text-[12px] font-medium uppercase"
-						style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
-					>
-						Workspace · Employees
-					</div>
-					<div className="flex items-end justify-between flex-wrap gap-3">
-						<div>
-							<h1
-								className="page-title text-[28px] leading-[1.2] font-bold"
-								style={{ color: 'var(--n-fg)' }}
-							>
-								Weekly Reports
-							</h1>
-							<p
-								className="text-[15px] max-w-[640px] mt-2"
-								style={{ color: 'var(--n-fg-muted)' }}
-							>
+				<PageHeader eyebrow="Workspace · Employees" title="Weekly Reports" description={<>
 								Weekly performance log per employee — outreach, confirmations, revenue, and live
 								campaigns.
-							</p>
-						</div>
-						<Button variant="primary" onClick={startAdd}>
+							</>} actions={<Button variant="primary" onClick={startAdd}>
 							<Icon name="plus" size={14} /> Add Weekly Report
-						</Button>
-					</div>
-				</header>
+						</Button>} />
 
 				<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
 					<div
@@ -271,12 +251,7 @@ export default function EmployeesPage() {
 						Loading…
 					</div>
 				) : error ? (
-					<div
-						className="text-[14px] rounded p-3"
-						style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
-					>
-						Error: {error}
-					</div>
+					<QueryErrorState description="Weekly reports are temporarily unavailable." onRetry={() => refetch()} />
 				) : (
 					<>
 						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -300,7 +275,7 @@ export default function EmployeesPage() {
 										</div>
 										<div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
 											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Revenue</div><div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{inr(group.revenue)}</div></div>
-											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Profit</div><div className="font-semibold tabular-nums" style={{ color: '#1f6f43' }}>{inr(group.profit)}</div></div>
+											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Profit</div><div className="font-semibold tabular-nums" style={{ color: 'var(--color-success)' }}>{inr(group.profit)}</div></div>
 											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Outreach</div><div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{group.outreach}</div></div>
 											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Live</div><div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{group.live}</div></div>
 										</div>

@@ -180,7 +180,7 @@ export function CreatorFormModal({
 						placeholder="Saili Satwe"
 					/>
 					{errors.name && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+						<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 							{errors.name.message}
 						</div>
 					)}
@@ -192,7 +192,7 @@ export function CreatorFormModal({
 						placeholder="Lifestyle / Fashion"
 					/>
 					{errors.niche && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+						<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 							{errors.niche.message}
 						</div>
 					)}
@@ -205,7 +205,7 @@ export function CreatorFormModal({
 						placeholder="Select relation…"
 					/>
 					{errors.relation && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+						<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 							{errors.relation.message}
 						</div>
 					)}
@@ -221,7 +221,7 @@ export function CreatorFormModal({
 							placeholder="Select status…"
 						/>
 						{errors.status && (
-							<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+							<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 								{errors.status.message}
 							</div>
 						)}
@@ -237,7 +237,7 @@ export function CreatorFormModal({
 							})}
 						/>
 						{errors.doj && (
-							<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+							<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 								{errors.doj.message}
 							</div>
 						)}
@@ -250,7 +250,7 @@ export function CreatorFormModal({
 						placeholder="Mumbai"
 					/>
 					{errors.location && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+						<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 							{errors.location.message}
 						</div>
 					)}
@@ -262,7 +262,7 @@ export function CreatorFormModal({
 						placeholder="Arzoo / Akshita"
 					/>
 					{errors.talent_manager && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+						<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 							{errors.talent_manager.message}
 						</div>
 					)}
@@ -287,7 +287,7 @@ export function CreatorFormModal({
 						</Button>
 					</div>
 					{(urlError || errors.url) && (
-						<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+						<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 							{urlError ?? 'URL cannot be empty'}
 						</div>
 					)}
@@ -376,7 +376,7 @@ export function CreatorFormModal({
 									className="block w-full text-[12.5px] file:mr-2 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-2 file:py-1 file:text-[12.5px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
 								/>
 								{errors.attachments?.[slot.key] && (
-									<div className="text-[12px] mt-1" style={{ color: '#b91c1c' }}>
+									<div className="text-[12px] mt-1" style={{ color: 'var(--color-danger)' }}>
 										{errors.attachments[slot.key]?.message}
 									</div>
 								)}
@@ -387,7 +387,7 @@ export function CreatorFormModal({
 				{error && (
 					<div
 						className="col-span-2 text-[12px] rounded p-2"
-						style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
+						style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid var(--color-danger-border)' }}
 					>
 						{error}
 					</div>

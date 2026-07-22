@@ -1,6 +1,8 @@
 'use client';
 
 import * as React from 'react';
+import PageHeader from '@/components/PageHeader';
+import QueryErrorState from '@/components/QueryErrorState';
 import { type EntityRow } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import Button from '@/components/ui/Button';
@@ -82,24 +84,10 @@ export default function EntitySummaryPage() {
 
 	return (
 		<section className="space-y-6">
-			<header className="space-y-2">
-				<div
-					className="text-[12px] font-medium uppercase"
-					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
-				>
-					Workspace · Entity Summary · {fyLabelFor(fy)}
-				</div>
-				<h1
-					className="page-title text-[28px] leading-[1.2] font-bold"
-					style={{ color: 'var(--n-fg)' }}
-				>
-					Billing Entity Summary
-				</h1>
-				<p className="text-[15px] max-w-[640px]" style={{ color: 'var(--n-fg-muted)' }}>
+			<PageHeader eyebrow={<>Workspace · Entity Summary · {fyLabelFor(fy)}</>} title="Billing Entity Summary" description={<>
 					Total billing and TCH profit grouped by billing entity. Auto-calculated from
 					Commercial Tracking. Use the period selector to drill into a quarter or month.
-				</p>
-			</header>
+				</>} />
 
 			{/* Toolbar */}
 			<div
@@ -192,12 +180,7 @@ export default function EntitySummaryPage() {
 					Loading…
 				</div>
 			) : error ? (
-				<div
-					className="text-[14px] rounded p-3"
-					style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
-				>
-					Error: {error.message}
-				</div>
+				<QueryErrorState description="The entity summary could not be loaded right now." onRetry={() => refetch()} />
 			) : data ? (
 				<div className="tbl-card">
 					<div className="scroll-x">
@@ -230,7 +213,7 @@ export default function EntitySummaryPage() {
 											</td>
 											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>{row.deal_count}</td>
 											<td className="num tabular-nums" style={{ color: 'var(--n-fg)' }}>{inr(row.total_billing)}</td>
-											<td className="num font-semibold tabular-nums" style={{ color: '#1f6f43' }}>{inr(row.total_profit)}</td>
+											<td className="num font-semibold tabular-nums" style={{ color: 'var(--color-success)' }}>{inr(row.total_profit)}</td>
 											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>{profitPct(row.total_billing, row.total_profit)}</td>
 											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>{row.campaign_count}</td>
 											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>{row.creator_count}</td>
@@ -253,7 +236,7 @@ export default function EntitySummaryPage() {
 										<td>Grand Total</td>
 										<td className="num">{data.entities.reduce((a, r) => a + r.deal_count, 0)}</td>
 										<td className="num">{inr(data.grand_total_billing)}</td>
-										<td className="num" style={{ color: '#1f6f43' }}>{inr(data.grand_total_profit)}</td>
+										<td className="num" style={{ color: 'var(--color-success)' }}>{inr(data.grand_total_profit)}</td>
 										<td className="num">{profitPct(data.grand_total_billing, data.grand_total_profit)}</td>
 										<td colSpan={3} />
 									</tr>

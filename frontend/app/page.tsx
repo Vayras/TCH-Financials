@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import BillingBarChart from '@/components/BillingBarChart';
 import MetricCard from '@/components/MetricCard';
+import PageHeader from '@/components/PageHeader';
+import QueryErrorState from '@/components/QueryErrorState';
 import { useOverviewQuery, useOverviewCreatorsQuery } from './queries';
 
 const STATUS_DOT: Record<string, string> = {
@@ -58,24 +60,10 @@ export default function OverviewPage() {
 
 	return (
 		<section className="space-y-6">
-			<header className="space-y-2">
-				<div
-					className="text-[12px] font-medium uppercase"
-					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
-				>
-					Dashboard · {fyLabelFor(fyStart)}
-				</div>
-				<h1
-					className="page-title text-[28px] leading-[1.2] font-bold"
-					style={{ color: 'var(--n-fg)' }}
-				>
-					Current Overview
-				</h1>
-				<p className="text-[15px] max-w-[640px]" style={{ color: 'var(--n-fg-muted)' }}>
+			<PageHeader eyebrow={<>Dashboard · {fyLabelFor(fyStart)}</>} title="Current Overview" description={<>
 					Total billing by campaign, derived live from Campaign Tracking. Each deal lands in the
 					fiscal year and month of its E-Invoice No (e.g. TCH/2526/Dec01 → Dec, FY 25-26).
-				</p>
-			</header>
+				</>} />
 
 			{data && (
 				<div className="space-y-6">
@@ -222,12 +210,7 @@ export default function OverviewPage() {
 					Loading…
 				</div>
 			) : error ? (
-				<div
-					className="text-[14px] rounded p-3"
-					style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
-				>
-					Error: {error}
-				</div>
+				<QueryErrorState description="The overview could not be loaded right now." onRetry={() => refetch()} />
 			) : data && src ? (
 				<div className="space-y-6">
 					{/* Billing Chart */}
@@ -247,7 +230,7 @@ export default function OverviewPage() {
 
 					{/* Campaign Details Table */}
 					<div className="tbl-card">
-						<div className="scroll-x">
+						<div className="scroll-x overview-matrix-scroll">
 							<table className="grid-table with-sticky-first">
 								<thead>
 									<tr>

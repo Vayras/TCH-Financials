@@ -19,6 +19,9 @@ import Label from '@/components/ui/Label';
 import Dialog from '@/components/ui/Dialog';
 import MetricCard from '@/components/MetricCard';
 import DataTable from '@/components/DataTable';
+import PageHeader from '@/components/PageHeader';
+import FilterToolbar from '@/components/FilterToolbar';
+import QueryErrorState from '@/components/QueryErrorState';
 import {
 	useDealsQuery,
 	useDealDocumentsQuery,
@@ -65,7 +68,7 @@ function InvoiceTag({
 export default function PaymentsPage() {
 	const { fyStart } = useFiscalYear();
 
-	const { data: rows = [], isLoading: dealsLoading, error: dealsError } = useDealsQuery(fyStart);
+	const { data: rows = [], isLoading: dealsLoading, error: dealsError, refetch: refetchDeals } = useDealsQuery(fyStart);
 	const { data: docs = [], isLoading: docsLoading } = useDealDocumentsQuery();
 
 	const loading = dealsLoading || docsLoading;
@@ -280,11 +283,7 @@ export default function PaymentsPage() {
 	return (
 		<>
 			<section className="space-y-6">
-				<header className="flex items-end justify-between flex-wrap gap-3">
-					<h1 className="page-title text-[28px] leading-[1.2] font-bold" style={{ color: 'var(--n-fg)' }}>
-						Payments
-					</h1>
-				</header>
+				<PageHeader title="Payments" description="Track invoice readiness, payment deadlines, and cleared campaigns." />
 
 				<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
 					<MetricCard
@@ -300,34 +299,21 @@ export default function PaymentsPage() {
 					<MetricCard label="Cleared" value={metrics.clearedCount} />
 				</div>
 
-				<div className="seg-toggle flex-wrap">
-					{FILTER_OPTIONS.map((f) => (
-						<button
-							key={f.key}
-							type="button"
-							className={cn(statusFilter === f.key && 'active')}
-							onClick={() => setStatusFilter(f.key)}
-						>
-							{f.label}
-						</button>
-					))}
-				</div>
+				<FilterToolbar resultCount={filtered.length} resultLabel={filtered.length === 1 ? 'payment' : 'payments'}>
+					<div className="seg-toggle flex-wrap">
+						{FILTER_OPTIONS.map((f) => (
+							<button key={f.key} type="button" className={cn(statusFilter === f.key && 'active')} onClick={() => setStatusFilter(f.key)}>{f.label}</button>
+						))}
+					</div>
+				</FilterToolbar>
 
-				{loading ? (
-					<div className="text-[14px] py-8 text-center" style={{ color: 'var(--n-fg-subtle)' }}>
-						Loading…
-					</div>
-				) : error ? (
-					<div
-						className="text-[14px] rounded p-3"
-						style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
-					>
-						Error: {error}
-					</div>
+				{error ? (
+					<QueryErrorState description="Payment information is temporarily unavailable." onRetry={() => refetchDeals()} />
 				) : (
 					<DataTable
 						data={filtered}
 						columns={columns}
+						loading={loading}
 						numbered
 						emptyMessage="No completed campaigns match."
 					/>
