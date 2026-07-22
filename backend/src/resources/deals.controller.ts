@@ -6,7 +6,8 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
 import { applyMapped } from '../common/apply';
 import { D, isBlank, normalisePct } from '../common/decimal';
-import { billingPeriod, fiscalYearOf } from '../common/fy';
+import { syncBillingPeriod } from '../common/fy';
+import { csvValues, paginationParams } from '../common/pagination';
 import { dealDto } from '../common/serializers';
 import { versionedUpdate } from '../common/versioned-update';
 import { Campaign, CommercialDeal, DealCreatorShare } from '../entities';
@@ -53,10 +54,6 @@ const REQUIRED: Record<string, string> = {
   confirmation_date: 'Confirmation Date',
   direction: 'Direction',
   tch_poc: 'TCH POC',
-  total_fee: 'Total Fee',
-  agency_fee_pct: 'Agency Fee %',
-  agency_fee_inr: 'Agency Fee (INR)',
-  creator_fee: 'Creator Fee',
   brand: 'Brand',
   brand_poc: 'POC Email',
   campaign: 'Campaign',
@@ -72,6 +69,7 @@ interface SharePayload {
   agency_fee_pct?: unknown;
   agency_fee_inr?: unknown;
   creator_fee?: unknown;
+  ro_number?: unknown;
 }
 
 @Controller('deals')
@@ -99,9 +97,8 @@ export class DealsController {
     instance: CommercialDeal | null,
     manager: EntityManager,
   ): Promise<{ campaignId: string | null }> {
-    const creator = body.creator ?? instance?.creatorId ?? null;
-    if (isBlank(creator)) {
-      throw new BadRequestException({ creator: ['Pick a creator from the master list.'] });
+    if ('creator' in body) {
+      body.creator = isBlank(body.creator) ? null : Number(body.creator);
     }
     body.creator_name_raw = '';
     if ('agency_fee_pct' in body) {
@@ -200,52 +197,182 @@ export class DealsController {
   ): Promise<void> {
     const repo = manager.getRepository(DealCreatorShare);
     await repo.delete({ dealId });
-    for (const s of shares) {
-      await repo.save(
-        repo.create({
-          dealId,
-          creatorId: String(s.creator),
-          creatorNameRaw: '',
-          totalFee: String(s.total_fee ?? '0') || '0',
-          agencyFeePct: String(s.agency_fee_pct ?? '0') || '0',
-          agencyFeeInr: String(s.agency_fee_inr ?? '0') || '0',
-          creatorFee: String(s.creator_fee ?? '0') || '0',
-        }),
-      );
-    }
+    if (shares.length === 0) return;
+    const entities = shares.map((s) =>
+      repo.create({
+        dealId,
+        creatorId: String(s.creator),
+        creatorNameRaw: '',
+        totalFee: String(s.total_fee ?? '0') || '0',
+        agencyFeePct: String(s.agency_fee_pct ?? '0') || '0',
+        agencyFeeInr: String(s.agency_fee_inr ?? '0') || '0',
+        creatorFee: String(s.creator_fee ?? '0') || '0',
+        roNumber: String(s.ro_number ?? '') || '',
+      }),
+    );
+    await repo.save(entities);
   }
 
   @Get()
-  async list(@Query('fy') fy?: string, @Query('campaign') campaign?: string) {
+  async list(
+    @Query('fy') fy?: string,
+    @Query('campaign') campaign?: string,
+    @Query('page') page?: string,
+    @Query('page_size') pageSize?: string,
+    @Query('search') search?: string,
+    @Query('direction') direction?: string,
+    @Query('creator') creator?: string,
+    @Query('months') months?: string,
+    @Query('sort') sort?: string,
+    @Query('sort_by') sortBy?: string,
+    @Query('sort_order') sortOrder?: string,
+    @Query('group_by') groupBy?: string,
+    @Query('period_only') periodOnly?: string,
+  ) {
+    const pagination = paginationParams(page, pageSize);
     const qb = this.repo()
       .createQueryBuilder('deal')
       .leftJoinAndSelect('deal.creator', 'creator')
       .leftJoinAndSelect('deal.campaign', 'campaign')
       .leftJoinAndSelect('deal.creatorShares', 'share')
       .leftJoinAndSelect('share.creator', 'shareCreator')
-      .orderBy('deal.e_invoice_date', 'ASC', 'NULLS FIRST')
-      .addOrderBy('deal.confirmation_date', 'ASC', 'NULLS FIRST')
-      .addOrderBy('deal.id', 'ASC');
+      // Separate filter joins keep the selected creatorShares collection
+      // complete when a search/creator predicate matches only one share.
+      .leftJoin('deal.creatorShares', 'filterShare')
+      .leftJoin('filterShare.creator', 'filterShareCreator')
+      .distinct(true);
     if (campaign) qb.andWhere('deal.campaign_id = :campaign', { campaign });
-    let rows = await qb.getMany();
-
-    // FY filter runs here, not in SQL: the billing period hides inside the
-    // free-text E-Invoice No. A deal belongs to the FY when either its billing
-    // period or its confirmation date lands there; deals with neither date are
-    // always included so the UI can surface them for backfill.
     const fyStart = fy ? Number(fy) : NaN;
     if (!Number.isNaN(fyStart) && fy) {
-      rows = rows.filter((d) => {
-        const period = billingPeriod(d);
-        const confirmed = d.confirmationDate;
-        if (period === null && confirmed === null) return true;
-        return (
-          (period !== null && fiscalYearOf(period) === fyStart) ||
-          (confirmed !== null && fiscalYearOf(confirmed) === fyStart)
-        );
+      if (periodOnly === '1' || periodOnly === 'true') {
+        qb.andWhere('deal.billing_fy_start = :fyStart', { fyStart });
+      } else {
+        qb.andWhere(`(
+          deal.billing_fy_start = :fyStart OR
+          (deal.confirmation_date >= :fyFrom AND deal.confirmation_date < :fyTo) OR
+          (deal.billing_period IS NULL AND deal.confirmation_date IS NULL)
+        )`, {
+          fyStart,
+          fyFrom: `${fyStart}-04-01`,
+          fyTo: `${fyStart + 1}-04-01`,
+        });
+      }
+    }
+    if (direction) qb.andWhere('deal.direction = :direction', { direction });
+    if (creator) {
+      qb.andWhere('(deal.creator_id = :creator OR filterShare.creator_id = :creator)', { creator });
+    }
+    const monthValues = csvValues(months).map(Number).filter((m) => m >= 1 && m <= 12);
+    if (monthValues.length) qb.andWhere('deal.billing_month IN (:...months)', { months: monthValues });
+    if (search?.trim()) {
+      qb.andWhere(`(
+        deal.brand ILIKE :search OR campaign.name ILIKE :search OR deal.ro_number ILIKE :search OR
+        creator.name ILIKE :search OR filterShareCreator.name ILIKE :search
+      )`, { search: `%${search.trim()}%` });
+    }
+
+    const sortMap: Record<string, string> = {
+      billing_period: 'deal.billingPeriod', confirmation_date: 'deal.confirmationDate',
+      total_fee: 'deal.totalFee', brand: 'deal.brand', created_at: 'deal.createdAt',
+    };
+    // Explicit sort_by/sort_order is the public contract. The compact legacy
+    // `sort=-billing_period` form remains accepted so old URLs keep working.
+    const legacySortKey = (sort ?? '').replace(/^-/, '');
+    const sortKey = sortBy ?? (legacySortKey || 'billing_period');
+    if (!sortMap[sortKey]) {
+      throw new BadRequestException({
+        detail: `sort_by must be one of: ${Object.keys(sortMap).join(', ')}.`,
       });
     }
-    return rows.map(dealDto);
+    const requestedOrder = sortOrder?.toLowerCase();
+    if (requestedOrder && requestedOrder !== 'asc' && requestedOrder !== 'desc') {
+      throw new BadRequestException({ detail: 'sort_order must be asc or desc.' });
+    }
+    const sortColumn = sortMap[sortKey];
+    const sortDirection = requestedOrder
+      ? (requestedOrder.toUpperCase() as 'ASC' | 'DESC')
+      : (sort ?? '').startsWith('-') ? 'DESC' : 'ASC';
+    qb.orderBy(sortColumn, sortDirection, 'NULLS FIRST').addOrderBy('deal.id', 'ASC');
+
+    if (!pagination.requested) return (await qb.getMany()).map(dealDto);
+
+    if (groupBy === 'campaign' || groupBy === 'creator') {
+      const allRows = await qb.getMany();
+      const totalBilling = allRows.reduce((sum, row) => sum + (Number(row.totalFee) || 0), 0);
+      const groups = new Map<string, Record<string, unknown>>();
+      if (groupBy === 'campaign') {
+        for (const row of allRows) {
+          const key = row.campaignId ? `c${row.campaignId}` : `d${row.id}`;
+          const current = groups.get(key) ?? {
+            key,
+            name: row.campaign?.name || row.brand || '—',
+            brand: row.brand,
+            status: row.campaign?.status ?? '',
+            creator_names: [] as string[],
+            total: 0,
+            deal_count: 0,
+            deal: dealDto(row),
+          };
+          current.total = Number(current.total) + (Number(row.totalFee) || 0);
+          current.deal_count = Number(current.deal_count) + 1;
+          const names = (row.creatorShares?.length ? row.creatorShares.map((s) => s.creator?.name || s.creatorNameRaw) : [row.creator?.name || row.creatorNameRaw]).filter(Boolean);
+          for (const name of names) if (!(current.creator_names as string[]).includes(name)) (current.creator_names as string[]).push(name);
+          groups.set(key, current);
+        }
+      } else {
+        for (const row of allRows) {
+          const members = row.creatorShares?.length
+            ? row.creatorShares.map((share) => ({
+                key: share.creatorId ? `c${share.creatorId}` : `n${share.creatorNameRaw.toLowerCase()}`,
+                name: share.creator?.name || share.creatorNameRaw || '—',
+                relationship: share.creator?.relationship ?? 'NonTCH',
+                total: Number(share.totalFee) || 0,
+              }))
+            : [{
+                key: row.creatorId ? `c${row.creatorId}` : `n${row.creatorNameRaw.toLowerCase()}`,
+                name: row.creator?.name || row.creatorNameRaw || '—',
+                relationship: row.creator?.relationship ?? 'NonTCH',
+                total: Number(row.totalFee) || 0,
+              }];
+          for (const member of members) {
+            const current = groups.get(member.key) ?? {
+              key: member.key, name: member.name, relationship: member.relationship,
+              total: 0, deal_count: 0, deal: dealDto(row),
+            };
+            current.total = Number(current.total) + member.total;
+            current.deal_count = Number(current.deal_count) + 1;
+            groups.set(member.key, current);
+          }
+        }
+      }
+      const items = Array.from(groups.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      const start = (pagination.page - 1) * pagination.pageSize;
+      return {
+        items: items.slice(start, start + pagination.pageSize),
+        page: pagination.page,
+        page_size: pagination.pageSize,
+        total: items.length,
+        total_pages: Math.max(1, Math.ceil(items.length / pagination.pageSize)),
+        summary: { total_billing: totalBilling.toFixed(2), deal_count: allRows.length },
+      };
+    }
+
+    const total = await qb.getCount();
+    const summaryRows = await qb.clone()
+      .select('deal.id', 'id')
+      .addSelect('deal.total_fee', 'total_fee')
+      .orderBy()
+      .getRawMany<{ id: string; total_fee: string }>();
+    const totalBilling = summaryRows.reduce((sum, row) => sum + (Number(row.total_fee) || 0), 0);
+    const rows = await qb.skip((pagination.page - 1) * pagination.pageSize).take(pagination.pageSize).getMany();
+    return {
+      items: rows.map(dealDto),
+      page: pagination.page,
+      page_size: pagination.pageSize,
+      total,
+      total_pages: Math.max(1, Math.ceil(total / pagination.pageSize)),
+      summary: { total_billing: totalBilling.toFixed(2), deal_count: total },
+    };
   }
 
   @Get(':id')
@@ -264,6 +391,7 @@ export class DealsController {
       row.creatorNameRaw = '';
       row.campaignId = campaignId;
       this.deriveFees(row);
+      syncBillingPeriod(row);
       await repo.save(row);
       const shares = body.creator_shares as SharePayload[] | undefined;
       if (shares?.length) await this.replaceShares(manager, row.id, shares);
@@ -288,6 +416,7 @@ export class DealsController {
         row.creatorNameRaw = '';
         row.campaignId = campaignId;
         this.deriveFees(row);
+        syncBillingPeriod(row);
         await manager.getRepository(CommercialDeal).save(row);
         // When creator_shares is provided, it's the full replacement set;
         // an empty array clears any split.

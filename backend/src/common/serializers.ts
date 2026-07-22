@@ -90,6 +90,7 @@ export function shareDto(s: DealCreatorShare) {
     agency_fee_pct: s.agencyFeePct,
     agency_fee_inr: s.agencyFeeInr,
     creator_fee: s.creatorFee,
+    ro_number: s.roNumber,
   };
 }
 
