@@ -1,4 +1,4 @@
-import { api, type Deal, type DealDocument } from '@/lib/api';
+import { api, type Deal, type DealDocument, type CreatorInvoice } from '@/lib/api';
 
 // Creator payment cycles map to a number of days added to the base invoice
 // date before the Wednesday payment-run rule is applied.
@@ -45,11 +45,16 @@ export type PaymentStatus = 'awaiting_invoices' | 'overdue' | 'due' | 'upcoming'
 export function paymentStatusOf(
 	deal: Deal,
 	docsForDeal: DealDocument[],
-	todayISO: string
+	todayISO: string,
+	creatorInvoicesForDeal: CreatorInvoice[] = []
 ): PaymentStatus {
 	const cleared = deal.payment_cleared === 'Y' || deal.creator_payment_status === 'Paid';
 	const hasClientDoc = docsForDeal.some((d) => d.doc_type === 'ClientInvoice');
-	const hasCreatorDoc = docsForDeal.some((d) => d.doc_type === 'CreatorInvoice');
+	const assignedCreatorIds = deal.creator_shares?.length
+		? deal.creator_shares.flatMap((share) => share.creator ? [share.creator] : [])
+		: deal.creator ? [deal.creator] : [];
+	const structuredCreatorIds = new Set(creatorInvoicesForDeal.map((invoice) => invoice.creator));
+	const hasCreatorDoc = assignedCreatorIds.length === 0 || assignedCreatorIds.every((id) => structuredCreatorIds.has(id));
 	const invoicesIn = deal.invoice_received === 'Y' || (hasClientDoc && hasCreatorDoc);
 
 	if (cleared) return 'cleared';

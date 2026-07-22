@@ -23,8 +23,11 @@ import Textarea from '@/components/ui/Textarea';
 import Label from '@/components/ui/Label';
 import Tag from '@/components/ui/Tag';
 import Link from 'next/link';
+import CreatorInvoiceControls, { InvoiceReadinessSummary } from './CreatorInvoiceControls';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { toast } from 'sonner';
 import {
-	useCommercialDealsQuery,
+	useCommercialDealQuery,
 	useCommercialCreatorsQuery,
 	useCommercialCampaignsQuery,
 	useCommercialDocsQuery,
@@ -35,7 +38,6 @@ import {
 type FormValues = DealForm & {
 	shares: ShareForm[];
 	client_invoice_file: FileList | null;
-	creator_invoice_file: FileList | null;
 };
 
 function monthYearLabel(iso: string): string {
@@ -61,15 +63,13 @@ export default function CampaignDetailPage() {
 	const id = idStr ? Number(idStr) : null;
 
 	const { fyStart } = useFiscalYear();
-	const { data: deals = [], isLoading: dealsLoading } = useCommercialDealsQuery(fyStart);
+	const { data: deal = null, isLoading: dealsLoading } = useCommercialDealQuery(id);
 	const { data: creators = [], isLoading: creatorsLoading } = useCommercialCreatorsQuery();
 	const { data: campaigns = [], isLoading: campaignsLoading } = useCommercialCampaignsQuery();
-	const { data: docs = [], isLoading: docsLoading } = useCommercialDocsQuery();
+	const { data: docs = [], isLoading: docsLoading } = useCommercialDocsQuery(id);
 
 	const saveDealMutation = useSaveDealMutation(fyStart);
 	const deleteDealMutation = useDeleteDealMutation(fyStart);
-
-	const deal = React.useMemo(() => deals.find((d) => d.id === id) || null, [deals, id]);
 
 	const initialForm = React.useMemo<DealForm>(() => {
 		if (!deal) {
@@ -129,10 +129,12 @@ export default function CampaignDetailPage() {
 	const shares = useFieldArray({ control, name: 'shares' });
 	const [summaryError, setSummaryError] = React.useState<string | null>(null);
 	const [isEditing, setIsEditing] = React.useState(false);
+	const [confirmEditOpen, setConfirmEditOpen] = React.useState(false);
+	const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
 
 	React.useEffect(() => {
 		if (deal) {
-			reset({ ...initialForm, shares: initialShares, client_invoice_file: null, creator_invoice_file: null });
+			reset({ ...initialForm, shares: initialShares, client_invoice_file: null });
 		}
 	}, [deal, initialForm, initialShares, reset]);
 
@@ -180,7 +182,6 @@ export default function CampaignDetailPage() {
 	async function submit(values: FormValues) {
 		setSummaryError(null);
 		const clientInvoiceFile = values.client_invoice_file?.[0] ?? null;
-		const creatorInvoiceFile = values.creator_invoice_file?.[0] ?? null;
 
 		const payload: Record<string, any> = {};
 		const simpleFields: (keyof DealForm)[] = [
@@ -222,7 +223,7 @@ export default function CampaignDetailPage() {
 		}
 
 		// If no fields changed but file uploads exist, we still want to save
-		if (Object.keys(payload).length === 0 && !clientInvoiceFile && !creatorInvoiceFile) {
+		if (Object.keys(payload).length === 0 && !clientInvoiceFile) {
 			router.push('/commercial');
 			return;
 		}
@@ -233,23 +234,24 @@ export default function CampaignDetailPage() {
 				editingVersion: deal?.version,
 				payload,
 				clientInvoiceFile,
-				creatorInvoiceFile
+				creatorInvoiceFile: null
 			});
+			toast.success('Campaign changes saved.');
 			router.push('/commercial');
 		} catch (e) {
-			alert((e as Error).message);
+			toast.error('Campaign changes could not be saved.', { description: (e as Error).message });
 		}
 	}
 
 	async function remove() {
 		if (!deal) return;
-		if (confirm('Are you sure you want to delete this campaign? This action cannot be undone.')) {
-			try {
-				await deleteDealMutation.mutateAsync(deal.id);
-				router.push('/commercial');
-			} catch (e) {
-				alert((e as Error).message);
-			}
+		try {
+			await deleteDealMutation.mutateAsync(deal.id);
+			setConfirmDeleteOpen(false);
+			toast.success('Campaign deleted.');
+			router.push('/commercial');
+		} catch (e) {
+			toast.error('Campaign could not be deleted.', { description: (e as Error).message });
 		}
 	}
 
@@ -308,7 +310,7 @@ export default function CampaignDetailPage() {
 				</div>
 				<div className="flex items-center gap-2">
 					{!isEditing ? (
-						<Button variant="primary" onClick={() => setIsEditing(true)}>
+						<Button variant="primary" onClick={() => setConfirmEditOpen(true)}>
 							<Icon name="edit" size={14} className="mr-1" /> Edit Campaign
 						</Button>
 					) : (
@@ -316,7 +318,7 @@ export default function CampaignDetailPage() {
 							<Button variant="outline" onClick={() => { setIsEditing(false); reset({ ...initialForm, shares: initialShares }); }}>
 								Cancel Edit
 							</Button>
-							<Button variant="danger" onClick={remove}>
+							<Button variant="danger" onClick={() => setConfirmDeleteOpen(true)}>
 								<Icon name="trash" size={14} className="mr-1" /> Delete
 							</Button>
 						</>
@@ -490,10 +492,6 @@ export default function CampaignDetailPage() {
 											<Label>Client Invoice Upload</Label>
 											<input type="file" {...register('client_invoice_file')} className="text-[13px] w-full" />
 										</div>
-										<div>
-											<Label>Creator Invoice Upload</Label>
-											<input type="file" {...register('creator_invoice_file')} className="text-[13px] w-full" />
-										</div>
 									</div>
 								</div>
 							</div>
@@ -511,11 +509,14 @@ export default function CampaignDetailPage() {
 										: 'Configure the creator fee and agency splits for this campaign.'}
 								</p>
 							</div>
-							{isEditing && (
-								<Button type="button" variant="outline" onClick={() => shares.append({ ...EMPTY_SHARE })}>
-									<Icon name="plus" size={14} className="mr-1" /> Add Creator
-								</Button>
-							)}
+							<div className="flex flex-wrap items-center justify-end gap-2">
+								{deal && <InvoiceReadinessSummary dealId={deal.id} creatorCount={deal.creator_shares?.length || (deal.creator ? 1 : 0)} documents={docs} />}
+								{isEditing && (
+									<Button type="button" variant="outline" onClick={() => shares.append({ ...EMPTY_SHARE })}>
+										<Icon name="plus" size={14} className="mr-1" /> Add Creator
+									</Button>
+								)}
+							</div>
 						</div>
 
 						{hasDuplicateCreator && isEditing && (
@@ -567,6 +568,7 @@ export default function CampaignDetailPage() {
 											<span className="font-medium text-[13px]" style={{ color: 'var(--n-fg)' }}>{watch('ro_number') || '—'}</span>
 										</div>
 									</div>
+									{deal && <CreatorInvoiceControls dealId={deal.id} creatorId={deal.creator_shares?.[0]?.creator ?? deal.creator} />}
 								</div>
 							) : (
 								<div className="rounded-xl border p-4 space-y-4 transition-all" style={{ background: 'var(--n-bg)', borderColor: 'var(--n-border)' }}>
@@ -619,6 +621,13 @@ export default function CampaignDetailPage() {
 											<Input placeholder="Optional" {...register('ro_number')} />
 										</div>
 									</div>
+									{deal && (
+										<CreatorInvoiceControls
+											dealId={deal.id}
+											creatorId={deal.creator_shares?.[0]?.creator ?? deal.creator}
+											pendingAssignment={String(deal.creator_shares?.[0]?.creator ?? deal.creator ?? '') !== String(watchCreator || '')}
+										/>
+									)}
 								</div>
 							)}
 
@@ -670,6 +679,7 @@ export default function CampaignDetailPage() {
 													</span>
 												</div>
 											</div>
+											{deal && <CreatorInvoiceControls dealId={deal.id} creatorId={deal.creator_shares?.[i + 1]?.creator ?? null} />}
 										</div>
 									);
 								}
@@ -723,7 +733,7 @@ export default function CampaignDetailPage() {
 												{errors.shares?.[i]?.agency_fee_pct && <p className="text-[12px] mt-0.5 text-red-600">Required</p>}
 											</div>
 										</div>
-										<div className="pt-2 border-t grid grid-cols-2 gap-3" style={{ borderColor: 'var(--n-border)' }}>
+									<div className="pt-2 border-t grid grid-cols-2 gap-3" style={{ borderColor: 'var(--n-border)' }}>
 											<div>
 												<Label>Net Payout (Creator Fee) *</Label>
 												<Input
@@ -739,6 +749,13 @@ export default function CampaignDetailPage() {
 												<Input placeholder="Optional" {...register(`shares.${i}.ro_number`)} />
 											</div>
 										</div>
+									{deal && (
+										<CreatorInvoiceControls
+											dealId={deal.id}
+											creatorId={deal.creator_shares?.[i + 1]?.creator ?? null}
+											pendingAssignment={String(deal.creator_shares?.[i + 1]?.creator ?? '') !== String(watchShares?.[i]?.creator || '')}
+										/>
+									)}
 									</div>
 								);
 							})}
@@ -758,6 +775,24 @@ export default function CampaignDetailPage() {
 					</div>
 				)}
 			</form>
+			<ConfirmDialog
+				open={confirmEditOpen}
+				onOpenChange={setConfirmEditOpen}
+				title="Edit this campaign?"
+				description="You are about to enable editing for campaign details and creator splits."
+				confirmLabel="Continue to edit"
+				onConfirm={() => { setConfirmEditOpen(false); setIsEditing(true); }}
+			/>
+			<ConfirmDialog
+				open={confirmDeleteOpen}
+				onOpenChange={setConfirmDeleteOpen}
+				title="Delete this campaign?"
+				description="This action cannot be undone and will remove its associated creator invoice records."
+				confirmLabel="Delete campaign"
+				confirmVariant="danger"
+				pending={deleteDealMutation.isPending}
+				onConfirm={remove}
+			/>
 		</div>
 	);
 }

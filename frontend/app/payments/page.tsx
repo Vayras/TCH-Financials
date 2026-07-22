@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
-import { type Deal, type DealDocument } from '@/lib/api';
+import { type Deal, type DealDocument, type CreatorInvoice } from '@/lib/api';
+import Link from 'next/link';
 import { cn, formatDocDate, inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import { creatorLabel, creatorNamesOf } from '@/lib/deals';
@@ -25,6 +26,7 @@ import QueryErrorState from '@/components/QueryErrorState';
 import {
 	useDealsQuery,
 	useDealDocumentsQuery,
+	useCreatorInvoicesQuery,
 	useMarkPaidMutation,
 	useUploadInvoiceMutation
 } from './queries';
@@ -70,8 +72,9 @@ export default function PaymentsPage() {
 
 	const { data: rows = [], isLoading: dealsLoading, error: dealsError, refetch: refetchDeals } = useDealsQuery(fyStart);
 	const { data: docs = [], isLoading: docsLoading } = useDealDocumentsQuery();
+	const { data: creatorInvoices = [], isLoading: creatorInvoicesLoading } = useCreatorInvoicesQuery();
 
-	const loading = dealsLoading || docsLoading;
+	const loading = dealsLoading || docsLoading || creatorInvoicesLoading;
 	const error = dealsError ? dealsError.message : null;
 
 	const markPaidMutation = useMarkPaidMutation(fyStart);
@@ -82,7 +85,6 @@ export default function PaymentsPage() {
 	const [uploadOpen, setUploadOpen] = React.useState(false);
 	const [uploadDeal, setUploadDeal] = React.useState<Deal | null>(null);
 	const [clientFile, setClientFile] = React.useState<File | null>(null);
-	const [creatorFile, setCreatorFile] = React.useState<File | null>(null);
 	const [saving, setSaving] = React.useState(false);
 
 	// Completed campaigns are the payments universe — they appear the moment
@@ -100,10 +102,15 @@ export default function PaymentsPage() {
 		}
 		return map;
 	}, [docs]);
+	const creatorInvoicesByDeal = React.useMemo(() => {
+		const map = new Map<number, CreatorInvoice[]>();
+		for (const invoice of creatorInvoices) map.set(invoice.deal, [...(map.get(invoice.deal) ?? []), invoice]);
+		return map;
+	}, [creatorInvoices]);
 
 	const statusOf = React.useCallback(
-		(deal: Deal): PaymentStatus => paymentStatusOf(deal, docsByDeal.get(deal.id) ?? [], today),
-		[docsByDeal, today]
+		(deal: Deal): PaymentStatus => paymentStatusOf(deal, docsByDeal.get(deal.id) ?? [], today, creatorInvoicesByDeal.get(deal.id) ?? []),
+		[docsByDeal, creatorInvoicesByDeal, today]
 	);
 
 	const metrics = React.useMemo(() => {
@@ -139,7 +146,6 @@ export default function PaymentsPage() {
 	function startUpload(deal: Deal) {
 		setUploadDeal(deal);
 		setClientFile(null);
-		setCreatorFile(null);
 		setUploadOpen(true);
 	}
 
@@ -150,7 +156,7 @@ export default function PaymentsPage() {
 
 	async function saveUpload() {
 		if (!uploadDeal) return;
-		if (!clientFile && !creatorFile) {
+		if (!clientFile) {
 			closeUpload();
 			return;
 		}
@@ -159,7 +165,7 @@ export default function PaymentsPage() {
 			await uploadInvoiceMutation.mutateAsync({
 				dealId: uploadDeal.id,
 				clientFile,
-				creatorFile
+				creatorFile: null
 			});
 			closeUpload();
 		} catch (e) {
@@ -222,12 +228,13 @@ export default function PaymentsPage() {
 					const deal = row.original;
 					const docsForDeal = docsByDeal.get(deal.id) ?? [];
 					const clientDoc = docsForDeal.find((d) => d.doc_type === 'ClientInvoice');
-					const creatorDoc = docsForDeal.find((d) => d.doc_type === 'CreatorInvoice');
+					const creatorCount = creatorInvoicesByDeal.get(deal.id)?.length ?? 0;
+					const requiredCount = deal.creator_shares?.length || (deal.creator ? 1 : 0);
 					const received = deal.invoice_received === 'Y';
 					return (
 						<div className="flex gap-1">
 							<InvoiceTag label="Client" doc={clientDoc} fallbackYes={received} />
-							<InvoiceTag label="Creator" doc={creatorDoc} fallbackYes={received} />
+							<Tag tone={creatorCount >= requiredCount ? 'yes' : 'no'}>Creators {creatorCount}/{requiredCount}</Tag>
 						</div>
 					);
 				}
@@ -275,7 +282,7 @@ export default function PaymentsPage() {
 				}
 			}
 		],
-		[docsByDeal, statusOf]
+		[docsByDeal, creatorInvoicesByDeal, statusOf]
 	);
 
 	const existingDocs = uploadDeal ? (docsByDeal.get(uploadDeal.id) ?? []) : [];
@@ -338,7 +345,7 @@ export default function PaymentsPage() {
 						</Button>
 						<Button
 							variant="primary"
-							disabled={saving || (!clientFile && !creatorFile)}
+							disabled={saving || !clientFile}
 							onClick={saveUpload}
 						>
 							{saving ? 'Uploading…' : 'Upload'}
@@ -348,7 +355,7 @@ export default function PaymentsPage() {
 			>
 				{uploadDeal && (
 					<div className="space-y-4">
-						<div className="grid grid-cols-2 gap-3">
+						<div className="space-y-3">
 							<div>
 								<Label>Client invoice (TCH → Client)</Label>
 								<input
@@ -358,15 +365,9 @@ export default function PaymentsPage() {
 									className="block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
 								/>
 							</div>
-							<div>
-								<Label>Creator (influencer) invoice</Label>
-								<input
-									type="file"
-									accept="image/*,application/pdf"
-									onChange={(e) => setCreatorFile(e.target.files?.[0] ?? null)}
-									className="block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
-								/>
-							</div>
+							<p className="text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>
+								Creator invoices are uploaded individually on the <Link className="inline-link" href={`/commercial/${uploadDeal.id}`}>campaign page</Link>.
+							</p>
 						</div>
 
 						{existingDocs.length > 0 && (

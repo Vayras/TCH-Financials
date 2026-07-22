@@ -108,9 +108,9 @@ export const api = {
 	del: (path: string) => req<void>(path, { method: 'DELETE' }),
 	// Multipart upload — the browser sets the Content-Type (with boundary),
 	// so we must not send our JSON header here.
-	upload: async <T,>(path: string, form: FormData): Promise<T> => {
+	upload: async <T,>(path: string, form: FormData, method: 'POST' | 'PATCH' | 'PUT' = 'POST'): Promise<T> => {
 		const res = await fetch(`${API_BASE}${path}`, {
-			method: 'POST',
+			method,
 			body: form,
 			headers: await authHeader()
 		});
@@ -295,6 +295,27 @@ export type CreatorDocument = {
 	label: string;
 	file: string;
 	uploaded_at: string;
+};
+
+export type CreatorInvoice = {
+	id: number;
+	deal: number;
+	campaign_id: number | null;
+	campaign_name: string | null;
+	brand: string;
+	creator: number;
+	creator_name: string;
+	invoice_number: string;
+	invoice_date: string | null;
+	invoice_amount: string;
+	payment_status: '' | 'Pending' | 'Scheduled' | 'Paid' | 'Overdue';
+	payment_cycle: '' | 'Immediate' | 'Net15' | 'Net30' | 'Net45' | 'Net60';
+	payment_date: string | null;
+	label: string;
+	file: string;
+	uploaded_at: string;
+	updated_at: string;
+	version: number;
 };
 
 export type SocialMediaSnapshot = {

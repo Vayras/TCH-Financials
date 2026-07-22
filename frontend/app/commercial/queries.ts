@@ -1,11 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, type Deal, type DealPage, type CommercialGroupPage, type Creator, type DealDocument, type Campaign } from '@/lib/api';
+import { api, type Deal, type DealPage, type CommercialGroupPage, type Creator, type DealDocument, type CreatorInvoice, type Campaign } from '@/lib/api';
 import { uploadDealInvoice } from '@/lib/payments';
+import { toast } from 'sonner';
 
 export const COMMERCIAL_DEALS_KEY = (fyStart: number) => ['deals', { fy: fyStart }] as const;
 export const COMMERCIAL_CREATORS_KEY = ['creators'] as const;
 export const COMMERCIAL_CAMPAIGNS_KEY = ['campaigns'] as const;
 export const COMMERCIAL_DOCS_KEY = ['deal-documents'] as const;
+export const CREATOR_INVOICES_KEY = ['creator-invoices'] as const;
 
 export function useCommercialDealsQuery(fyStart: number | null) {
 	return useQuery<Deal[]>({
@@ -86,10 +88,55 @@ export function useCommercialCampaignsQuery() {
 	});
 }
 
-export function useCommercialDocsQuery() {
+export function useCommercialDocsQuery(dealId?: number | null) {
 	return useQuery<DealDocument[]>({
-		queryKey: COMMERCIAL_DOCS_KEY,
-		queryFn: () => api.get<DealDocument[]>('/deal-documents/')
+		queryKey: [...COMMERCIAL_DOCS_KEY, { deal: dealId ?? 'all' }],
+		queryFn: () => api.get<DealDocument[]>(`/deal-documents/${dealId ? `?deal=${dealId}` : ''}`)
+	});
+}
+
+export function useCreatorInvoicesQuery(dealId?: number | null) {
+	return useQuery<CreatorInvoice[]>({
+		queryKey: [...CREATOR_INVOICES_KEY, { deal: dealId ?? 'all' }],
+		queryFn: () => api.get<CreatorInvoice[]>(`/creator-invoices/${dealId ? `?deal=${dealId}` : ''}`),
+		enabled: dealId !== null
+	});
+}
+
+export function useSaveCreatorInvoiceMutation() {
+	const queryClient = useQueryClient();
+	return useMutation<CreatorInvoice, Error, { dealId: number; creatorId: number; file: File; existing?: CreatorInvoice }>({
+		mutationFn: ({ dealId, creatorId, file, existing }) => {
+			const form = new FormData();
+			form.append('file', file);
+			form.append('label', `Creator Invoice — ${file.name}`);
+			if (existing) {
+				form.append('version', String(existing.version));
+				return api.upload<CreatorInvoice>(`/creator-invoices/${existing.id}/`, form, 'PATCH');
+			}
+			form.append('deal', String(dealId));
+			form.append('creator', String(creatorId));
+			return api.upload<CreatorInvoice>('/creator-invoices/', form);
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: CREATOR_INVOICES_KEY });
+			queryClient.invalidateQueries({ queryKey: ['deals'] });
+			queryClient.invalidateQueries({ queryKey: ['deal'] });
+			queryClient.invalidateQueries({ queryKey: ['overview'] });
+		}
+	});
+}
+
+export function useDeleteCreatorInvoiceMutation() {
+	const queryClient = useQueryClient();
+	return useMutation<void, Error, CreatorInvoice>({
+		mutationFn: (invoice) => api.del(`/creator-invoices/${invoice.id}/?version=${invoice.version}`),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: CREATOR_INVOICES_KEY });
+			queryClient.invalidateQueries({ queryKey: ['deals'] });
+			queryClient.invalidateQueries({ queryKey: ['deal'] });
+			queryClient.invalidateQueries({ queryKey: ['overview'] });
+		}
 	});
 }
 
@@ -126,7 +173,7 @@ export function useSaveDealMutation(fyStart: number | null) {
 						try {
 							await uploadDealInvoice(deal.id, docType, file);
 						} catch {
-							alert(`Campaign saved, but "${docType === 'ClientInvoice' ? 'Client' : 'Creator'} Invoice" failed to upload.`);
+							toast.error(`${docType === 'ClientInvoice' ? 'Client' : 'Creator'} invoice failed to upload.`, { description: 'The campaign was saved successfully.' });
 						}
 					})
 				);
