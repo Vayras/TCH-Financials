@@ -27,6 +27,7 @@ import {
 	statusTone,
 	uploadCreatorDocument
 } from '@/lib/creators';
+import { parseCreatorLinks, serializeCreatorLinks } from '@/lib/creators';
 import {
 	useCreatorsPageQuery,
 	useCreateCreatorMutation,
@@ -84,7 +85,7 @@ export default function CreatorsPage() {
 				relationship: form.relation,
 				status: isNonExclusive ? 'Active' : form.status,
 				doj: isNonExclusive ? null : (isNaN(form.doj.getTime()) ? null : form.doj.toISOString().slice(0, 10)),
-				profile_url: form.url[0] ?? '',
+				profile_url: serializeCreatorLinks(form.url),
 				location: form.location,
 				ops_manager: form.talent_manager
 			};
@@ -151,7 +152,7 @@ export default function CreatorsPage() {
 						relation: editing.relationship,
 						status: editing.status ?? 'Active',
 						doj: editing.doj ? new Date(editing.doj) : EMPTY_FORM.doj,
-						url: editing.profile_url ? [editing.profile_url] : [],
+						url: parseCreatorLinks(editing.profile_url),
 						location: editing.location,
 						talent_manager: editing.ops_manager,
 						attachments: []
@@ -209,10 +210,10 @@ export default function CreatorsPage() {
 				header: 'URL',
 				enableSorting: false,
 				cell: ({ row }) =>
-					row.original.profile_url && (
+					parseCreatorLinks(row.original.profile_url)[0] && (
 						<a
 							className="inline-link text-[13px]"
-							href={row.original.profile_url}
+							href={parseCreatorLinks(row.original.profile_url)[0]}
 							target="_blank"
 							rel="noopener"
 						>
