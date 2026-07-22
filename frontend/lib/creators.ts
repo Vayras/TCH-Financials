@@ -26,6 +26,17 @@ export const STATUS = [
 export const REL_FILTERS = ['All', 'Exclusive', 'Non-Exclusive'];
 export const STATUS_FILTERS = ['All', 'Active', 'Inactive'];
 
+// Kept in the existing profile_url column for backwards compatibility.
+// Newlines are safe URL separators and allow older single-link records to
+// continue working without a schema migration.
+export function parseCreatorLinks(value: string | null | undefined): string[] {
+	return (value ?? '').split(/[\r\n]+/).map((link) => link.trim()).filter(Boolean);
+}
+
+export function serializeCreatorLinks(links: string[]): string {
+	return links.map((link) => link.trim()).filter(Boolean).join('\n');
+}
+
 export const DOC_TYPES = [
 	{ value: 'Contract', label: 'Contract' },
 	{ value: 'PAN', label: 'PAN Card' },
