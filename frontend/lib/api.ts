@@ -1,124 +1,37 @@
-import { getSupabase, isSupabaseConfigured } from './supabase';
+import { httpClient, ConflictError } from './axios';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? '/api';
-
-// Raised on HTTP 409 — someone else saved this record after we loaded it.
-// `current` carries the record's latest server state for display/merge.
-export class ConflictError extends Error {
-	current?: unknown;
-	constructor(message: string, current?: unknown) {
-		super(message);
-		this.name = 'ConflictError';
-		this.current = current;
-	}
-}
-
-async function authHeader(): Promise<Record<string, string>> {
-	if (!isSupabaseConfigured()) return {};
-	const { data } = await getSupabase().auth.getSession();
-	const token = data.session?.access_token;
-	return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-async function raiseApiError(res: Response): Promise<never> {
-	if (res.status === 401 && isSupabaseConfigured() && typeof window !== 'undefined') {
-		window.location.assign('/login');
-	}
-	if (res.status === 409) {
-		let detail = 'Someone else updated this record while you were editing. Reload and re-apply your change.';
-		let current: unknown;
-		try {
-			const body = await res.json();
-			if (typeof body?.detail === 'string') detail = body.detail;
-			current = body?.current;
-		} catch {
-			// non-JSON body — keep the default message
-		}
-		throw new ConflictError(detail, current);
-	}
-	const text = await res.text();
-	throw new Error(`${res.status} ${res.statusText}: ${text}`);
-}
-
-async function req<T>(path: string, init?: RequestInit): Promise<T> {
-	const res = await fetch(`${API_BASE}${path}`, {
-		...init,
-		headers: {
-			'Content-Type': 'application/json',
-			...(await authHeader()),
-			...(init?.headers ?? {})
-		}
-	});
-	if (!res.ok) {
-		await raiseApiError(res);
-	}
-	if (res.status === 204) return undefined as T;
-	return res.json();
-}
-
-// --- Stale-while-revalidate GET cache -------------------------------------
-// Pages render the last-seen payload instantly (sessionStorage, per-tab) and
-// replace it when the network answer lands. Mutations still call the pages'
-// load() which always fetches fresh, so staleness only spans one round-trip.
-
-const SWR_PREFIX = 'swr:';
-
-function readCache<T>(path: string): T | null {
-	if (typeof window === 'undefined') return null;
-	try {
-		const raw = window.sessionStorage.getItem(SWR_PREFIX + path);
-		return raw ? (JSON.parse(raw) as T) : null;
-	} catch {
-		return null;
-	}
-}
-
-function writeCache(path: string, data: unknown) {
-	if (typeof window === 'undefined') return;
-	try {
-		window.sessionStorage.setItem(SWR_PREFIX + path, JSON.stringify(data));
-	} catch {
-		// Quota exceeded / private mode — caching is best-effort only.
-	}
-}
-
-/**
- * GET with stale-while-revalidate: calls onData immediately with the cached
- * payload when one exists (fresh=false), then again once the network payload
- * lands (fresh=true). Callers typically clear their loading state on the
- * first call either way.
- */
-async function getSWR<T>(path: string, onData: (data: T, fresh: boolean) => void): Promise<void> {
-	const cached = readCache<T>(path);
-	if (cached !== null) onData(cached, false);
-	const fresh = await req<T>(path);
-	writeCache(path, fresh);
-	onData(fresh, true);
-}
+export { ConflictError };
 
 export const api = {
-	get: <T,>(path: string) => req<T>(path),
-	getSWR,
-	post: <T,>(path: string, body: unknown) =>
-		req<T>(path, { method: 'POST', body: JSON.stringify(body) }),
-	patch: <T,>(path: string, body: unknown) =>
-		req<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
-	put: <T,>(path: string, body: unknown) =>
-		req<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
-	del: (path: string) => req<void>(path, { method: 'DELETE' }),
-	// Multipart upload — the browser sets the Content-Type (with boundary),
-	// so we must not send our JSON header here.
+	get: async <T,>(path: string): Promise<T> => {
+		const res = await httpClient.get<T>(path);
+		return res.data;
+	},
+	post: async <T,>(path: string, body?: unknown): Promise<T> => {
+		const res = await httpClient.post<T>(path, body);
+		return res.data;
+	},
+	patch: async <T,>(path: string, body?: unknown): Promise<T> => {
+		const res = await httpClient.patch<T>(path, body);
+		return res.data;
+	},
+	put: async <T,>(path: string, body?: unknown): Promise<T> => {
+		const res = await httpClient.put<T>(path, body);
+		return res.data;
+	},
+	del: async <T,>(path: string): Promise<T> => {
+		const res = await httpClient.delete<T>(path);
+		return res.data;
+	},
 	upload: async <T,>(path: string, form: FormData, method: 'POST' | 'PATCH' | 'PUT' = 'POST'): Promise<T> => {
-		const res = await fetch(`${API_BASE}${path}`, {
+		const res = await httpClient.request<T>({
+			url: path,
 			method,
-			body: form,
-			headers: await authHeader()
+			data: form,
+			headers: { 'Content-Type': 'multipart/form-data' },
 		});
-		if (!res.ok) {
-			await raiseApiError(res);
-		}
-		return res.json() as Promise<T>;
-	}
+		return res.data;
+	},
 };
 
 export type Creator = {
