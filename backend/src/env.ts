@@ -16,6 +16,10 @@ export const env = {
   // The public URL of the frontend (used to build Supabase redirectTo links).
   // Set APP_URL in .env for production. Defaults to localhost:5050 for dev.
   appUrl: (process.env.APP_URL ?? 'http://localhost:5050').replace(/\/+$/, ''),
+  // Resend — used to send invite emails. Prefer RESEND_FROM_EMAIL; falls back to onboarding sender.
+  resendApiKey: process.env.RESEND_API_KEY ?? '',
+  resendFromEmail:
+    process.env.RESEND_FROM_EMAIL?.trim() || 'TCH Financials <beth.t@example.com>',
 };
 
 if (!env.databaseUrl) {
