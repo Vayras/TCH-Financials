@@ -11,15 +11,17 @@ import { DropOff } from './drop-off.entity';
 import { EmployeeWeeklyReport } from './employee-weekly-report.entity';
 import { EventInvite } from './event-invite.entity';
 import { SocialMediaSnapshot } from './social-media-snapshot.entity';
+import { Profile } from './profile.entity';
+import { Invitation } from './invitation.entity';
 
 export {
   AlertDismissal, Campaign, CommercialDeal, ContractingCompliance, Creator,
   CreatorDocument, CreatorInvoice, DealCreatorShare, DealDocument, DropOff, EmployeeWeeklyReport,
-  EventInvite, SocialMediaSnapshot,
+  EventInvite, SocialMediaSnapshot, Profile, Invitation,
 };
 
 export const entities = [
   AlertDismissal, Campaign, CommercialDeal, ContractingCompliance, Creator,
   CreatorDocument, CreatorInvoice, DealCreatorShare, DealDocument, DropOff, EmployeeWeeklyReport,
-  EventInvite, SocialMediaSnapshot,
+  EventInvite, SocialMediaSnapshot, Profile, Invitation,
 ];

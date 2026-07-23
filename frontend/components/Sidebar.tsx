@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import Icon from '@/components/ui/Icon';
 import { FiscalYearProvider, useFiscalYear, fyLabel } from '@/lib/fiscal-year';
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
+import { useAuth } from './AuthGuard';
 
 function UserFooter({ collapsed }: { collapsed: boolean }) {
 	const [email, setEmail] = React.useState<string>('');
@@ -121,8 +122,19 @@ function isActiveHref(pathname: string, href: string) {
 export function Sidebar({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname() ?? '/';
 	const [collapsed, setCollapsed] = React.useState(false);
+	const { role } = useAuth();
 
-	const current = NAV.find((n) => isActiveHref(pathname, n.href));
+	const filteredNav = React.useMemo(() => {
+		if (role === 'admin') {
+			return [
+				...NAV,
+				{ href: '/users', label: 'Users', icon: 'settings' }
+			];
+		}
+		return NAV;
+	}, [role]);
+
+	const current = filteredNav.find((n) => isActiveHref(pathname, n.href));
 	const currentLabel = current?.label ?? 'TCH';
 
 	return (
@@ -183,7 +195,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 								Workspace
 							</div>
 						)}
-						{NAV.map((item) => {
+						{filteredNav.map((item) => {
 							const active = isActiveHref(pathname, item.href);
 							return (
 								<Link

@@ -21,7 +21,8 @@ export default function LoginPage() {
 				setError(error.message);
 				return;
 			}
-			router.replace('/');
+			// AuthGuard's onAuthStateChange handles routing based on profile status.
+			// We do NOT redirect here to avoid a flicker for pending/rejected users.
 		} finally {
 			setBusy(false);
 		}
