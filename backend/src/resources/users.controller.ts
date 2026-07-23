@@ -2,6 +2,7 @@ import { Controller, Get, Post, Delete, Body, Param, BadRequestException, Req } 
 import { DataSource } from 'typeorm';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { env } from '../env';
+import { sendInviteEmail } from '../common/mail';
 import { Profile } from '../entities/profile.entity';
 import { Invitation } from '../entities/invitation.entity';
 import { Roles } from '../auth/roles.decorator';
@@ -151,7 +152,7 @@ export class UsersController {
     if (!invitation) throw new BadRequestException('Invitation not found.');
 
     // If the invitation hasn't been accepted yet, also remove the skeleton auth user
-    // that Supabase created when the invite email was sent.
+    // that Supabase created via generateLink when the invite was sent.
     // We use raw SQL (not the broken listUsers pagination approach) to find the auth user.
     if (!invitation.acceptedAt && this.supabaseAdmin) {
       const authUserId = await this.getAuthUserIdByEmail(invitation.email);
@@ -192,8 +193,24 @@ export class UsersController {
 
     if (this.supabaseAdmin) {
       const redirectTo = `${env.appUrl}/auth/callback`;
-      const { error } = await this.supabaseAdmin.auth.admin.inviteUserByEmail(trimmedEmail, { redirectTo });
+      const { data, error } = await this.supabaseAdmin.auth.admin.generateLink({
+        type: 'invite',
+        email: trimmedEmail,
+        options: { redirectTo },
+      });
       if (error) throw new BadRequestException(`Supabase invitation failed: ${error.message}`);
+
+      const inviteUrl = data.properties?.action_link;
+      if (!inviteUrl) {
+        throw new BadRequestException('Supabase invitation failed: no action link returned.');
+      }
+
+      try {
+        await sendInviteEmail({ to: trimmedEmail, inviteUrl });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        throw new BadRequestException(`Failed to send invite email: ${message}`);
+      }
     } else {
       console.log(`[DEV] Simulating invite to: ${trimmedEmail} with role: ${role}`);
     }
