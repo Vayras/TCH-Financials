@@ -45,6 +45,8 @@ const NAME_MAP: Record<string, keyof typeof LucideIcons> = {
 	'external-link': 'ExternalLink',
 	link: 'Link',
 	eye: 'Eye',
+	'eye-off': 'EyeOff',
+	key: 'Key',
 	settings: 'Settings',
 	lock: 'Lock',
 	mail: 'Mail',
