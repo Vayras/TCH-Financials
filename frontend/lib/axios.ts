@@ -16,13 +16,27 @@ export const httpClient = axios.create({
 	baseURL: API_BASE,
 });
 
+let cachedToken: string | null = null;
+
+if (typeof window !== 'undefined' && isSupabaseConfigured()) {
+	const supabase = getSupabase();
+	supabase.auth.getSession().then(({ data }) => {
+		cachedToken = data.session?.access_token ?? null;
+	});
+	supabase.auth.onAuthStateChange((_event, session) => {
+		cachedToken = session?.access_token ?? null;
+	});
+}
+
 // Request Interceptor: Automatically inject Bearer auth token if configured
 httpClient.interceptors.request.use(async (config) => {
 	if (isSupabaseConfigured()) {
-		const { data } = await getSupabase().auth.getSession();
-		const token = data.session?.access_token;
-		if (token) {
-			config.headers.Authorization = `Bearer ${token}`;
+		if (!cachedToken) {
+			const { data } = await getSupabase().auth.getSession();
+			cachedToken = data.session?.access_token ?? null;
+		}
+		if (cachedToken) {
+			config.headers.Authorization = `Bearer ${cachedToken}`;
 		}
 	}
 	return config;
