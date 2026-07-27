@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray, type Path, type RegisterOptions, type FieldErrors } from 'react-hook-form';
 import { ConflictError, type Deal, type Creator } from '@/lib/api';
 import { useFiscalYear } from '@/lib/fiscal-year';
@@ -59,8 +59,10 @@ function countErrors(errs: FieldErrors<FormValues>): number {
 export default function CampaignDetailPage() {
 	const router = useRouter();
 	const params = useParams();
+	const searchParams = useSearchParams();
 	const idStr = params?.id as string;
 	const id = idStr ? Number(idStr) : null;
+	const autoEdit = searchParams.get('edit') === 'true';
 
 	const { fyStart } = useFiscalYear();
 	const { data: deal = null, isLoading: dealsLoading } = useCommercialDealQuery(id);
@@ -128,7 +130,7 @@ export default function CampaignDetailPage() {
 
 	const shares = useFieldArray({ control, name: 'shares' });
 	const [summaryError, setSummaryError] = React.useState<string | null>(null);
-	const [isEditing, setIsEditing] = React.useState(false);
+	const [isEditing, setIsEditing] = React.useState(autoEdit);
 	const [confirmEditOpen, setConfirmEditOpen] = React.useState(false);
 	const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
 
