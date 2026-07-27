@@ -55,11 +55,16 @@ export class CampaignsController {
     return new Map(rows.map((r) => [String(r.campaign_id), Number(r.n)]));
   }
 
+  private async singleDealCount(campaignId: string, manager?: EntityManager): Promise<number> {
+    const res = await (manager ?? this.dataSource).getRepository(CommercialDeal).countBy({ campaignId });
+    return res;
+  }
+
   private async serialize(id: string, manager?: EntityManager) {
     const row = await this.repo(manager).findOneBy({ id });
     if (!row) throw new NotFoundException({ detail: 'Not found.' });
-    const counts = await this.dealCounts(manager);
-    return campaignDto(row, counts.get(String(row.id)) ?? 0);
+    const count = await this.singleDealCount(id, manager);
+    return campaignDto(row, count);
   }
 
   @Get()

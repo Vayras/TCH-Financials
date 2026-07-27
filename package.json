@@ -15,5 +15,8 @@
     "migrate": "cd backend && npm run migration:run",
     "lint": "cd frontend && npm run lint",
     "typecheck": "cd frontend && npm run typecheck"
+  },
+  "dependencies": {
+    "resend": "^6.18.0"
   }
 }

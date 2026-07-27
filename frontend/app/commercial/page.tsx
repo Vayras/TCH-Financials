@@ -215,7 +215,7 @@ export default function CommercialPage() {
 			setOpen(false);
 			if (!editing && deal && deal.id) {
 				toast.success('Campaign created.');
-				router.push(`/commercial/${deal.id}`);
+				router.push(`/commercial/${deal.id}?edit=true`);
 			} else {
 				toast.success('Campaign updated.');
 			}
