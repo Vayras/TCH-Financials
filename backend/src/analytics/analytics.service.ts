@@ -83,6 +83,9 @@ export class AnalyticsService {
     const totals = zeroBlock();
     const notInvoiced = { count: 0, totalFee: new Decimal(0), profit: new Decimal(0) };
 
+    const brandsAgg = new Map<string, Decimal>();
+    const creatorsAgg = new Map<string, Decimal>();
+
     for (const deal of deals) {
       // Scope to one creator's share when filtering; the whole deal otherwise.
       let dealFee: Decimal;
@@ -133,8 +136,15 @@ export class AnalyticsService {
       bump(row.byQuarter, qk, dealFee);
       row.total = row.total.add(dealFee);
       row.profit = row.profit.add(dealProfit);
+      
+      const b = deal.campaignId && deal.campaign ? deal.campaign.brand : '';
+      if (b) brandsAgg.set(b, (brandsAgg.get(b) || new Decimal(0)).add(dealFee));
+
       for (const c of creatorSplits(deal)) {
-        if (c.name) row.creatorNames.add(c.name);
+        if (c.name) {
+          row.creatorNames.add(c.name);
+          creatorsAgg.set(c.name, (creatorsAgg.get(c.name) || new Decimal(0)).add(c.fee));
+        }
       }
 
       bump(totals.byMonth, mk, dealFee);
@@ -160,25 +170,45 @@ export class AnalyticsService {
         ]),
       );
 
+    const campaignData = new Map<string, { status: string; hasIncompleteDeal: boolean }>();
+    for (const deal of deals) {
+      if (deal.campaignId === null || !deal.campaign) continue;
+      const id = String(deal.campaignId);
+      if (!campaignData.has(id)) {
+        campaignData.set(id, { status: deal.campaign.status, hasIncompleteDeal: false });
+      }
+      if (deal.completedAt === null) {
+        campaignData.get(id)!.hasIncompleteDeal = true;
+      }
+    }
+
     const payloadRows = [...rows.values()]
-      .map((r) => ({
-        campaign_id: r.campaignId,
-        name: r.name,
-        brand: r.brand,
-        status: r.status,
-        creators: [...r.creatorNames].sort(),
-        deal_count: r.dealCount,
-        by_month: plainMoney(r.byMonth),
-        by_quarter: plainMoney(r.byQuarter),
-        total: money(r.total),
-        profit: money(r.profit),
-      }))
+      .map((r) => {
+        let displayStatus = 'Awaiting Invoices';
+        if (r.status === 'Over') {
+          displayStatus = 'Completed';
+        } else if (r.campaignId !== null) {
+          const cData = campaignData.get(String(r.campaignId));
+          if (cData && !cData.hasIncompleteDeal) {
+            displayStatus = 'Pending Payment';
+          }
+        }
+        return {
+          campaign_id: r.campaignId,
+          name: r.name,
+          brand: r.brand,
+          status: displayStatus,
+          creators: [...r.creatorNames].sort(),
+          deal_count: r.dealCount,
+          by_month: plainMoney(r.byMonth),
+          by_quarter: plainMoney(r.byQuarter),
+          total: money(r.total),
+          profit: money(r.profit),
+        };
+      })
       .sort((a, b) => D(b.total).cmp(D(a.total)));
 
-    // Campaign counts include every campaign with a deal in this FY by either
-    // lens — billed OR confirmed — so ongoing campaigns without invoices yet
-    // still tally as Active instead of vanishing.
-    const campaignStatusInFy = new Map<string, string>();
+    const campaignStatusInFy = new Set<string>();
     for (const deal of deals) {
       if (deal.campaignId === null || !deal.campaign) continue;
       if (creatorName && !creatorSplits(deal).some((c) => c.name === creatorName)) continue;
@@ -187,11 +217,23 @@ export class AnalyticsService {
       const inFy =
         (period !== null && this.inFy(period, fyStart)) ||
         (conf !== null && fiscalYearOf(conf) === fyStart);
-      if (inFy) campaignStatusInFy.set(String(deal.campaignId), deal.campaign.status);
+      if (inFy) campaignStatusInFy.add(String(deal.campaignId));
     }
-    const campaignCounts: Record<string, number> = { Active: 0, Over: 0 };
-    for (const status of campaignStatusInFy.values()) {
-      if (status in campaignCounts) campaignCounts[status] += 1;
+
+    const campaignCounts: Record<string, number> = {
+      'Awaiting Invoices': 0,
+      'Pending Payment': 0,
+      'Completed': 0,
+    };
+    for (const id of campaignStatusInFy) {
+      const data = campaignData.get(id)!;
+      let displayStatus = 'Awaiting Invoices';
+      if (data.status === 'Over') {
+        displayStatus = 'Completed';
+      } else if (!data.hasIncompleteDeal) {
+        displayStatus = 'Pending Payment';
+      }
+      campaignCounts[displayStatus] += 1;
     }
 
     return {
@@ -227,6 +269,14 @@ export class AnalyticsService {
         by_quarter: pctMap(profits.byQuarter, totals.byQuarter),
         total: frac4(pctOf(profits.total, totals.total)),
       },
+      top_brands: [...brandsAgg.entries()]
+        .map(([name, total]) => ({ name, total: money(total) }))
+        .sort((a, b) => D(b.total).cmp(D(a.total)))
+        .slice(0, 5),
+      top_creators: [...creatorsAgg.entries()]
+        .map(([name, total]) => ({ name, total: money(total) }))
+        .sort((a, b) => D(b.total).cmp(D(a.total)))
+        .slice(0, 5),
       // FY-independent: deals with no E-Invoice No yet (awaiting invoicing).
       not_invoiced: {
         count: notInvoiced.count,

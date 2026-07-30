@@ -11,11 +11,15 @@ import BillingBarChart from '@/components/BillingBarChart';
 import MetricCard from '@/components/MetricCard';
 import PageHeader from '@/components/PageHeader';
 import QueryErrorState from '@/components/QueryErrorState';
+import { TrajectoryAreaChart } from '@/components/TrajectoryAreaChart';
+import { DonutChart } from '@/components/DonutChart';
+import { TopList } from '@/components/TopList';
 import { useOverviewQuery, useOverviewCreatorsQuery } from './queries';
 
 const STATUS_DOT: Record<string, string> = {
-	Active: 'bg-[#0f7b6c]',
-	Over: 'bg-[#9b9a97]'
+	'Awaiting Invoices': 'bg-[#441151]',
+	'Pending Payment': 'bg-[#0d9070]',
+	'Completed': 'bg-[#9b9a97]'
 };
 
 function fyLabelFor(start: number | null): string {
@@ -26,6 +30,7 @@ function fyLabelFor(start: number | null): string {
 export default function OverviewPage() {
 	const { fyStart } = useFiscalYear();
 	const [creatorFilter, setCreatorFilter] = React.useState('All');
+	const [creatorInput, setCreatorInput] = React.useState('');
 
 	const { data, isLoading: overviewLoading, error: overviewError, refetch } = useOverviewQuery(fyStart, creatorFilter);
 	const { data: creators = [], isLoading: creatorsLoading } = useOverviewCreatorsQuery();
@@ -35,6 +40,7 @@ export default function OverviewPage() {
 
 	const [view, setView] = React.useState<'month' | 'quarter'>('month');
 	const [monthFilter, setMonthFilter] = React.useState('All');
+	const [showAllCampaigns, setShowAllCampaigns] = React.useState(false);
 
 	const monthActive = monthFilter !== 'All';
 	const effView: 'month' | 'quarter' = monthActive ? 'month' : view;
@@ -73,30 +79,30 @@ export default function OverviewPage() {
 						<div className="md:col-span-2 grid grid-cols-2 gap-2">
 							<div className="col-span-full">
 								<HeroMetricCard
-									label="Total Billing"
+									label="Gross Bookings"
 									value={inr(data.totals.total)}
 								/>
 							</div>
 							<MetricCard
-								label="Elements (EMW)"
+								label="EMW Retained Bookings"
 								dotColor="#1a63a3"
 								value={
 									<div className="flex flex-col">
 										<span>{inr(data.emw_billing.total)}</span>
 										<span className="text-[12px] font-normal mt-1" style={{ color: 'var(--n-fg-subtle)' }}>
-											{pct(data.emw_pct.total)} of billing
+											{pct(data.emw_pct.total)} of bookings
 										</span>
 									</div>
 								}
 							/>
 							<MetricCard
-								label="External Billing"
+								label="Third-Party Bookings"
 								dotColor="#9b9a97"
 								value={
 									<div className="flex flex-col">
 										<span>{inr(Number(data.totals.total) - Number(data.emw_billing.total))}</span>
 										<span className="text-[12px] font-normal mt-1" style={{ color: 'var(--n-fg-subtle)' }}>
-											{pct(String(1 - Number(data.emw_pct.total)))} of billing
+											{pct(String(1 - Number(data.emw_pct.total)))} of bookings
 										</span>
 									</div>
 								}
@@ -106,7 +112,7 @@ export default function OverviewPage() {
 						{/* Operational Metrics & Net Margin */}
 						<div className="flex flex-col gap-2">
 							<MetricCard
-								label="Net Margin (TCH Fee)"
+								label="Net Operating Margin (TCH Fee)"
 								dotColor="#0d9070"
 								valueColor="#0d9070"
 								value={
@@ -118,21 +124,32 @@ export default function OverviewPage() {
 									</div>
 								}
 							/>
-							<div className="grid grid-cols-3 gap-2 flex-1">
-								<MiniMetricCard
-									label="Total"
-									value={data.total_campaigns}
-								/>
-								<MiniMetricCard
-									label="Active"
-									value={data.campaign_counts.Active ?? 0}
-									dotColor="#0f7b6c"
-								/>
-								<MiniMetricCard
-									label="Over"
-									value={data.campaign_counts.Over ?? 0}
-									dotColor="#9b9a97"
-								/>
+							<div className="flex-1 bg-white border border-gray-200 rounded-lg flex items-center justify-between p-3 mt-1">
+								<div className="flex flex-col items-center flex-1">
+									<span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Total</span>
+									<span className="text-[18px] font-bold text-gray-900 tabular-nums leading-none mt-1">{data.total_campaigns}</span>
+								</div>
+								<div className="w-px h-8 bg-gray-100"></div>
+								<div className="flex flex-col items-center flex-1">
+									<span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+										<span className="w-1.5 h-1.5 rounded-full bg-[#441151]"></span> Pre-Invoice
+									</span>
+									<span className="text-[18px] font-bold text-gray-900 tabular-nums leading-none mt-1">{data.campaign_counts['Awaiting Invoices'] ?? 0}</span>
+								</div>
+								<div className="w-px h-8 bg-gray-100"></div>
+								<div className="flex flex-col items-center flex-1">
+									<span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+										<span className="w-1.5 h-1.5 rounded-full bg-[#0d9070]"></span> Unpaid
+									</span>
+									<span className="text-[18px] font-bold text-gray-900 tabular-nums leading-none mt-1">{data.campaign_counts['Pending Payment'] ?? 0}</span>
+								</div>
+								<div className="w-px h-8 bg-gray-100"></div>
+								<div className="flex flex-col items-center flex-1">
+									<span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+										<span className="w-1.5 h-1.5 rounded-full bg-[#9b9a97]"></span> Paid
+									</span>
+									<span className="text-[18px] font-bold text-gray-900 tabular-nums leading-none mt-1">{data.campaign_counts['Completed'] ?? 0}</span>
+								</div>
 							</div>
 						</div>
 					</div>
@@ -174,17 +191,34 @@ export default function OverviewPage() {
 						]}
 					/>
 				</div>
-
-				<div className="flex items-center gap-2 min-w-[180px]">
+				
+				<div className="flex items-center gap-2 min-w-[200px]">
 					<span className="text-[13px] whitespace-nowrap" style={{ color: 'var(--n-fg-muted)' }}>Creator</span>
-					<Select
-						value={creatorFilter}
-						onChange={(e) => setCreatorFilter(e.target.value)}
-						options={[
-							{ value: 'All', label: 'All creators' },
-							...creators.map((c) => ({ value: c.name, label: c.name }))
-						]}
-					/>
+					<div className="relative flex-1">
+						<input
+							type="text"
+							list="creator-list"
+							className="w-full h-8 px-3 text-[13px] rounded-md border bg-transparent"
+							style={{ borderColor: 'var(--n-border)', color: 'var(--n-fg)' }}
+							placeholder="All creators"
+							value={creatorInput}
+							onChange={(e) => {
+								setCreatorInput(e.target.value);
+								const val = e.target.value.trim();
+								if (val === '' || creators.some(c => c.name === val)) {
+									setCreatorFilter(val || 'All');
+								}
+							}}
+							onBlur={() => {
+								if (creatorInput.trim() === '') {
+									setCreatorFilter('All');
+								}
+							}}
+						/>
+						<datalist id="creator-list">
+							{creators.map((c) => <option key={c.id} value={c.name} />)}
+						</datalist>
+					</div>
 				</div>
 
 				<div className="ml-auto flex items-center gap-2">
@@ -194,6 +228,7 @@ export default function OverviewPage() {
 							onClick={() => {
 								setMonthFilter('All');
 								setCreatorFilter('All');
+								setCreatorInput('');
 							}}
 						>
 							Clear filters
@@ -227,15 +262,27 @@ export default function OverviewPage() {
 							profitPct={src.profitPct}
 						/>
 					</div>
+					
+					{/* Trajectory Area Chart */}
+					<TrajectoryAreaChart cols={cols} totals={src.totals} />
 
-					{/* Campaign Details Table */}
-					<div className="tbl-card">
+					{/* Insights Grid */}
+					<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+						<DonutChart 
+							emw={Number(data.emw_billing.total)} 
+							external={Number(data.totals.total) - Number(data.emw_billing.total)} 
+						/>
+						<TopList title="Top 5 Brands" items={data.top_brands || []} />
+						<TopList title="Top 5 Creators" items={data.top_creators || []} />
+					</div>
+
+					<div className="tbl-card overflow-hidden border border-gray-200 rounded-xl mb-6">
 						<div className="scroll-x overview-matrix-scroll">
-							<table className="grid-table with-sticky-first">
+							<table className="grid-table with-sticky-first border-0">
 								<thead>
 									<tr>
 										<th className="w-[220px]">{data.fy} · Campaign</th>
-										{cols.map((c) => (
+										{[...cols].reverse().map((c) => (
 											<th key={c.key} className="num">
 												{c.label}
 											</th>
@@ -244,7 +291,7 @@ export default function OverviewPage() {
 									</tr>
 								</thead>
 								<tbody>
-									{data.rows.map((row) => {
+									{(showAllCampaigns ? data.rows : data.rows.slice(0, 7)).map((row) => {
 										const bySel = effView === 'month' ? row.by_month : row.by_quarter;
 										return (
 											<tr key={row.campaign_id ?? 'none'}>
@@ -258,34 +305,45 @@ export default function OverviewPage() {
 															title={row.status || 'No campaign'}
 														/>
 														<span className="min-w-0">
-															<span className="font-medium block truncate max-w-[200px]" style={{ color: 'var(--n-fg)' }} title={row.name}>
+															<span className="font-medium block truncate max-w-[200px] text-gray-900" title={row.name}>
 																{row.name}
 															</span>
-															<span className="text-[12px] block truncate max-w-[200px]" style={{ color: 'var(--n-fg-subtle)' }}>
+															<span className="text-[11px] block truncate max-w-[200px] text-gray-400 mt-0.5">
 																{[row.brand, row.creators.join(', ')].filter(Boolean).join(' · ')}
 															</span>
 														</span>
 													</span>
 												</td>
-												{cols.map((c) => (
-													<td
-														key={c.key}
-														className="num"
-														style={{ color: 'var(--n-fg-muted)' }}
-													>
-														{inr(bySel[c.key]) || '—'}
-													</td>
-												))}
-												<td className="num font-semibold" style={{ color: 'var(--n-fg)' }}>
+												{[...cols].reverse().map((c) => {
+													const val = bySel[c.key];
+													return (
+														<td
+															key={c.key}
+															className="num"
+															style={{ color: val ? 'var(--n-fg)' : 'var(--n-fg-muted)', opacity: val ? 1 : 0.4 }}
+														>
+															{inr(val) || '—'}
+														</td>
+													)
+												})}
+												<td className="num font-semibold text-gray-900">
 													{inr(row.total)}
 												</td>
 											</tr>
 										);
 									})}
 
+									{data.rows.length > 7 && !showAllCampaigns && (
+										<tr>
+											<td colSpan={cols.length + 2} className="text-center py-4 bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors border-b border-gray-200" onClick={() => setShowAllCampaigns(true)}>
+												<span className="text-[12px] font-medium text-gray-600">Show {data.rows.length - 7} more campaigns</span>
+											</td>
+										</tr>
+									)}
+
 									<tr className="row-total">
 										<td>Total Billing</td>
-										{cols.map((c) => (
+										{[...cols].reverse().map((c) => (
 											<td key={c.key} className="num">
 												{inr(src.totals[c.key]) || '—'}
 											</td>
@@ -294,9 +352,6 @@ export default function OverviewPage() {
 									</tr>
 								</tbody>
 							</table>
-						</div>
-						<div className="tbl-caption">
-							<span>Tip · scroll horizontally to see more months when the table overflows.</span>
 						</div>
 					</div>
 
@@ -320,13 +375,6 @@ export default function OverviewPage() {
 							</span>
 						</div>
 					)}
-
-					<div className="text-[13px]" style={{ color: 'var(--n-fg-subtle)' }}>
-						Each row is a campaign; its status dot is green while active and grey once over
-						(derived from the campaign&apos;s deals). Creators appear under the campaign name as a
-						supporting dimension. A deal&apos;s month and fiscal year come from its E-Invoice No.
-						EMW billing is the subset of deals where the billing entity contains &quot;EMW&quot;.
-					</div>
 				</div>
 			) : null}
 		</section>
@@ -357,27 +405,4 @@ function HeroMetricCard({ label, value }: { label: string; value: string }) {
 	);
 }
 
-function MiniMetricCard({ label, value, dotColor }: { label: string; value: number; dotColor?: string }) {
-	return (
-		<div
-			className="rounded p-2 flex flex-col justify-between items-center text-center"
-			style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg-soft)' }}
-		>
-			<div className="flex items-center gap-1">
-				{dotColor && <span className="h-1.5 w-1.5 rounded-full" style={{ background: dotColor }} />}
-				<div
-					className="text-[10px] font-medium uppercase"
-					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-				>
-					{label}
-				</div>
-			</div>
-			<div
-				className="text-[18px] font-bold tabular-nums mt-1 leading-none"
-				style={{ color: 'var(--n-fg)' }}
-			>
-				{value}
-			</div>
-		</div>
-	);
-}
+

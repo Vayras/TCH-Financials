@@ -229,6 +229,7 @@ export class DealsController {
     @Query('sort_order') sortOrder?: string,
     @Query('group_by') groupBy?: string,
     @Query('period_only') periodOnly?: string,
+    @Query('status') filterStatus?: string,
   ) {
     const pagination = paginationParams(page, pageSize);
     const qb = this.repo()
@@ -272,6 +273,16 @@ export class DealsController {
       )`, { search: `%${search.trim()}%` });
     }
 
+    if (filterStatus) {
+      if (filterStatus === 'Completed') {
+        qb.andWhere('campaign.status = :fStatus', { fStatus: 'Over' });
+      } else if (filterStatus === 'Pending Payment') {
+        qb.andWhere("COALESCE(campaign.status, '') != 'Over' AND deal.completed_at IS NOT NULL");
+      } else if (filterStatus === 'Awaiting Invoices') {
+        qb.andWhere("COALESCE(campaign.status, '') != 'Over' AND deal.completed_at IS NULL");
+      }
+    }
+
     const sortMap: Record<string, string> = {
       billing_period: 'deal.billingPeriod', confirmation_date: 'deal.confirmationDate',
       total_fee: 'deal.totalFee', brand: 'deal.brand', created_at: 'deal.createdAt',
@@ -312,8 +323,12 @@ export class DealsController {
             creator_names: [] as string[],
             total: 0,
             deal_count: 0,
+            invoices_uploaded: true,
             deal: dealDto(row),
           };
+          if (!row.completedAt) {
+            current.invoices_uploaded = false;
+          }
           current.total = Number(current.total) + (Number(row.totalFee) || 0);
           current.deal_count = Number(current.deal_count) + 1;
           const names = (row.creatorShares?.length ? row.creatorShares.map((s) => s.creator?.name || s.creatorNameRaw) : [row.creator?.name || row.creatorNameRaw]).filter(Boolean);
@@ -338,8 +353,11 @@ export class DealsController {
           for (const member of members) {
             const current = groups.get(member.key) ?? {
               key: member.key, name: member.name, relationship: member.relationship,
-              total: 0, deal_count: 0, deal: dealDto(row),
+              total: 0, deal_count: 0, invoices_uploaded: true, deal: dealDto(row),
             };
+            if (!row.completedAt) {
+              current.invoices_uploaded = false;
+            }
             current.total = Number(current.total) + member.total;
             current.deal_count = Number(current.deal_count) + 1;
             groups.set(member.key, current);

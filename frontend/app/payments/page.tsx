@@ -17,6 +17,7 @@ import {
 	type PaymentStatus
 } from '@/lib/payments';
 import Button from '@/components/ui/Button';
+import Icon from '@/components/ui/Icon';
 import Tag from '@/components/ui/Tag';
 import Label from '@/components/ui/Label';
 import Dialog from '@/components/ui/Dialog';
@@ -37,8 +38,8 @@ type StatusFilter = 'all' | PaymentStatus;
 
 const FILTER_OPTIONS: { key: StatusFilter; label: string }[] = [
 	{ key: 'all', label: 'All' },
-	{ key: 'awaiting_invoices', label: 'Awaiting invoices' },
-	{ key: 'due', label: 'Due this Wednesday' },
+	{ key: 'awaiting_invoices', label: 'Awaiting Invoices' },
+	{ key: 'due_soon', label: 'Due Soon' },
 	{ key: 'overdue', label: 'Overdue' },
 	{ key: 'upcoming', label: 'Upcoming' },
 	{ key: 'cleared', label: 'Cleared' }
@@ -126,7 +127,7 @@ export default function PaymentsPage() {
 		for (const r of scoped) {
 			const status = statusOf(r);
 			const amount = Number(r.creator_invoice_amount || r.creator_fee) || 0;
-			if (status === 'due') {
+			if (status === 'due_soon') {
 				dueCount += 1;
 				dueTotal += amount;
 			} else if (status === 'overdue') {
@@ -201,18 +202,20 @@ export default function PaymentsPage() {
 				cell: ({ row }) => creatorLabel(creatorNamesOf(row.original)) || '—'
 			},
 			{
-				accessorKey: 'brand',
-				header: 'Brand'
-			},
-			{
 				accessorKey: 'campaign',
 				header: 'Campaign',
-				cell: ({ row }) => row.original.campaign || '—'
-			},
-			{
-				accessorKey: 'tch_poc',
-				header: 'TCH POC',
-				meta: { tdStyle: { color: 'var(--n-fg-muted)' } }
+				cell: ({ row }) => (
+					<div>
+						<div className="font-medium" style={{ color: 'var(--n-fg)' }}>
+							{row.original.campaign || '—'}
+						</div>
+						{row.original.brand && (
+							<div className="text-[12px] truncate max-w-[250px]" style={{ color: 'var(--n-fg-subtle)' }}>
+								{row.original.brand}
+							</div>
+						)}
+					</div>
+				)
 			},
 			{
 				id: 'amount',
@@ -267,19 +270,19 @@ export default function PaymentsPage() {
 				id: 'actions',
 				header: 'Actions',
 				enableSorting: false,
-				meta: { thClassName: 'w-[190px]' },
+				meta: { thClassName: 'w-[140px]', tdClassName: 'text-right' },
 				cell: ({ row }) => {
 					const deal = row.original;
 					const status = statusOf(deal);
-					const canMarkPaid = status === 'due' || status === 'overdue' || status === 'upcoming';
+					const canMarkPaid = status === 'due_soon' || status === 'overdue' || status === 'upcoming';
 					return (
-						<div className="flex gap-1">
-							<Button variant="outline" onClick={() => startUpload(deal)}>
-								Upload
+						<div className="flex gap-2 justify-end">
+							<Button variant="outline" size="sm" onClick={() => startUpload(deal)} title="Upload invoices">
+								<Icon name="upload" size={14} />
 							</Button>
 							{canMarkPaid && (
-								<Button variant="primary" onClick={() => setConfirmPaidDeal(deal)}>
-									Mark paid
+								<Button variant="primary" size="sm" onClick={() => setConfirmPaidDeal(deal)} title="Mark as paid">
+									<Icon name="check" size={14} />
 								</Button>
 							)}
 						</div>
@@ -299,25 +302,44 @@ export default function PaymentsPage() {
 
 				<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
 					<MetricCard
-						label="Due this Wednesday"
+						label="Due Soon"
 						value={`${metrics.dueCount} · ₹${inr(metrics.dueTotal) || '0'}`}
 					/>
-					<MetricCard
-						label="Overdue"
-						value={`${metrics.overdueCount} · ₹${inr(metrics.overdueTotal) || '0'}`}
-						valueColor={metrics.overdueCount > 0 ? '#a4231b' : undefined}
-					/>
+					<div className="rounded-xl p-4 border" style={{ background: metrics.overdueCount > 0 ? '#fff5f5' : 'var(--n-bg)', borderColor: metrics.overdueCount > 0 ? '#ffcdd2' : 'var(--n-border)' }}>
+						<p className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: metrics.overdueCount > 0 ? '#c62828' : 'var(--n-fg-subtle)' }}>Overdue</p>
+						<p className="text-[24px] font-bold tracking-tight tabular-nums" style={{ color: metrics.overdueCount > 0 ? '#b71c1c' : 'var(--n-fg)' }}>
+							{metrics.overdueCount} · ₹{inr(metrics.overdueTotal) || '0'}
+						</p>
+					</div>
 					<MetricCard label="Awaiting Invoices" value={metrics.awaitingCount} />
 					<MetricCard label="Cleared" value={metrics.clearedCount} />
 				</div>
 
-				<FilterToolbar resultCount={filtered.length} resultLabel={filtered.length === 1 ? 'payment' : 'payments'}>
-					<div className="seg-toggle flex-wrap">
-						{FILTER_OPTIONS.map((f) => (
-							<button key={f.key} type="button" className={cn(statusFilter === f.key && 'active')} onClick={() => setStatusFilter(f.key)}>{f.label}</button>
-						))}
+				<div className="flex items-center gap-2 border-b mb-4" style={{ borderColor: 'var(--n-border)' }}>
+					<div className="flex-1 flex items-center gap-2">
+						{FILTER_OPTIONS.map((f) => {
+							const isActive = statusFilter === f.key;
+							return (
+								<button
+									key={f.key}
+									onClick={() => setStatusFilter(f.key)}
+									className={`px-4 py-2.5 text-[13px] font-medium transition-colors relative`}
+									style={{
+										color: isActive ? 'var(--n-fg)' : 'var(--n-fg-subtle)',
+									}}
+								>
+									{f.label}
+									{isActive && (
+										<div className="absolute bottom-[-1px] left-0 right-0 h-[2px] bg-current rounded-t-sm" />
+									)}
+								</button>
+							);
+						})}
 					</div>
-				</FilterToolbar>
+					<div className="text-[13px] pr-2" style={{ color: 'var(--n-fg-muted)' }}>
+						{filtered.length} {filtered.length === 1 ? 'payment' : 'payments'}
+					</div>
+				</div>
 
 				{error ? (
 					<QueryErrorState description="Payment information is temporarily unavailable." onRetry={() => refetchDeals()} />
@@ -326,7 +348,6 @@ export default function PaymentsPage() {
 						data={filtered}
 						columns={columns}
 						loading={loading}
-						numbered
 						emptyMessage="No completed campaigns match."
 					/>
 				)}

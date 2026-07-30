@@ -37,11 +37,11 @@ const num = (v: string | undefined) => {
 
 // Axis ticks in compact Indian units: 1.2Cr / 45L / 80K.
 function compactInr(n: number): string {
-	if (n === 0) return '0';
-	if (n >= 1e7) return `${+(n / 1e7).toFixed(1)}Cr`;
-	if (n >= 1e5) return `${+(n / 1e5).toFixed(1)}L`;
-	if (n >= 1e3) return `${+(n / 1e3).toFixed(0)}K`;
-	return String(n);
+	if (n === 0) return '₹0';
+	if (n >= 1e7) return `₹${+(n / 1e7).toFixed(1)}Cr`;
+	if (n >= 1e5) return `₹${+(n / 1e5).toFixed(1)}L`;
+	if (n >= 1e3) return `₹${+(n / 1e3).toFixed(0)}K`;
+	return `₹${n}`;
 }
 
 // Round the axis max up to a clean step so ticks land on round numbers.
@@ -239,7 +239,7 @@ export default function BillingBarChart({
 
 			{hovered && (
 				<div
-					className="absolute z-10 rounded p-2.5 text-[12.5px] shadow-md pointer-events-none"
+					className="absolute z-10 rounded p-2.5 text-[12.5px] border border-gray-200 pointer-events-none"
 					style={{
 						top: 24,
 						left: `${Math.min(Math.max(hoverCenterPct, 12), 88)}%`,

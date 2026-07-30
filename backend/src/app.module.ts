@@ -24,7 +24,7 @@ import {
 @Module({
   imports: [
     TypeOrmModule.forRoot(AppDataSource.options),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 20 }]),
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 300 }]),
   ],
   controllers: [
     AnalyticsController,

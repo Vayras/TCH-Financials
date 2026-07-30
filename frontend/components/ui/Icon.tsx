@@ -72,9 +72,10 @@ export interface IconProps {
 	name: string;
 	className?: string;
 	size?: number;
+	style?: React.CSSProperties;
 }
 
-export function Icon({ name, className, size = 16 }: IconProps) {
+export function Icon({ name, className, size = 16, style }: IconProps) {
 	const lucideName = NAME_MAP[name];
 	if (!lucideName) {
 		// Unknown icon — render a question mark placeholder in dev, nothing in prod
@@ -90,8 +91,8 @@ export function Icon({ name, className, size = 16 }: IconProps) {
 		return null;
 	}
 
-	const LucideComponent = LucideIcons[lucideName] as React.FC<{ size?: number; className?: string }>;
-	return <LucideComponent size={size} className={className} />;
+	const LucideComponent = LucideIcons[lucideName] as React.FC<{ size?: number; className?: string; style?: React.CSSProperties }>;
+	return <LucideComponent size={size} className={className} style={style} />;
 }
 
 export default Icon;
