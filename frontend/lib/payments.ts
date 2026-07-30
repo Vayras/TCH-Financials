@@ -3,7 +3,7 @@ import { api, type Deal, type DealDocument, type CreatorInvoice } from '@/lib/ap
 // Creator payment cycles map to a number of days added to the base invoice
 // date before the Wednesday payment-run rule is applied.
 export const CYCLE_DAYS: Record<'' | 'Immediate' | 'Net15' | 'Net30' | 'Net45' | 'Net60', number> = {
-	'': 0,
+	'': 30, // Default to a 30 day cycle
 	Immediate: 0,
 	Net15: 15,
 	Net30: 30,
@@ -19,16 +19,7 @@ export function addDaysISO(iso: string, days: number): string {
 	return dt.toISOString().slice(0, 10);
 }
 
-// The next Wednesday on or after the given ISO date (Wednesday = UTC day 3).
-// TCH runs its creator payment cycle every Wednesday.
-export function nextWednesdayOnOrAfter(iso: string): string {
-	const [y, m, d] = iso.split('-').map(Number);
-	const dt = new Date(Date.UTC(y, m - 1, d));
-	const day = dt.getUTCDay();
-	const delta = (3 - day + 7) % 7;
-	dt.setUTCDate(dt.getUTCDate() + delta);
-	return dt.toISOString().slice(0, 10);
-}
+
 
 // Base date for the payment cycle is the creator invoice date, falling back to
 // the date the deal was marked completed. No base date means we can't compute
@@ -36,11 +27,11 @@ export function nextWednesdayOnOrAfter(iso: string): string {
 export function paymentDueDate(deal: Deal): string | '' {
 	const base = deal.creator_invoice_date || deal.completed_at;
 	if (!base) return '';
-	const cycleDays = CYCLE_DAYS[deal.creator_payment_cycle] ?? 0;
-	return nextWednesdayOnOrAfter(addDaysISO(base, cycleDays));
+	const cycleDays = CYCLE_DAYS[deal.creator_payment_cycle] ?? 30;
+	return addDaysISO(base, cycleDays);
 }
 
-export type PaymentStatus = 'awaiting_invoices' | 'overdue' | 'due' | 'upcoming' | 'cleared';
+export type PaymentStatus = 'awaiting_invoices' | 'overdue' | 'due_soon' | 'upcoming' | 'cleared';
 
 export function paymentStatusOf(
 	deal: Deal,
@@ -60,18 +51,17 @@ export function paymentStatusOf(
 	if (cleared) return 'cleared';
 	if (!invoicesIn) return 'awaiting_invoices';
 
-	// No invoice/completion date on legacy deals: mirror the backend and treat
-	// today as the cycle base, putting them in the upcoming Wednesday run.
-	const due = paymentDueDate(deal) || nextWednesdayOnOrAfter(todayISO);
+	// No invoice/completion date on legacy deals: treat today as base
+	const due = paymentDueDate(deal) || addDaysISO(todayISO, 30);
 	if (due < todayISO) return 'overdue';
-	if (due <= nextWednesdayOnOrAfter(todayISO)) return 'due';
+	if (due <= addDaysISO(todayISO, 7)) return 'due_soon';
 	return 'upcoming';
 }
 
 export const STATUS_LABEL: Record<PaymentStatus, string> = {
 	awaiting_invoices: 'Awaiting Invoices',
 	overdue: 'Overdue',
-	due: 'Due This Wednesday',
+	due_soon: 'Due Soon',
 	upcoming: 'Upcoming',
 	cleared: 'Cleared'
 };
@@ -82,7 +72,7 @@ export const STATUS_TONE: Record<
 > = {
 	cleared: 'yes',
 	overdue: 'no',
-	due: 'markup',
+	due_soon: 'markup',
 	upcoming: 'neutral',
 	awaiting_invoices: 'dropping'
 };

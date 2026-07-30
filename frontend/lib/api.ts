@@ -171,6 +171,7 @@ export type CampaignCardGroup = {
 	name: string;
 	brand: string;
 	status: '' | 'Active' | 'Over';
+	invoices_uploaded: boolean;
 	creator_names: string[];
 	total: number;
 	deal_count: number;
@@ -181,6 +182,7 @@ export type CreatorCardGroup = {
 	key: string;
 	name: string;
 	relationship?: string;
+	invoices_uploaded: boolean;
 	total: number;
 	deal_count: number;
 	deal: Deal;
@@ -298,6 +300,8 @@ export type Overview = {
 	profits: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
 	emw_pct: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
 	profit_pct: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
+	top_brands: { name: string; total: string }[];
+	top_creators: { name: string; total: string }[];
 	not_invoiced: { count: number; total_fee: string; profit: string };
 };
 

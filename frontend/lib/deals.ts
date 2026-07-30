@@ -110,6 +110,12 @@ export function billingPeriodOf(r: Deal): string | null {
 	return null;
 }
 
+export function getStatusDisplay(status: string, invoicesUploaded: boolean) {
+	if (status === 'Over') return { label: 'Completed', tone: 'neutral' as const };
+	if (invoicesUploaded) return { label: 'Pending Payment', tone: 'yes' as const };
+	return { label: 'Awaiting Invoices', tone: 'exclusive' as const };
+}
+
 // The full set of creator display names on a deal (primary + any split rows).
 export function creatorNamesOf(r: Deal): string[] {
 	if (r.creator_shares && r.creator_shares.length > 0) {

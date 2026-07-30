@@ -48,6 +48,7 @@ export type CampaignGroup = {
 	name: string;
 	brand: string;
 	status: '' | 'Active' | 'Over';
+	invoices_uploaded: boolean;
 	creatorNames: string[];
 	deals: Deal[];
 	total: number;
@@ -57,6 +58,7 @@ export type CreatorGroup = {
 	key: string;
 	name: string;
 	relationship?: string;
+	invoices_uploaded: boolean;
 	deals: Deal[];
 	dealCount?: number;
 	total: number;
