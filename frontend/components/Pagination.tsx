@@ -8,16 +8,17 @@ export interface PaginationProps {
 	onPageChange: (page: number) => void;
 	onPageSizeChange?: (pageSize: number) => void;
 	pageSizeOptions?: number[];
+	className?: string;
 }
 
-export default function Pagination({ page, pageSize, total, onPageChange, onPageSizeChange, pageSizeOptions = [25, 50, 100] }: PaginationProps) {
+export default function Pagination({ page, pageSize, total, onPageChange, onPageSizeChange, pageSizeOptions = [25, 50, 100], className = '' }: PaginationProps) {
 	const pages = Math.max(1, Math.ceil(total / pageSize));
 	const safePage = Math.min(Math.max(page, 1), pages);
 	const first = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
 	const last = Math.min(safePage * pageSize, total);
 
 	return (
-		<nav className="table-pagination" aria-label="Table pagination">
+		<nav className={`table-pagination ${className}`} aria-label="Table pagination">
 			<div className="table-pagination-range">{first.toLocaleString()}–{last.toLocaleString()} of {total.toLocaleString()}</div>
 			<div className="table-pagination-controls">
 				{onPageSizeChange && (
