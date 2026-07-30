@@ -21,38 +21,59 @@ export function addDaysISO(iso: string, days: number): string {
 
 
 
-// Base date for the payment cycle is the creator invoice date, falling back to
-// the date the deal was marked completed. No base date means we can't compute
-// a due date yet.
-export function paymentDueDate(deal: Deal): string | '' {
+// CLIENT LOGIC
+export type PaymentStatus = 'awaiting_invoices' | 'overdue' | 'due_soon' | 'upcoming' | 'cleared';
+
+export function clientPaymentDueDate(deal: Deal): string | '' {
+	const base = deal.client_invoice_date || deal.completed_at;
+	if (!base) return '';
+	const cycleDays = 30; // 30 is default for client
+	return addDaysISO(base, cycleDays);
+}
+
+export function clientPaymentStatusOf(
+	deal: Deal,
+	docsForDeal: DealDocument[],
+	todayISO: string
+): PaymentStatus {
+	const cleared = deal.payment_cleared === 'Y';
+	const hasClientDoc = docsForDeal.some((d) => d.doc_type === 'ClientInvoice');
+
+	if (cleared) return 'cleared';
+	if (!hasClientDoc && deal.invoice_received !== 'Y') return 'awaiting_invoices';
+
+	const due = clientPaymentDueDate(deal) || addDaysISO(todayISO, 30);
+	if (due < todayISO) return 'overdue';
+	if (due <= addDaysISO(todayISO, 7)) return 'due_soon';
+	return 'upcoming';
+}
+
+// CREATOR LOGIC
+export function creatorPaymentDueDate(deal: Deal): string | '' {
 	const base = deal.creator_invoice_date || deal.completed_at;
 	if (!base) return '';
 	const cycleDays = CYCLE_DAYS[deal.creator_payment_cycle] ?? 30;
 	return addDaysISO(base, cycleDays);
 }
 
-export type PaymentStatus = 'awaiting_invoices' | 'overdue' | 'due_soon' | 'upcoming' | 'cleared';
-
-export function paymentStatusOf(
+export function creatorPaymentStatusOf(
 	deal: Deal,
 	docsForDeal: DealDocument[],
 	todayISO: string,
 	creatorInvoicesForDeal: CreatorInvoice[] = []
 ): PaymentStatus {
-	const cleared = deal.payment_cleared === 'Y' || deal.creator_payment_status === 'Paid';
-	const hasClientDoc = docsForDeal.some((d) => d.doc_type === 'ClientInvoice');
+	const cleared = deal.creator_payment_status === 'Paid';
+	
 	const assignedCreatorIds = deal.creator_shares?.length
 		? deal.creator_shares.flatMap((share) => share.creator ? [share.creator] : [])
 		: deal.creator ? [deal.creator] : [];
 	const structuredCreatorIds = new Set(creatorInvoicesForDeal.map((invoice) => invoice.creator));
 	const hasCreatorDoc = assignedCreatorIds.length === 0 || assignedCreatorIds.every((id) => structuredCreatorIds.has(id));
-	const invoicesIn = deal.invoice_received === 'Y' || (hasClientDoc && hasCreatorDoc);
 
 	if (cleared) return 'cleared';
-	if (!invoicesIn) return 'awaiting_invoices';
+	if (!hasCreatorDoc && deal.invoice_received !== 'Y') return 'awaiting_invoices';
 
-	// No invoice/completion date on legacy deals: treat today as base
-	const due = paymentDueDate(deal) || addDaysISO(todayISO, 30);
+	const due = creatorPaymentDueDate(deal) || addDaysISO(todayISO, 30);
 	if (due < todayISO) return 'overdue';
 	if (due <= addDaysISO(todayISO, 7)) return 'due_soon';
 	return 'upcoming';

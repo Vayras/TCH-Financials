@@ -30,12 +30,27 @@ export function useCreatorInvoicesQuery() {
 	});
 }
 
-export function useMarkPaidMutation(fyStart: number | null) {
+export function useMarkClientPaidMutation(fyStart: number | null) {
 	const queryClient = useQueryClient();
 	return useMutation<unknown, Error, { id: number; version: number }>({
 		mutationFn: ({ id, version }) =>
 			api.patch(`/deals/${id}/`, {
 				payment_cleared: 'Y',
+				client_payment_date: new Date().toISOString().slice(0, 10),
+				version
+			}),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['deals'] });
+			queryClient.invalidateQueries({ queryKey: ['overview'] });
+		}
+	});
+}
+
+export function useMarkCreatorPaidMutation(fyStart: number | null) {
+	const queryClient = useQueryClient();
+	return useMutation<unknown, Error, { id: number; version: number }>({
+		mutationFn: ({ id, version }) =>
+			api.patch(`/deals/${id}/`, {
 				creator_payment_status: 'Paid',
 				creator_payment_date: new Date().toISOString().slice(0, 10),
 				version

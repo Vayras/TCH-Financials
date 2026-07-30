@@ -10,8 +10,10 @@ import { cn, formatDocDate, inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import { creatorLabel, creatorNamesOf } from '@/lib/deals';
 import {
-	paymentDueDate,
-	paymentStatusOf,
+	clientPaymentDueDate,
+	creatorPaymentDueDate,
+	clientPaymentStatusOf,
+	creatorPaymentStatusOf,
 	STATUS_LABEL,
 	STATUS_TONE,
 	type PaymentStatus
@@ -30,11 +32,13 @@ import {
 	useDealsQuery,
 	useDealDocumentsQuery,
 	useCreatorInvoicesQuery,
-	useMarkPaidMutation,
+	useMarkClientPaidMutation,
+	useMarkCreatorPaidMutation,
 	useUploadInvoiceMutation
 } from './queries';
 
 type StatusFilter = 'all' | PaymentStatus;
+type TabState = 'receivables' | 'payables';
 
 const FILTER_OPTIONS: { key: StatusFilter; label: string }[] = [
 	{ key: 'all', label: 'All' },
@@ -80,9 +84,11 @@ export default function PaymentsPage() {
 	const loading = dealsLoading || docsLoading || creatorInvoicesLoading;
 	const error = dealsError ? dealsError.message : null;
 
-	const markPaidMutation = useMarkPaidMutation(fyStart);
+	const markClientPaidMutation = useMarkClientPaidMutation(fyStart);
+	const markCreatorPaidMutation = useMarkCreatorPaidMutation(fyStart);
 	const uploadInvoiceMutation = useUploadInvoiceMutation(fyStart);
 
+	const [activeTab, setActiveTab] = React.useState<TabState>('receivables');
 	const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('all');
 
 	const [uploadOpen, setUploadOpen] = React.useState(false);
@@ -106,6 +112,7 @@ export default function PaymentsPage() {
 		}
 		return map;
 	}, [docs]);
+
 	const creatorInvoicesByDeal = React.useMemo(() => {
 		const map = new Map<number, CreatorInvoice[]>();
 		for (const invoice of creatorInvoices) map.set(invoice.deal, [...(map.get(invoice.deal) ?? []), invoice]);
@@ -113,8 +120,14 @@ export default function PaymentsPage() {
 	}, [creatorInvoices]);
 
 	const statusOf = React.useCallback(
-		(deal: Deal): PaymentStatus => paymentStatusOf(deal, docsByDeal.get(deal.id) ?? [], today, creatorInvoicesByDeal.get(deal.id) ?? []),
-		[docsByDeal, creatorInvoicesByDeal, today]
+		(deal: Deal): PaymentStatus => {
+			if (activeTab === 'receivables') {
+				return clientPaymentStatusOf(deal, docsByDeal.get(deal.id) ?? [], today);
+			} else {
+				return creatorPaymentStatusOf(deal, docsByDeal.get(deal.id) ?? [], today, creatorInvoicesByDeal.get(deal.id) ?? []);
+			}
+		},
+		[activeTab, docsByDeal, creatorInvoicesByDeal, today]
 	);
 
 	const metrics = React.useMemo(() => {
@@ -126,7 +139,10 @@ export default function PaymentsPage() {
 		let clearedCount = 0;
 		for (const r of scoped) {
 			const status = statusOf(r);
-			const amount = Number(r.creator_invoice_amount || r.creator_fee) || 0;
+			const amount = activeTab === 'receivables' 
+				? Number(r.client_invoice_amount || r.total_fee) || 0
+				: Number(r.creator_invoice_amount || r.creator_fee) || 0;
+				
 			if (status === 'due_soon') {
 				dueCount += 1;
 				dueTotal += amount;
@@ -140,12 +156,19 @@ export default function PaymentsPage() {
 			}
 		}
 		return { dueCount, dueTotal, overdueCount, overdueTotal, awaitingCount, clearedCount };
-	}, [scoped, statusOf]);
+	}, [scoped, statusOf, activeTab]);
 
 	const filtered = React.useMemo(() => {
-		if (statusFilter === 'all') return scoped;
-		return scoped.filter((r) => statusOf(r) === statusFilter);
-	}, [scoped, statusFilter, statusOf]);
+		let result = scoped;
+		if (activeTab === 'payables') {
+			// In payables tab, we only care about deals that have a creator assigned OR a creator fee
+			result = result.filter(r => r.creator || (r.creator_shares && r.creator_shares.length > 0) || Number(r.creator_fee) > 0);
+		}
+		if (statusFilter !== 'all') {
+			result = result.filter((r) => statusOf(r) === statusFilter);
+		}
+		return result;
+	}, [scoped, statusFilter, statusOf, activeTab]);
 
 	function startUpload(deal: Deal) {
 		setUploadDeal(deal);
@@ -181,124 +204,173 @@ export default function PaymentsPage() {
 	}
 
 	async function markPaid(deal: Deal) {
-		const amount = deal.creator_invoice_amount || deal.creator_fee;
-		const creatorName = creatorLabel(creatorNamesOf(deal));
 		try {
-			await markPaidMutation.mutateAsync({ id: deal.id, version: deal.version });
+			if (activeTab === 'receivables') {
+				await markClientPaidMutation.mutateAsync({ id: deal.id, version: deal.version });
+				toast.success(`Payment from ${deal.brand || 'Client'} marked as received.`);
+			} else {
+				const creatorName = creatorLabel(creatorNamesOf(deal));
+				await markCreatorPaidMutation.mutateAsync({ id: deal.id, version: deal.version });
+				toast.success(`Payment to ${creatorName} marked as paid.`);
+			}
 			setConfirmPaidDeal(null);
-			toast.success(`Payment to ${creatorName} marked as paid.`);
 		} catch (e) {
 			toast.error('Payment could not be updated.', { description: (e as Error).message });
 		}
 	}
 
 	const columns = React.useMemo<ColumnDef<Deal, unknown>[]>(
-		() => [
-			{
+		() => {
+			const entityColumn = activeTab === 'receivables' ? {
+				id: 'brand',
+				header: 'Brand',
+				meta: { tdClassName: 'font-medium' },
+				accessorFn: (r: Deal) => r.brand,
+				cell: ({ row }: { row: { original: Deal }}) => row.original.brand || '—'
+			} : {
 				id: 'creator',
 				header: 'Creator',
 				meta: { tdClassName: 'font-medium' },
-				accessorFn: (r) => creatorLabel(creatorNamesOf(r)),
-				cell: ({ row }) => creatorLabel(creatorNamesOf(row.original)) || '—'
-			},
-			{
-				accessorKey: 'campaign',
-				header: 'Campaign',
-				cell: ({ row }) => (
-					<div>
-						<div className="font-medium" style={{ color: 'var(--n-fg)' }}>
-							{row.original.campaign || '—'}
-						</div>
-						{row.original.brand && (
-							<div className="text-[12px] truncate max-w-[250px]" style={{ color: 'var(--n-fg-subtle)' }}>
-								{row.original.brand}
+				accessorFn: (r: Deal) => creatorLabel(creatorNamesOf(r)),
+				cell: ({ row }: { row: { original: Deal }}) => creatorLabel(creatorNamesOf(row.original)) || '—'
+			};
+
+			return [
+				entityColumn,
+				{
+					accessorKey: 'campaign',
+					header: 'Campaign',
+					cell: ({ row }) => (
+						<div>
+							<div className="font-medium" style={{ color: 'var(--n-fg)' }}>
+								{row.original.campaign || '—'}
 							</div>
-						)}
-					</div>
-				)
-			},
-			{
-				id: 'amount',
-				header: 'Amount',
-				meta: { thClassName: 'text-right', tdClassName: 'text-right tabular-nums' },
-				accessorFn: (r) => Number(r.creator_invoice_amount || r.creator_fee) || 0,
-				cell: ({ row }) => {
-					const amt = row.original.creator_invoice_amount || row.original.creator_fee;
-					const formatted = inr(amt);
-					return formatted ? `₹${formatted}` : '—';
-				}
-			},
-			{
-				id: 'invoices',
-				header: 'Invoices',
-				enableSorting: false,
-				cell: ({ row }) => {
-					const deal = row.original;
-					const docsForDeal = docsByDeal.get(deal.id) ?? [];
-					const clientDoc = docsForDeal.find((d) => d.doc_type === 'ClientInvoice');
-					const creatorCount = creatorInvoicesByDeal.get(deal.id)?.length ?? 0;
-					const requiredCount = deal.creator_shares?.length || (deal.creator ? 1 : 0);
-					const received = deal.invoice_received === 'Y';
-					return (
-						<div className="flex gap-1">
-							<InvoiceTag label="Client" doc={clientDoc} fallbackYes={received} />
-							<Tag tone={creatorCount >= requiredCount ? 'yes' : 'no'}>Creators {creatorCount}/{requiredCount}</Tag>
+							<div className="text-[12px] truncate max-w-[250px]" style={{ color: 'var(--n-fg-subtle)' }}>
+								{activeTab === 'receivables' ? creatorLabel(creatorNamesOf(row.original)) : row.original.brand}
+							</div>
 						</div>
-					);
+					)
+				},
+				{
+					id: 'amount',
+					header: 'Amount',
+					meta: { thClassName: 'text-right', tdClassName: 'text-right tabular-nums' },
+					accessorFn: (r: Deal) => activeTab === 'receivables' 
+						? Number(r.client_invoice_amount || r.total_fee) || 0
+						: Number(r.creator_invoice_amount || r.creator_fee) || 0,
+					cell: ({ row }) => {
+						const amt = activeTab === 'receivables'
+							? row.original.client_invoice_amount || row.original.total_fee
+							: row.original.creator_invoice_amount || row.original.creator_fee;
+						const formatted = inr(Number(amt));
+						return formatted ? `₹${formatted}` : '—';
+					}
+				},
+				{
+					id: 'invoices',
+					header: 'Invoices',
+					enableSorting: false,
+					cell: ({ row }) => {
+						const deal = row.original;
+						const docsForDeal = docsByDeal.get(deal.id) ?? [];
+						const clientDoc = docsForDeal.find((d) => d.doc_type === 'ClientInvoice');
+						const creatorCount = creatorInvoicesByDeal.get(deal.id)?.length ?? 0;
+						const requiredCount = deal.creator_shares?.length || (deal.creator ? 1 : 0);
+						const received = deal.invoice_received === 'Y';
+						
+						if (activeTab === 'receivables') {
+							return <InvoiceTag label="Client" doc={clientDoc} fallbackYes={received} />;
+						} else {
+							return (
+								<div className="flex gap-1">
+									<Tag tone={creatorCount >= requiredCount && requiredCount > 0 ? 'yes' : 'no'}>Creators {creatorCount}/{requiredCount}</Tag>
+								</div>
+							);
+						}
+					}
+				},
+				{
+					id: 'due',
+					header: 'Due',
+					meta: { tdClassName: 'whitespace-nowrap', tdStyle: { color: 'var(--n-fg-muted)' } },
+					accessorFn: (r: Deal) => activeTab === 'receivables' ? clientPaymentDueDate(r) : creatorPaymentDueDate(r),
+					cell: ({ row }) => {
+						const due = activeTab === 'receivables' ? clientPaymentDueDate(row.original) : creatorPaymentDueDate(row.original);
+						return due ? formatDocDate(due) : '—';
+					}
+				},
+				{
+					id: 'status',
+					header: 'Status',
+					accessorFn: (r: Deal) => statusOf(r),
+					cell: ({ row }) => {
+						const status = statusOf(row.original);
+						return <Tag tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Tag>;
+					}
+				},
+				{
+					id: 'actions',
+					header: 'Actions',
+					enableSorting: false,
+					meta: { thClassName: 'w-[140px]', tdClassName: 'text-right' },
+					cell: ({ row }) => {
+						const deal = row.original;
+						const status = statusOf(deal);
+						const canMarkPaid = status === 'due_soon' || status === 'overdue' || status === 'upcoming';
+						return (
+							<div className="flex gap-2 justify-end">
+								{activeTab === 'receivables' && (
+									<Button variant="outline" size="sm" onClick={() => startUpload(deal)} title="Upload client invoice">
+										<Icon name="upload" size={14} />
+									</Button>
+								)}
+								{canMarkPaid && (
+									<Button variant="primary" size="sm" onClick={() => setConfirmPaidDeal(deal)} title={activeTab === 'receivables' ? "Mark client paid" : "Mark creator paid"}>
+										<Icon name="check" size={14} />
+									</Button>
+								)}
+							</div>
+						);
+					}
 				}
-			},
-			{
-				id: 'due',
-				header: 'Due',
-				meta: { tdClassName: 'whitespace-nowrap', tdStyle: { color: 'var(--n-fg-muted)' } },
-				accessorFn: (r) => paymentDueDate(r) || '',
-				cell: ({ row }) => {
-					const due = paymentDueDate(row.original);
-					return due ? formatDocDate(due) : '—';
-				}
-			},
-			{
-				id: 'status',
-				header: 'Status',
-				accessorFn: (r) => statusOf(r),
-				cell: ({ row }) => {
-					const status = statusOf(row.original);
-					return <Tag tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Tag>;
-				}
-			},
-			{
-				id: 'actions',
-				header: 'Actions',
-				enableSorting: false,
-				meta: { thClassName: 'w-[140px]', tdClassName: 'text-right' },
-				cell: ({ row }) => {
-					const deal = row.original;
-					const status = statusOf(deal);
-					const canMarkPaid = status === 'due_soon' || status === 'overdue' || status === 'upcoming';
-					return (
-						<div className="flex gap-2 justify-end">
-							<Button variant="outline" size="sm" onClick={() => startUpload(deal)} title="Upload invoices">
-								<Icon name="upload" size={14} />
-							</Button>
-							{canMarkPaid && (
-								<Button variant="primary" size="sm" onClick={() => setConfirmPaidDeal(deal)} title="Mark as paid">
-									<Icon name="check" size={14} />
-								</Button>
-							)}
-						</div>
-					);
-				}
-			}
-		],
-		[docsByDeal, creatorInvoicesByDeal, statusOf]
+			];
+		},
+		[activeTab, docsByDeal, creatorInvoicesByDeal, statusOf]
 	);
 
 	const existingDocs = uploadDeal ? (docsByDeal.get(uploadDeal.id) ?? []) : [];
+	
+	const getConfirmModalTitle = () => activeTab === 'receivables' ? 'Confirm Payment Received?' : 'Confirm Payout?';
+	const getConfirmModalDescription = () => {
+		if (!confirmPaidDeal) return '';
+		if (activeTab === 'receivables') {
+			return `Are you sure you want to mark the payment of ₹${inr(Number(confirmPaidDeal.client_invoice_amount || confirmPaidDeal.total_fee)) || '0'} from ${confirmPaidDeal.brand || 'Client'} as received? This action will finalize the transaction and cannot be undone.`;
+		} else {
+			return `Are you sure you want to mark the payment of ₹${inr(Number(confirmPaidDeal.creator_invoice_amount || confirmPaidDeal.creator_fee)) || '0'} to ${creatorLabel(creatorNamesOf(confirmPaidDeal))} as paid? This action will finalize the transaction and cannot be undone.`;
+		}
+	};
+	const getConfirmModalLabel = () => activeTab === 'receivables' ? 'Yes, mark received' : 'Yes, mark paid';
 
 	return (
 		<>
 			<section className="space-y-6">
-				<PageHeader title="Payments" description="Track invoice readiness, payment deadlines, and cleared campaigns." />
+				<div className="flex justify-between items-end">
+					<PageHeader title="Payments" description="Manage accounts receivable and accounts payable." />
+					<div className="flex bg-[var(--n-bg-soft)] p-1 rounded-lg border border-[var(--n-border)] mb-4">
+						<button 
+							onClick={() => setActiveTab('receivables')} 
+							className={`px-4 py-1.5 text-[13px] font-medium rounded-md transition-all ${activeTab === 'receivables' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+						>
+							Receivables (Clients)
+						</button>
+						<button 
+							onClick={() => setActiveTab('payables')} 
+							className={`px-4 py-1.5 text-[13px] font-medium rounded-md transition-all ${activeTab === 'payables' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+						>
+							Payables (Creators)
+						</button>
+					</div>
+				</div>
 
 				<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
 					<MetricCard
@@ -346,7 +418,7 @@ export default function PaymentsPage() {
 				) : (
 					<DataTable
 						data={filtered}
-						columns={columns}
+						columns={columns as any}
 						loading={loading}
 						emptyMessage="No completed campaigns match."
 					/>
@@ -433,10 +505,10 @@ export default function PaymentsPage() {
 			<ConfirmDialog 
 				open={confirmPaidDeal !== null} 
 				onOpenChange={(value) => { if (!value) setConfirmPaidDeal(null); }} 
-				title="Confirm Payment?" 
-				description={confirmPaidDeal ? `Are you sure you want to mark the payment of ₹${inr(confirmPaidDeal.creator_invoice_amount || confirmPaidDeal.creator_fee) || '0'} to ${creatorLabel(creatorNamesOf(confirmPaidDeal))} as paid? This action will finalize the transaction and cannot be undone.` : ''} 
-				confirmLabel="Yes, mark as paid" 
-				pending={markPaidMutation.isPending} 
+				title={getConfirmModalTitle()} 
+				description={getConfirmModalDescription()} 
+				confirmLabel={getConfirmModalLabel()} 
+				pending={activeTab === 'receivables' ? markClientPaidMutation.isPending : markCreatorPaidMutation.isPending} 
 				onConfirm={() => { if (confirmPaidDeal) return markPaid(confirmPaidDeal); }} 
 			/>
 		</>
