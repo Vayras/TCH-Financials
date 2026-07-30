@@ -14,7 +14,8 @@ import {
 	EMPTY_DEAL_FORM,
 	FY_MONTH_ORDER,
 	MONTH_NAMES,
-	normalisePctString
+	normalisePctString,
+	getStatusDisplay
 } from '@/lib/deals';
 import Icon from '@/components/ui/Icon';
 import Button from '@/components/ui/Button';
@@ -22,6 +23,7 @@ import MetricCard from '@/components/MetricCard';
 import PageHeader from '@/components/PageHeader';
 import Pagination from '@/components/Pagination';
 import QueryErrorState from '@/components/QueryErrorState';
+import Tag from '@/components/ui/Tag';
 import { CampaignGroupCard, CreatorGroupCard } from '@/components/CampaignCards';
 import CampaignFormModal, { type CampaignFormResult } from '@/components/CampaignFormModal';
 import {
@@ -47,6 +49,7 @@ export default function CommercialPage() {
 	const [editing, setEditing] = React.useState<Deal | null>(null);
 	const [q, setQ] = React.useState('');
 	const [dirFilter, setDirFilter] = React.useState<DirFilter>('All');
+	const [statusFilter, setStatusFilter] = React.useState('All');
 	// Multi-month filter: empty = all months of the selected fiscal year.
 	const [months, setMonths] = React.useState<string[]>([]);
 	const [creatorFilter, setCreatorFilter] = React.useState('All');
@@ -58,6 +61,20 @@ export default function CommercialPage() {
 	const [page, setPage] = React.useState(1);
 	const [urlHydrated, setUrlHydrated] = React.useState(false);
 	const skipFirstPageReset = React.useRef(true);
+
+	const [showFilters, setShowFilters] = React.useState(false);
+	const popoverRef = React.useRef<HTMLDivElement>(null);
+
+	React.useEffect(() => {
+		function handleClickOutside(e: MouseEvent) {
+			if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+				setShowFilters(false);
+			}
+		}
+		if (showFilters) document.addEventListener('mousedown', handleClickOutside);
+		return () => document.removeEventListener('mousedown', handleClickOutside);
+	}, [showFilters]);
+
 	const pageSize = 12;
 	const [viewMode, setViewMode] = React.useState<'cards' | 'table'>(() => {
 		if (typeof window === 'undefined') return 'cards';
@@ -74,6 +91,7 @@ export default function CommercialPage() {
 		pageSize,
 		search: debouncedSearch || undefined,
 		direction: dirFilter === 'All' ? undefined : dirFilter,
+		status: statusFilter === 'All' ? undefined : statusFilter,
 		creator: selectedCreatorId,
 		months: months.map(Number),
 		sortBy: 'billing_period' as const,
@@ -100,6 +118,8 @@ export default function CommercialPage() {
 		setQ(params.get('search') ?? '');
 		const direction = params.get('direction');
 		if (direction === 'Inbound' || direction === 'Outbound') setDirFilter(direction);
+		const status = params.get('status');
+		if (status) setStatusFilter(status);
 		setCreatorFilter(params.get('creator') ?? 'All');
 		setMonths(params.get('month') ? [params.get('month')!] : []);
 		const urlGroup = params.get('group');
@@ -116,6 +136,7 @@ export default function CommercialPage() {
 		const params = new URLSearchParams();
 		if (q.trim()) params.set('search', q.trim());
 		if (dirFilter !== 'All') params.set('direction', dirFilter);
+		if (statusFilter !== 'All') params.set('status', statusFilter);
 		if (creatorFilter !== 'All') params.set('creator', creatorFilter);
 		if (months[0]) params.set('month', months[0]);
 		if (viewMode !== 'cards') params.set('view', viewMode);
@@ -123,7 +144,7 @@ export default function CommercialPage() {
 		if (page > 1) params.set('page', String(page));
 		const query = params.toString();
 		window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
-	}, [urlHydrated, q, dirFilter, creatorFilter, months, viewMode, groupBy, page]);
+	}, [urlHydrated, q, dirFilter, statusFilter, creatorFilter, months, viewMode, groupBy, page]);
 
 	function startAdd() {
 		setEditing(null);
@@ -235,7 +256,7 @@ export default function CommercialPage() {
 	);
 
 	const filtersActive =
-		creatorFilter !== 'All' || months.length > 0 || dirFilter !== 'All' || q.trim() !== '';
+		creatorFilter !== 'All' || months.length > 0 || dirFilter !== 'All' || statusFilter !== 'All' || q.trim() !== '';
 
 	// Months are offered only once they've started: a month appears in the
 	// dropdown when its calendar position is in the past or is the running one
@@ -268,21 +289,64 @@ export default function CommercialPage() {
 		setCreatorFilter('All');
 		setMonths([]);
 		setDirFilter('All');
+		setStatusFilter('All');
 		setQ('');
 	}
+
+	const renderEmptyState = (type: 'campaigns' | 'deals') => {
+		let title = `No ${type} found`;
+		let desc = "Try adjusting your filters or search terms.";
+		let iconName = "inbox";
+
+		if (q.trim()) {
+			title = "No search results";
+			desc = `We couldn't find anything matching "${q.trim()}".`;
+			iconName = "search";
+		} else if (statusFilter === 'Completed') {
+			title = `No completed ${type}`;
+			desc = `There are no ${type} that have been fully paid and completed.`;
+			iconName = "check";
+		} else if (statusFilter === 'Awaiting Invoices') {
+			title = "All caught up!";
+			desc = `There are no ${type} waiting for invoice uploads.`;
+			iconName = "check";
+		} else if (statusFilter === 'Pending Payment') {
+			title = "No pending payments";
+			desc = `All invoiced ${type} have been processed.`;
+			iconName = "credit-card";
+		} else if (filtersActive) {
+			title = "No matches found";
+			desc = "Try clearing some filters to see more results.";
+		}
+
+		return (
+			<div className="py-20 flex flex-col items-center justify-center text-center anim-fade-up">
+				<div className="w-14 h-14 rounded-full flex items-center justify-center mb-4" style={{ background: 'var(--n-bg-soft)' }}>
+					<Icon name={iconName} size={24} style={{ color: 'var(--n-fg-subtle)' }} />
+				</div>
+				<h3 className="text-[15px] font-bold mb-1.5" style={{ color: 'var(--n-fg)' }}>{title}</h3>
+				<p className="text-[13.5px] max-w-[280px] mb-5" style={{ color: 'var(--n-fg-subtle)' }}>{desc}</p>
+				{filtersActive && (
+					<Button variant="outline" size="sm" onClick={resetFilters}>
+						Clear All Filters
+					</Button>
+				)}
+			</div>
+		);
+	};
 
 	const totals = { count: activeData?.summary.deal_count ?? 0 };
 	const pagedDeals = filtered;
 	const pagedCampaignGroups: CampaignGroup[] = groupBy === 'campaign'
 		? (groupQuery.data?.items as CampaignCardGroup[] | undefined ?? []).map((group) => ({
 			key: group.key, name: group.name, brand: group.brand, status: group.status,
-			creatorNames: group.creator_names, deals: [group.deal], total: group.total
+			creatorNames: group.creator_names, deals: [group.deal], total: group.total, invoices_uploaded: group.invoices_uploaded
 		}))
 		: [];
 	const pagedCreatorGroups: CreatorGroup[] = groupBy === 'creator'
 		? (groupQuery.data?.items as CreatorCardGroup[] | undefined ?? []).map((group) => ({
 			key: group.key, name: group.name, relationship: group.relationship,
-			deals: [group.deal], dealCount: group.deal_count, total: group.total
+			deals: [group.deal], dealCount: group.deal_count, total: group.total, invoices_uploaded: group.invoices_uploaded
 		}))
 		: [];
 	const resultTotal = activeData?.total ?? 0;
@@ -294,7 +358,7 @@ export default function CommercialPage() {
 			return;
 		}
 		setPage(1);
-	}, [urlHydrated, debouncedSearch, dirFilter, creatorFilter, months, groupBy, viewMode, fyStart]);
+	}, [urlHydrated, debouncedSearch, dirFilter, statusFilter, creatorFilter, months, groupBy, viewMode, fyStart]);
 	React.useEffect(() => {
 		const lastPage = Math.max(1, Math.ceil(resultTotal / pageSize));
 		if (page > lastPage) setPage(lastPage);
@@ -378,71 +442,148 @@ export default function CommercialPage() {
 				</div>
 
 				{/* ── Filter Bar ── */}
-				<div className="flex flex-wrap items-center gap-2" style={{ background: 'var(--n-bg)', borderColor: 'var(--n-border)' }}>
-					<div className="relative flex-1 min-w-[200px]">
-						<span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--n-fg-subtle)' }}>
-							<Icon name="search" size={13} />
-						</span>
-						<input
-							value={q}
-							onChange={(e) => setQ(e.target.value)}
-							placeholder="Search creator, brand, campaign…"
-							className="h-8 w-full rounded-lg pl-8 pr-3 text-[13px] transition-colors focus:outline-none"
-							style={{ background: 'var(--n-bg-soft)', color: 'var(--n-fg)', border: '1px solid var(--n-border)' }}
-						/>
+				<div className="flex flex-col gap-4 mb-4">
+					{/* Row 1: Status Tabs */}
+					<div className="flex items-center gap-2 border-b" style={{ borderColor: 'var(--n-border)' }}>
+						{['All', 'Awaiting Invoices', 'Pending Payment', 'Completed'].map((status) => {
+							const isActive = statusFilter === status;
+							return (
+								<button
+									key={status}
+									onClick={() => setStatusFilter(status)}
+									className={`px-4 py-2.5 text-[13px] font-medium transition-colors relative`}
+									style={{
+										color: isActive ? 'var(--n-fg)' : 'var(--n-fg-subtle)',
+									}}
+								>
+									{status === 'All' ? 'All Campaigns' : status}
+									{isActive && (
+										<div className="absolute bottom-[-1px] left-0 right-0 h-[2px] bg-current rounded-t-sm" />
+									)}
+								</button>
+							);
+						})}
 					</div>
 
-					<select
-						value={dirFilter}
-						onChange={(e) => setDirFilter(e.target.value as DirFilter)}
-						className="h-8 rounded-lg px-2 text-[13px] focus:outline-none"
-						style={{ background: 'var(--n-bg-soft)', color: 'var(--n-fg)', border: '1px solid var(--n-border)' }}
-					>
-						{(['All', 'Inbound', 'Outbound'] as DirFilter[]).map((d) => <option key={d} value={d}>{d === 'All' ? 'All Types' : d}</option>)}
-					</select>
+					{/* Row 2: Search, View Toggles, Secondary Filters */}
+					<div className="flex flex-wrap items-center justify-between gap-3">
+						{/* Left: Search */}
+						<div className="relative flex-1 min-w-[240px] max-w-[600px]">
+							<span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--n-fg-subtle)' }}>
+								<Icon name="search" size={13} />
+							</span>
+							<input
+								value={q}
+								onChange={(e) => setQ(e.target.value)}
+								placeholder="Search creator, brand, campaign…"
+								className="h-9 w-full rounded-lg pl-9 pr-3 text-[13.5px] transition-colors focus:outline-none focus:ring-1 focus:ring-black/5"
+								style={{ background: 'var(--n-bg)', color: 'var(--n-fg)', border: '1px solid var(--n-border)' }}
+							/>
+						</div>
 
-					<select
-						value={creatorFilter}
-						onChange={(e) => setCreatorFilter(e.target.value)}
-						className="h-8 rounded-lg px-2 text-[13px] focus:outline-none min-w-[140px]"
-						style={{ background: 'var(--n-bg-soft)', color: 'var(--n-fg)', border: '1px solid var(--n-border)' }}
-					>
-						<option value="All">All Creators</option>
-						{creatorNames.map((n) => <option key={n} value={n}>{n}</option>)}
-					</select>
+						{/* Right: Actions */}
+						<div className="flex items-center gap-2">
+							{viewMode === 'cards' && (
+								<div className="flex items-center p-1 rounded-lg border" style={{ background: 'var(--n-bg-soft)', borderColor: 'var(--n-border)' }}>
+									<button
+										onClick={() => setGroupBy('campaign')}
+										className={`px-3 py-1 text-[12px] font-medium rounded-md transition-all ${groupBy === 'campaign' ? 'shadow-sm' : ''}`}
+										style={{
+											background: groupBy === 'campaign' ? 'var(--n-bg)' : 'transparent',
+											color: groupBy === 'campaign' ? 'var(--n-fg)' : 'var(--n-fg-subtle)'
+										}}
+									>
+										By Campaign
+									</button>
+									<button
+										onClick={() => setGroupBy('creator')}
+										className={`px-3 py-1 text-[12px] font-medium rounded-md transition-all ${groupBy === 'creator' ? 'shadow-sm' : ''}`}
+										style={{
+											background: groupBy === 'creator' ? 'var(--n-bg)' : 'transparent',
+											color: groupBy === 'creator' ? 'var(--n-fg)' : 'var(--n-fg-subtle)'
+										}}
+									>
+										By Creator
+									</button>
+								</div>
+							)}
 
-					<select
-						value={months[0] ?? ''}
-						onChange={(e) => setMonths(e.target.value ? [e.target.value] : [])}
-						className="h-8 rounded-lg px-2 text-[13px] focus:outline-none"
-						style={{ background: 'var(--n-bg-soft)', color: 'var(--n-fg)', border: '1px solid var(--n-border)' }}
-					>
-						<option value="">All Months</option>
-						{availMonths.map((mm) => <option key={mm} value={mm}>{MONTH_NAMES[Number(mm)]}</option>)}
-					</select>
+							<div className="relative" ref={popoverRef}>
+								<button
+									onClick={() => setShowFilters(!showFilters)}
+									className="h-9 px-3 rounded-lg text-[13px] font-medium flex items-center gap-2 transition-colors border hover:opacity-80"
+									style={{ background: showFilters ? 'var(--n-bg-hover)' : 'var(--n-bg)', color: 'var(--n-fg)', borderColor: 'var(--n-border)' }}
+								>
+									<Icon name="filter" size={14} />
+									Filters
+									{(() => {
+										const count = (dirFilter !== 'All' ? 1 : 0) + (creatorFilter !== 'All' ? 1 : 0) + (months.length > 0 ? 1 : 0);
+										return count > 0 ? (
+											<span className="flex items-center justify-center bg-black text-white text-[10px] rounded-full h-4 min-w-[16px] px-1 font-bold">
+												{count}
+											</span>
+										) : null;
+									})()}
+								</button>
+								
+								{showFilters && (
+									<div className="absolute right-0 top-[calc(100%+8px)] w-[260px] rounded-xl border shadow-xl z-50 p-4 anim-fade-up"
+										style={{ background: 'var(--n-bg)', borderColor: 'var(--n-border)' }}
+									>
+										<div className="flex flex-col gap-4">
+											<div className="flex items-center justify-between">
+												<h4 className="text-[13px] font-bold" style={{ color: 'var(--n-fg)' }}>Filters</h4>
+												{filtersActive && (
+													<button onClick={resetFilters} className="text-[11px] font-medium transition-opacity hover:opacity-70 flex items-center gap-1" style={{ color: 'var(--color-danger)' }}>
+														<Icon name="x" size={12} />
+														Clear All
+													</button>
+												)}
+											</div>
+											
+											<div className="flex flex-col gap-1.5">
+												<label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Direction</label>
+												<select
+													value={dirFilter}
+													onChange={(e) => setDirFilter(e.target.value as DirFilter)}
+													className="h-8 rounded-md px-2 text-[13px] focus:outline-none border w-full"
+													style={{ background: 'var(--n-bg-soft)', color: 'var(--n-fg)', borderColor: 'var(--n-border)' }}
+												>
+													{(['All', 'Inbound', 'Outbound'] as DirFilter[]).map((d) => <option key={d} value={d}>{d === 'All' ? 'All Types' : d}</option>)}
+												</select>
+											</div>
 
-					{viewMode === 'cards' && (
-						<select
-							value={groupBy}
-							onChange={(e) => setGroupBy(e.target.value as CardGroupBy)}
-							className="h-8 rounded-lg px-2 text-[13px] focus:outline-none"
-							style={{ background: 'var(--n-bg-soft)', color: 'var(--n-fg)', border: '1px solid var(--n-border)' }}
-						>
-							<option value="campaign">By Campaign</option>
-							<option value="creator">By Creator</option>
-						</select>
-					)}
+											<div className="flex flex-col gap-1.5">
+												<label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Creator</label>
+												<select
+													value={creatorFilter}
+													onChange={(e) => setCreatorFilter(e.target.value)}
+													className="h-8 rounded-md px-2 text-[13px] focus:outline-none border w-full"
+													style={{ background: 'var(--n-bg-soft)', color: 'var(--n-fg)', borderColor: 'var(--n-border)' }}
+												>
+													<option value="All">All Creators</option>
+													{creatorNames.map((n) => <option key={n} value={n}>{n}</option>)}
+												</select>
+											</div>
 
-					{filtersActive && (
-						<button
-							onClick={resetFilters}
-							className="h-8 px-3 rounded-lg text-[13px] flex items-center gap-1 transition-colors hover:opacity-80"
-							style={{ background: 'rgba(239,68,68,0.08)', color: 'var(--color-danger)', border: '1px solid rgba(239,68,68,0.2)' }}
-						>
-							<Icon name="x" size={12} />
-							Reset
-						</button>
-					)}
+											<div className="flex flex-col gap-1.5">
+												<label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Month</label>
+												<select
+													value={months[0] ?? ''}
+													onChange={(e) => setMonths(e.target.value ? [e.target.value] : [])}
+													className="h-8 rounded-md px-2 text-[13px] focus:outline-none border w-full"
+													style={{ background: 'var(--n-bg-soft)', color: 'var(--n-fg)', borderColor: 'var(--n-border)' }}
+												>
+													<option value="">All Months</option>
+													{availMonths.map((mm) => <option key={mm} value={mm}>{MONTH_NAMES[Number(mm)]}</option>)}
+												</select>
+											</div>
+										</div>
+									</div>
+								)}
+							</div>
+						</div>
+					</div>
 				</div>
 
 				{/* ── Content ── */}
@@ -466,6 +607,7 @@ export default function CommercialPage() {
 									<th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Total Fee</th>
 									<th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Date</th>
 									<th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Type</th>
+									<th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Status</th>
 									<th className="px-4 py-3" />
 								</tr>
 							</thead>
@@ -505,6 +647,11 @@ export default function CommercialPage() {
 												</span>
 											</td>
 											<td className="px-4 py-3.5">
+												<Tag tone={getStatusDisplay(deal.campaign_status, deal.completed_at !== null).tone}>
+													{getStatusDisplay(deal.campaign_status, deal.completed_at !== null).label}
+												</Tag>
+											</td>
+											<td className="px-4 py-3.5">
 												<div className="flex items-center justify-end">
 													<Button
 														variant="outline"
@@ -522,12 +669,7 @@ export default function CommercialPage() {
 								})}
 							</tbody>
 						</table>
-						{resultTotal === 0 && (
-							<div className="py-16 text-center">
-								<Icon name="inbox" size={28} className="mx-auto mb-3 opacity-30" />
-								<p className="text-[14px]" style={{ color: 'var(--n-fg-subtle)' }}>No campaigns match the current filters.</p>
-							</div>
-						)}
+						{resultTotal === 0 && renderEmptyState('deals')}
 						{resultTotal > 0 && <Pagination page={page} pageSize={pageSize} total={resultTotal} onPageChange={setPage} />}
 					</div>
 				) : groupBy === 'campaign' ? (
@@ -537,13 +679,8 @@ export default function CommercialPage() {
 								<CampaignGroupCard key={group.key} group={group} onView={startEdit} />
 							))}
 						</div>
-						{resultTotal === 0 && (
-							<div className="py-16 text-center">
-								<Icon name="inbox" size={28} className="mx-auto mb-3 opacity-30" />
-								<p className="text-[14px]" style={{ color: 'var(--n-fg-subtle)' }}>No campaigns match the current filters.</p>
-							</div>
-						)}
-						{resultTotal > 0 && <Pagination page={page} pageSize={pageSize} total={resultTotal} onPageChange={setPage} />}
+						{resultTotal === 0 && renderEmptyState('campaigns')}
+						{resultTotal > 0 && <Pagination page={page} pageSize={pageSize} total={resultTotal} onPageChange={setPage} className="mt-8 pt-4" />}
 					</div>
 				) : (
 					<div className="anim-fade-up">
@@ -552,13 +689,8 @@ export default function CommercialPage() {
 								<CreatorGroupCard key={group.key} group={group} onView={startEdit} />
 							))}
 						</div>
-						{resultTotal === 0 && (
-							<div className="py-16 text-center">
-								<Icon name="inbox" size={28} className="mx-auto mb-3 opacity-30" />
-								<p className="text-[14px]" style={{ color: 'var(--n-fg-subtle)' }}>No deals match the current filters.</p>
-							</div>
-						)}
-						{resultTotal > 0 && <Pagination page={page} pageSize={pageSize} total={resultTotal} onPageChange={setPage} />}
+						{resultTotal === 0 && renderEmptyState('deals')}
+						{resultTotal > 0 && <Pagination page={page} pageSize={pageSize} total={resultTotal} onPageChange={setPage} className="mt-8 pt-4" />}
 					</div>
 				)}
 			</section>

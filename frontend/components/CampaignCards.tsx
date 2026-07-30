@@ -3,7 +3,7 @@
 import * as React from 'react';
 import type { Deal } from '@/lib/api';
 import type { CampaignGroup, CreatorGroup } from '@/types/deal';
-import { relTone } from '@/lib/deals';
+import { relTone, getStatusDisplay } from '@/lib/deals';
 import { inr } from '@/lib/utils';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
@@ -37,7 +37,11 @@ export function CampaignGroupCard({ group, onView }: { group: CampaignGroup; onV
 					)}
 				</div>
 				<div className="flex flex-col items-end gap-1 shrink-0">
-					{group.status && <Tag tone={group.status === 'Over' ? 'neutral' : 'yes'}>{group.status}</Tag>}
+					{group.status && (
+						<Tag tone={getStatusDisplay(group.status, group.invoices_uploaded).tone}>
+							{getStatusDisplay(group.status, group.invoices_uploaded).label}
+						</Tag>
+					)}
 				</div>
 			</div>
 

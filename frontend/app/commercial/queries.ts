@@ -23,6 +23,7 @@ export interface DealPageParams {
 	pageSize: number;
 	search?: string;
 	direction?: string;
+	status?: string;
 	creator?: number;
 	months?: number[];
 	sortBy?: 'billing_period' | 'confirmation_date' | 'total_fee' | 'brand' | 'created_at';
@@ -38,6 +39,7 @@ function dealPageQuery(params: DealPageParams): URLSearchParams {
 	});
 	if (params.search) query.set('search', params.search);
 	if (params.direction) query.set('direction', params.direction);
+	if (params.status) query.set('status', params.status);
 	if (params.creator) query.set('creator', String(params.creator));
 	if (params.months?.length) query.set('months', params.months.join(','));
 	if (params.sortBy) query.set('sort_by', params.sortBy);
