@@ -430,7 +430,15 @@ export default function PaymentsPage() {
 					</div>
 				)}
 			</Dialog>
-			<ConfirmDialog open={confirmPaidDeal !== null} onOpenChange={(value) => { if (!value) setConfirmPaidDeal(null); }} title="Mark payment as paid?" description={confirmPaidDeal ? `Confirm payment of ₹${inr(confirmPaidDeal.creator_invoice_amount || confirmPaidDeal.creator_fee) || '0'} to ${creatorLabel(creatorNamesOf(confirmPaidDeal))}.` : ''} confirmLabel="Mark paid" pending={markPaidMutation.isPending} onConfirm={() => { if (confirmPaidDeal) return markPaid(confirmPaidDeal); }} />
+			<ConfirmDialog 
+				open={confirmPaidDeal !== null} 
+				onOpenChange={(value) => { if (!value) setConfirmPaidDeal(null); }} 
+				title="Confirm Payment?" 
+				description={confirmPaidDeal ? `Are you sure you want to mark the payment of ₹${inr(confirmPaidDeal.creator_invoice_amount || confirmPaidDeal.creator_fee) || '0'} to ${creatorLabel(creatorNamesOf(confirmPaidDeal))} as paid? This action will finalize the transaction and cannot be undone.` : ''} 
+				confirmLabel="Yes, mark as paid" 
+				pending={markPaidMutation.isPending} 
+				onConfirm={() => { if (confirmPaidDeal) return markPaid(confirmPaidDeal); }} 
+			/>
 		</>
 	);
 }
