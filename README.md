@@ -1,6 +1,6 @@
 # TCH Financials
 
-Next.js + Django rebuild of the TCH MIS workbook. **Campaign-based**: campaigns
+Next.js + NestJS rebuild of the TCH MIS workbook. **Campaign-based**: campaigns
 are first-class records; deals belong to a campaign, and creators appear as a
 supporting dimension on each campaign.
 
@@ -26,6 +26,7 @@ automatically once every deal on it is marked `campaign_over = Y`.
 | Layer    | Tech                                                        |
 |----------|-------------------------------------------------------------|
 | DB       | PostgreSQL 17 — Supabase                                    |
+| Backend  | NestJS v11 + TypeORM                                        |
 | Frontend | Next.js 15 + React 19 + TypeScript + Tailwind v4 (:5050)    |
 
 ## Layout
