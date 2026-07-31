@@ -67,9 +67,9 @@ export default function OverviewPage() {
 	return (
 		<section className="space-y-6">
 			<PageHeader eyebrow={<>Dashboard · {fyLabelFor(fyStart)}</>} title="Current Overview" description={<>
-					Total billing by campaign, derived live from Campaign Tracking. Each deal lands in the
-					fiscal year and month of its E-Invoice No (e.g. TCH/2526/Dec01 → Dec, FY 25-26).
-				</>} />
+				Total billing by campaign, derived live from Campaign Tracking. Each deal lands in the
+				fiscal year and month of its E-Invoice No (e.g. TCH/2526/Dec01 → Dec, FY 25-26).
+			</>} />
 
 			{data && (
 				<div className="space-y-6">
@@ -191,7 +191,7 @@ export default function OverviewPage() {
 						]}
 					/>
 				</div>
-				
+
 				<div className="flex items-center gap-2 min-w-[200px]">
 					<span className="text-[13px] whitespace-nowrap" style={{ color: 'var(--n-fg-muted)' }}>Creator</span>
 					<div className="relative flex-1">
@@ -262,15 +262,15 @@ export default function OverviewPage() {
 							profitPct={src.profitPct}
 						/>
 					</div>
-					
+
 					{/* Trajectory Area Chart */}
 					<TrajectoryAreaChart cols={cols} totals={src.totals} />
 
 					{/* Insights Grid */}
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-						<DonutChart 
-							emw={Number(data.emw_billing.total)} 
-							external={Number(data.totals.total) - Number(data.emw_billing.total)} 
+						<DonutChart
+							emw={Number(data.emw_billing.total)}
+							external={Number(data.totals.total) - Number(data.emw_billing.total)}
 						/>
 						<TopList title="Top 5 Brands" items={data.top_brands || []} />
 						<TopList title="Top 5 Creators" items={data.top_creators || []} />
@@ -336,7 +336,7 @@ export default function OverviewPage() {
 									{data.rows.length > 7 && !showAllCampaigns && (
 										<tr>
 											<td colSpan={cols.length + 2} className="text-center py-4 bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors border-b border-gray-200" onClick={() => setShowAllCampaigns(true)}>
-												<span className="text-[12px] font-medium text-gray-600">Show {data.rows.length - 7} more campaigns</span>
+												<span className="text-[12px] font-medium text-gray-600">Show more</span>
 											</td>
 										</tr>
 									)}
