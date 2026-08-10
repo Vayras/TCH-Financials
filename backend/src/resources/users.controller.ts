@@ -3,11 +3,15 @@ import { DataSource } from 'typeorm';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { env } from '../env';
 import { sendInviteEmail } from '../common/mail';
-import { Profile } from '../entities/profile.entity';
+import { Profile, type AppRole } from '../entities/profile.entity';
 import { Invitation } from '../entities/invitation.entity';
 import { Roles } from '../auth/roles.decorator';
 
-@Roles('admin')
+// Roles that can self-select at sign-up — admins cannot be self-assigned
+const SELF_SELECTABLE_ROLES: AppRole[] = ['creator', 'tch_member'];
+const ALL_ROLES: AppRole[] = ['super_admin', 'accounts', 'tch_member', 'creator'];
+
+@Roles('super_admin', 'accounts')
 @Controller('admin/users')
 export class UsersController {
   private supabaseAdmin: SupabaseClient | null = null;
@@ -24,8 +28,6 @@ export class UsersController {
   }
 
   // ─── Helper: look up Supabase auth.users.id by email via direct DB query ───
-  // getUserByEmail() does not exist in the Supabase JS SDK. We query auth.users
-  // directly using the existing TypeORM DataSource connection (service-role creds).
   private async getAuthUserIdByEmail(email: string): Promise<string | null> {
     const rows = await this.dataSource.query(
       `SELECT id FROM auth.users WHERE email = $1 LIMIT 1`,
@@ -46,17 +48,29 @@ export class UsersController {
   async listUsers() {
     const profileRepo = this.dataSource.getRepository(Profile);
     const invitationRepo = this.dataSource.getRepository(Invitation);
-    const profiles = await profileRepo.find({ order: { createdAt: 'DESC' } });
-    const invitations = await invitationRepo.find({ order: { createdAt: 'DESC' } });
+
+    const profiles = await profileRepo.createQueryBuilder('profile')
+      .where("profile.role != 'creator'")
+      .orderBy('profile.createdAt', 'DESC')
+      .getMany();
+
+    const invitations = await invitationRepo.createQueryBuilder('invitation')
+      .where("invitation.role != 'creator'")
+      .orderBy('invitation.createdAt', 'DESC')
+      .getMany();
+
     return { profiles, invitations };
   }
 
+  // ─── Update Role: only super_admin can assign super_admin or accounts roles ──
+  @Roles('super_admin')
   @Post(':id/role')
-  async updateRole(@Param('id') id: string, @Body() body: { role: 'admin' | 'member' }, @Req() req: any) {
-    const { role } = body;
-    if (!role || (role !== 'admin' && role !== 'member')) {
-      throw new BadRequestException('Role must be either admin or member.');
+  async updateRole(@Param('id') id: string, @Body() body: { role: AppRole; creatorId?: string }, @Req() req: any) {
+    const { role, creatorId } = body;
+    if (!role || !ALL_ROLES.includes(role)) {
+      throw new BadRequestException(`Role must be one of: ${ALL_ROLES.join(', ')}.`);
     }
+
     const profileRepo = this.dataSource.getRepository(Profile);
     const profile = await profileRepo.findOneBy({ id });
     if (!profile) throw new BadRequestException('User profile not found.');
@@ -66,6 +80,15 @@ export class UsersController {
     }
 
     profile.role = role;
+
+    // When assigning creator role, optionally link to tch_creator record
+    if (role === 'creator' && creatorId) {
+      profile.creatorId = String(creatorId);
+    } else if (role !== 'creator') {
+      // Clear creator link if role changes away from creator
+      profile.creatorId = null;
+    }
+
     await profileRepo.save(profile);
     return { success: true, profile };
   }
@@ -90,18 +113,16 @@ export class UsersController {
     return { success: true, profile };
   }
 
-  // ─── Revoke Access: blocks an approved user immediately ──────────────────────
-  // Sets status = 'rejected' AND deletes their refresh tokens so their current
-  // JWT cannot be renewed. The user is blocked on their next page load.
+  // ─── Revoke Access ────────────────────────────────────────────────────────────
   @Post(':id/revoke')
   async revokeAccess(@Param('id') id: string, @Req() req: any) {
     const profileRepo = this.dataSource.getRepository(Profile);
     const profile = await profileRepo.findOneBy({ id });
     if (!profile) throw new BadRequestException('User profile not found.');
 
-    // Safety guards — cannot revoke admins or yourself
-    if (profile.role === 'admin') {
-      throw new BadRequestException('Cannot revoke access for admin accounts.');
+    // Cannot revoke super_admins or yourself
+    if (profile.role === 'super_admin') {
+      throw new BadRequestException('Cannot revoke access for super admin accounts.');
     }
     if (profile.id === req.user?.id) {
       throw new BadRequestException('You cannot revoke your own access.');
@@ -110,28 +131,26 @@ export class UsersController {
     profile.status = 'rejected';
     await profileRepo.save(profile);
 
-    // Immediately invalidate all active sessions by wiping refresh tokens
     await this.revokeRefreshTokens(profile.id);
 
     return { success: true, profile };
   }
 
-  // ─── Delete User: permanently removes from our DB + Supabase auth ────────────
+  // ─── Delete User ──────────────────────────────────────────────────────────────
+  @Roles('super_admin')
   @Delete(':id')
   async deleteUser(@Param('id') id: string, @Req() req: any) {
     const profileRepo = this.dataSource.getRepository(Profile);
     const profile = await profileRepo.findOneBy({ id });
     if (!profile) throw new BadRequestException('User profile not found.');
 
-    // Safety guards — cannot delete admins or yourself
-    if (profile.role === 'admin') {
-      throw new BadRequestException('Cannot delete admin accounts. Revoke admin role first.');
+    if (profile.role === 'super_admin') {
+      throw new BadRequestException('Cannot delete super admin accounts. Revoke role first.');
     }
     if (profile.id === req.user?.id) {
       throw new BadRequestException('You cannot delete your own account.');
     }
 
-    // Delete from Supabase auth (this invalidates all sessions permanently)
     if (this.supabaseAdmin) {
       const { error } = await this.supabaseAdmin.auth.admin.deleteUser(profile.id);
       if (error) {
@@ -139,21 +158,17 @@ export class UsersController {
       }
     }
 
-    // Delete profile from our DB
     await profileRepo.remove(profile);
     return { success: true };
   }
 
-  // ─── Cancel Invitation: removes invite + associated unconfirmed auth user ─────
+  // ─── Cancel Invitation ────────────────────────────────────────────────────────
   @Delete('invitations/:id')
   async deleteInvitation(@Param('id') id: string) {
     const invitationRepo = this.dataSource.getRepository(Invitation);
     const invitation = await invitationRepo.findOneBy({ id });
     if (!invitation) throw new BadRequestException('Invitation not found.');
 
-    // If the invitation hasn't been accepted yet, also remove the skeleton auth user
-    // that Supabase created via generateLink when the invite was sent.
-    // We use raw SQL (not the broken listUsers pagination approach) to find the auth user.
     if (!invitation.acceptedAt && this.supabaseAdmin) {
       const authUserId = await this.getAuthUserIdByEmail(invitation.email);
       if (authUserId) {
@@ -167,9 +182,12 @@ export class UsersController {
 
   // ─── Invite User ──────────────────────────────────────────────────────────────
   @Post('invite')
-  async inviteUser(@Body() body: { email: string; role: 'admin' | 'member' }) {
+  async inviteUser(@Body() body: { email: string; role: AppRole }) {
     const { email, role } = body;
     if (!email || !role) throw new BadRequestException('Email and role are required.');
+    if (!ALL_ROLES.includes(role)) {
+      throw new BadRequestException(`Role must be one of: ${ALL_ROLES.join(', ')}.`);
+    }
 
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) throw new BadRequestException('Email is invalid.');

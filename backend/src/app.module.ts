@@ -16,6 +16,8 @@ import { CreatorInvoicesController } from './resources/creator-invoices.controll
 import { DealDocumentsController } from './resources/deal-documents.controller';
 import { DealsController } from './resources/deals.controller';
 import { DocumentsController } from './resources/documents.controller';
+import { PaymentTransactionsController } from './resources/payment-transactions.controller';
+import { TdsController } from './resources/tds.controller';
 import {
   ContractingController, DropOffsController, EmployeeReportsController,
   EventInvitesController, SocialSnapshotsController,
@@ -36,6 +38,8 @@ import {
     DealDocumentsController,
     DealsController,
     DocumentsController,
+    PaymentTransactionsController,
+    TdsController,
     ContractingController,
     DropOffsController,
     EmployeeReportsController,

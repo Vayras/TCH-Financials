@@ -13,15 +13,17 @@ import { EventInvite } from './event-invite.entity';
 import { SocialMediaSnapshot } from './social-media-snapshot.entity';
 import { Profile } from './profile.entity';
 import { Invitation } from './invitation.entity';
+import { PaymentTransaction } from './payment-transaction.entity';
+import { TdsEntry } from './tds-entry.entity';
 
 export {
   AlertDismissal, Campaign, CommercialDeal, ContractingCompliance, Creator,
   CreatorDocument, CreatorInvoice, DealCreatorShare, DealDocument, DropOff, EmployeeWeeklyReport,
-  EventInvite, SocialMediaSnapshot, Profile, Invitation,
+  EventInvite, SocialMediaSnapshot, Profile, Invitation, PaymentTransaction, TdsEntry,
 };
 
 export const entities = [
   AlertDismissal, Campaign, CommercialDeal, ContractingCompliance, Creator,
   CreatorDocument, CreatorInvoice, DealCreatorShare, DealDocument, DropOff, EmployeeWeeklyReport,
-  EventInvite, SocialMediaSnapshot, Profile, Invitation,
+  EventInvite, SocialMediaSnapshot, Profile, Invitation, PaymentTransaction, TdsEntry,
 ];
