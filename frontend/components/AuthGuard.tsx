@@ -25,16 +25,22 @@ function parseHashType(hash: string): string | null {
 
 type AuthStatus = 'loading' | 'approved' | 'pending' | 'rejected' | 'anon';
 
+type AppRole = 'super_admin' | 'accounts' | 'tch_member' | 'creator';
+
 interface AuthContextType {
-	role: 'admin' | 'member';
+	role: AppRole;
 	status: string;
 	email: string;
+	displayName: string;
+	creatorId: string | null;
 }
 
 export const AuthContext = React.createContext<AuthContextType>({
-	role: 'member',
+	role: 'tch_member',
 	status: 'unknown',
 	email: '',
+	displayName: '',
+	creatorId: null,
 });
 
 export function useAuth() {
@@ -49,9 +55,11 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
 	const [status, setStatus] = React.useState<AuthStatus>(configured ? 'loading' : 'approved');
 	const [profile, setProfile] = React.useState<AuthContextType>({
-		role: configured ? 'member' : 'admin',
+		role: configured ? 'tch_member' : 'super_admin',
 		status: configured ? 'unknown' : 'approved',
 		email: configured ? '' : 'dev@theculturehub.co.in',
+		displayName: configured ? '' : 'Dev Admin',
+		creatorId: null,
 	});
 
 	const [passwordSet, setPasswordSet] = React.useState<boolean>(true);
@@ -63,11 +71,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 		}
 
 		try {
-			const info = await api.get<{ role: 'admin' | 'member'; status: string; email: string; passwordSet?: boolean }>('/auth/me');
+			const info = await api.get<{ role: AppRole; status: string; email: string; passwordSet?: boolean; displayName?: string; creatorId?: string | null }>('/auth/me');
 			setProfile({
-				role: info.role || 'member',
+				role: info.role || 'tch_member',
 				status: info.status || 'unknown',
 				email: session.user.email || info.email || '',
+				displayName: info.displayName || '',
+				creatorId: info.creatorId ?? null,
 			});
 			setPasswordSet(info.passwordSet ?? true);
 			setStatus(info.status as AuthStatus);
@@ -141,13 +151,32 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 			router.replace('/pending');
 		} else if (status === 'approved' && !passwordSet && !isSetPasswordRoute) {
 			router.replace('/set-password');
-		} else if (status === 'approved' && passwordSet && (isPublicRoute || isPendingRoute)) {
-			router.replace('/');
+		} else if (status === 'approved' && passwordSet) {
+			const isCreatorRoute = pathname.startsWith('/creator-portal');
+			const isUserCreator = profile.role === 'creator';
+			const isUserAccounts = profile.role === 'accounts';
+
+			if (isUserCreator && !isCreatorRoute) {
+				router.replace('/creator-portal');
+			} else if (!isUserCreator && isCreatorRoute) {
+				router.replace('/');
+			} else if (isUserAccounts && (pathname === '/' || pathname === '/commercial' || pathname === '/creators' || pathname === '/users' || pathname === '/employees' || pathname === '/alerts')) {
+				router.replace('/accounts-dashboard');
+			} else if (isPublicRoute || isPendingRoute) {
+				if (isUserCreator) {
+					router.replace('/creator-portal');
+				} else if (isUserAccounts) {
+					router.replace('/accounts-dashboard');
+				} else {
+					router.replace('/');
+				}
+			}
 		}
-	}, [status, passwordSet, pathname, router]);
+	}, [status, passwordSet, pathname, router, profile.role]);
 
 	const isPublicRoute =
 		pathname === '/login' ||
+		pathname === '/signup' ||
 		pathname === '/set-password' ||
 		pathname === '/auth/callback';
 	const isPendingRoute = pathname === '/pending';
@@ -182,7 +211,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
 	return (
 		<AuthContext.Provider value={profile}>
-			<Sidebar>{children}</Sidebar>
+			{pathname.startsWith('/creator-portal') ? children : <Sidebar>{children}</Sidebar>}
 		</AuthContext.Provider>
 	);
 }
