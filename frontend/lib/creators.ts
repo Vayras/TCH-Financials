@@ -10,7 +10,8 @@ export const EMPTY_FORM: CreatorForm = {
 	url: [],
 	location: '',
 	talent_manager: '',
-	attachments: []
+	attachments: [],
+	email: '',
 };
 
 export const REL = [

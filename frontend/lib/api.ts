@@ -49,6 +49,8 @@ export type Creator = {
 	ops_manager: string;
 	notes: string;
 	version: number;
+	email?: string;
+	portalStatus?: 'active' | 'invited' | 'inactive';
 };
 
 export type CreatorPage = PaginatedResponse<Creator>;
@@ -174,6 +176,8 @@ export type CampaignCardGroup = {
 	invoices_uploaded: boolean;
 	creator_names: string[];
 	total: number;
+	cost_to_client?: number;
+	cost_to_us?: number;
 	deal_count: number;
 	deal: Deal;
 };
@@ -296,6 +300,8 @@ export type Overview = {
 	total_campaigns: number;
 	rows: OverviewCampaignRow[];
 	totals: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
+	billed: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
+	unbilled: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
 	emw_billing: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
 	profits: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
 	emw_pct: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
