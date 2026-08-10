@@ -38,7 +38,7 @@ export default function CreatorDealsPage() {
 					</div>
 					<h3 className="text-[15px] font-bold text-gray-900 mb-1">No deals yet</h3>
 					<p className="text-[13px] text-gray-500 max-w-[280px] mx-auto">
-						You'll see your campaign deals here once the TCH team assigns you to one.
+						You&apos;ll see your campaign deals here once the TCH team assigns you to one.
 					</p>
 					<p className="text-[11.5px] text-gray-400 mt-3 max-w-[240px] mx-auto">
 						Reach out to your manager if you expected to see a deal listed here.
@@ -47,7 +47,6 @@ export default function CreatorDealsPage() {
 			) : (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 					{deals.map((deal) => {
-						const sharesForMe = deal.creator_shares?.filter(s => s.ro_number) || [];
 						return (
 							<div
 								key={deal.id}

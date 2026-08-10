@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { useDealsQuery, useTdsEntriesQuery } from '../payments/queries';
 import { useOverviewQuery } from '../queries';
 import { useFiscalYear } from '@/lib/fiscal-year';
@@ -8,14 +9,6 @@ import { inr } from '@/lib/utils';
 import Icon from '@/components/ui/Icon';
 import PageHeader from '@/components/PageHeader';
 import QueryErrorState from '@/components/QueryErrorState';
-
-type CampaignAggregation = {
-	campaignName: string;
-	brand: string;
-	costToClient: number; // Sum of total_fee
-	costToUs: number; // Sum of creator_fee + agency_fee_inr
-	margin: number;
-};
 
 export default function AccountsDashboardPage() {
 	const { fyStart } = useFiscalYear();
@@ -180,12 +173,12 @@ export default function AccountsDashboardPage() {
 							Aggregated costs will display here when deals are added for this fiscal year.
 						</p>
 						<div className="mt-4">
-							<a
+							<Link
 								href="/commercial"
 								className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[var(--n-accent)] hover:underline"
 							>
 								Go to Campaign Tracking →
-							</a>
+							</Link>
 						</div>
 					</div>
 				) : (

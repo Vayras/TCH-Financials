@@ -86,7 +86,7 @@ export default function SetPasswordPage() {
 				) : (
 					<>
 						<p className="text-[12.5px] mb-5 leading-relaxed" style={{ color: 'var(--n-fg-subtle)' }}>
-							Welcome! You've been invited to TCH Financials. Please set a password to secure your account.
+							Welcome! You&apos;ve been invited to TCH Financials. Please set a password to secure your account.
 						</p>
 
 						<div className="mb-3">

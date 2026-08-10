@@ -477,7 +477,7 @@ export default function UsersPage() {
 						style={{ background: 'var(--n-bg)', borderColor: '#f59e0b44' }}>
 						<p className="font-medium mb-1" style={{ color: '#b45309' }}>⚠ This will block their access immediately.</p>
 						<p style={{ color: 'var(--n-fg-subtle)' }}>
-							<strong>{revokeTarget?.email}</strong>'s access will be revoked and active sessions invalidated within
+							<strong>{revokeTarget?.email}</strong>&apos;s access will be revoked and active sessions invalidated within
 							seconds. You can re-approve them at any time.
 						</p>
 					</div>
