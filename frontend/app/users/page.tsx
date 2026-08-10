@@ -19,12 +19,33 @@ import {
 	useRemoveInviteMutation,
 	type Profile,
 	type Invitation,
+	type AppRole,
+	ROLE_LABELS,
 } from './queries';
 
 interface ConfirmTarget {
 	id: string;
 	email: string;
-	role?: 'admin' | 'member';
+	role?: AppRole;
+}
+
+const ROLE_BADGE_STYLES: Record<AppRole, { bg: string; color: string; border: string }> = {
+	super_admin: { bg: '#1e1b4b', color: '#e0e7ff', border: '#3730a3' },
+	accounts:    { bg: '#0c4a6e', color: '#e0f2fe', border: '#0284c7' },
+	tch_member:  { bg: '#f1f5f9', color: '#334155', border: '#cbd5e1' },
+	creator:     { bg: '#581c87', color: '#f3e8ff', border: 'var(--n-accent)' },
+};
+
+function RoleBadge({ role }: { role: AppRole }) {
+	const s = ROLE_BADGE_STYLES[role] ?? ROLE_BADGE_STYLES.tch_member;
+	return (
+		<span
+			className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full"
+			style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}` }}
+		>
+			{ROLE_LABELS[role]}
+		</span>
+	);
 }
 
 export default function UsersPage() {
@@ -47,7 +68,7 @@ export default function UsersPage() {
 	// Dialog states
 	const [inviteOpen, setInviteOpen] = React.useState(false);
 	const [inviteEmail, setInviteEmail] = React.useState('');
-	const [inviteRole, setInviteRole] = React.useState<'admin' | 'member'>('member');
+	const [inviteRole, setInviteRole] = React.useState<AppRole>('tch_member');
 
 	const [revokeTarget, setRevokeTarget] = React.useState<ConfirmTarget | null>(null);
 	const [deleteTarget, setDeleteTarget] = React.useState<ConfirmTarget | null>(null);
@@ -78,10 +99,10 @@ export default function UsersPage() {
 		[invitations],
 	);
 
-	async function handleRoleChange(id: string, newRole: 'admin' | 'member') {
+	async function handleRoleChange(id: string, newRole: AppRole) {
 		try {
 			await updateRoleMutation.mutateAsync({ id, role: newRole });
-			toast.success(`Role updated to ${newRole}.`);
+			toast.success(`Role updated to ${ROLE_LABELS[newRole]}.`);
 		} catch (err: any) {
 			toast.error(err.message || 'Failed to update role.');
 		}
@@ -151,7 +172,7 @@ export default function UsersPage() {
 			});
 			toast.success(`Invitation sent to ${inviteEmail}`);
 			setInviteEmail('');
-			setInviteRole('member');
+			setInviteRole('tch_member');
 			setInviteOpen(false);
 		} catch (err: any) {
 			toast.error(err.message || 'Failed to send invite.');
@@ -187,11 +208,15 @@ export default function UsersPage() {
 
 			{/* ─── Tables ───────────────────────────────────────────────────── */}
 			{isLoading ? (
-				<div className="py-12 text-center text-[13.5px]" style={{ color: 'var(--n-fg-subtle)' }}>
-					Loading...
+				<div className="flex items-center justify-center gap-3 py-16 text-gray-500">
+					<svg className="animate-spin h-5 w-5 text-[var(--n-accent)]" style={{ willChange: 'transform' }} viewBox="0 0 24 24" fill="none">
+						<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+						<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+					</svg>
+					<span className="text-[14px]">Loading user directory…</span>
 				</div>
 			) : (
-				<div className="overflow-visible rounded-lg border border-[var(--n-border)] bg-[var(--n-bg-soft)]">
+				<div className="bg-white border border-[var(--n-border)] rounded-xl overflow-hidden shadow-sm anim-fade-up">
 					{activeTab === 'users' ? (
 						<table className="w-full text-left border-collapse text-[13px]">
 							<thead>
@@ -238,16 +263,17 @@ export default function UsersPage() {
 												{/* Role Selector / Display */}
 												<td className="p-3">
 													{isSelf ? (
-														<Tag color={p.role === 'admin' ? 'purple' : 'gray'}>{p.role}</Tag>
+														<RoleBadge role={p.role} />
 													) : (
 														<select
 															value={p.role}
 															disabled={updateRoleMutation.isPending}
-															onChange={(e) => handleRoleChange(p.id, e.target.value as 'admin' | 'member')}
+															onChange={(e) => handleRoleChange(p.id, e.target.value as AppRole)}
 															className="h-7 rounded px-2 text-[12px] font-medium bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] cursor-pointer transition-colors"
 														>
-															<option value="member">member</option>
-															<option value="admin">admin</option>
+															<option value="super_admin">Super Admin</option>
+															<option value="accounts">Accounts</option>
+															<option value="tch_member">TCH Member</option>
 														</select>
 													)}
 												</td>
@@ -367,7 +393,7 @@ export default function UsersPage() {
 										<tr key={inv.id} className="border-b border-[var(--n-border)] last:border-0 bg-[var(--n-bg)]">
 											<td className="p-3 font-medium">{inv.email}</td>
 											<td className="p-3">
-												<Tag color={inv.role === 'admin' ? 'purple' : 'gray'}>{inv.role}</Tag>
+												<RoleBadge role={inv.role} />
 											</td>
 											<td className="p-3" style={{ color: 'var(--n-fg-subtle)' }}>
 												{new Date(inv.createdAt).toLocaleDateString(undefined, { dateStyle: 'medium' })}
@@ -427,11 +453,12 @@ export default function UsersPage() {
 						</span>
 						<select
 							value={inviteRole}
-							onChange={(e) => setInviteRole(e.target.value as 'admin' | 'member')}
+							onChange={(e) => setInviteRole(e.target.value as AppRole)}
 							className="w-full h-9 rounded px-3 text-[13.5px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 						>
-							<option value="member">Member (Standard Workspace access)</option>
-							<option value="admin">Admin (Full User and Workspace control)</option>
+							<option value="tch_member">TCH Member — Campaign ops &amp; deal management</option>
+							<option value="accounts">Accounts — Full payment &amp; finance access</option>
+							<option value="super_admin">Super Admin — Full system control</option>
 						</select>
 					</label>
 					<div className="flex justify-end gap-2 mt-4 pt-4 border-t border-[var(--n-border)]">
