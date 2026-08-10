@@ -45,18 +45,18 @@ export function CampaignGroupCard({ group, onView }: { group: CampaignGroup; onV
 				</div>
 			</div>
 
-			<div className="grid grid-cols-3 gap-3 pt-2 border-t" style={{ borderColor: 'var(--n-border)' }}>
+			<div className="grid grid-cols-3 gap-2 pt-2 border-t" style={{ borderColor: 'var(--n-border)' }}>
 				<div>
-					<div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>
+					<div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>
 						Creators
 					</div>
-					<div className="text-[14px] font-semibold mt-0.5 flex items-center gap-1.5" style={{ color: 'var(--n-fg)' }}>
-						<Icon name="users" size={14} className="text-[var(--n-fg-subtle)]" />
+					<div className="text-[12.5px] font-semibold mt-0.5 flex items-center gap-1.5" style={{ color: 'var(--n-fg)' }}>
+						<Icon name="users" size={13} className="text-[var(--n-fg-subtle)]" />
 						{group.creatorNames.length}
 					</div>
 				</div>
 				<div>
-					<div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>
+					<div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>
 						Direction
 					</div>
 					<div className="mt-0.5">
@@ -65,15 +65,15 @@ export function CampaignGroupCard({ group, onView }: { group: CampaignGroup; onV
 								{group.deals[0].direction}
 							</Tag>
 						) : (
-							<span className="text-[13px] font-medium" style={{ color: 'var(--n-fg-muted)' }}>—</span>
+							<span className="text-[12.5px] font-medium" style={{ color: 'var(--n-fg-muted)' }}>—</span>
 						)}
 					</div>
 				</div>
 				<div>
-					<div className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>
+					<div className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>
 						Total Fee
 					</div>
-					<div className="text-[14px] font-bold tabular-nums mt-0.5" style={{ color: 'var(--n-fg)' }}>
+					<div className="text-[12.5px] font-bold mt-0.5 tabular-nums" style={{ color: 'var(--n-fg)' }}>
 						₹{inr(group.total)}
 					</div>
 				</div>

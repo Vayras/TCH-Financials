@@ -32,17 +32,25 @@ import {
 	useCreatorsPageQuery,
 	useCreateCreatorMutation,
 	useUpdateCreatorMutation,
-	useDeleteCreatorMutation
+	useDeleteCreatorMutation,
+	useCreateCreatorAccountMutation
 } from './queries';
+import Label from '@/components/ui/Label';
 
 export default function CreatorsPage() {
 	const createMutation = useCreateCreatorMutation();
 	const updateMutation = useUpdateCreatorMutation();
 	const deleteMutation = useDeleteCreatorMutation();
+	const createAccountMutation = useCreateCreatorAccountMutation();
 
 	const [addOpen, setAddOpen] = React.useState(false);
 	const [editing, setEditing] = React.useState<Creator | null>(null);
 	const [confirmEditing, setConfirmEditing] = React.useState<Creator | null>(null);
+
+	const [accountTarget, setAccountTarget] = React.useState<Creator | null>(null);
+	const [tempPassword, setTempPassword] = React.useState('');
+	const [createdCreds, setCreatedCreds] = React.useState<{ email: string; pass: string } | null>(null);
+	const [inputEmail, setInputEmail] = React.useState('');
 	const [q, setQ] = React.useState('');
 	const [relFilter, setRelFilter] = React.useState('All');
 	const [statusFilter, setStatusFilter] = React.useState('All');
@@ -87,7 +95,8 @@ export default function CreatorsPage() {
 				doj: isNonExclusive ? null : (isNaN(form.doj.getTime()) ? null : form.doj.toISOString().slice(0, 10)),
 				profile_url: serializeCreatorLinks(form.url),
 				location: form.location,
-				ops_manager: form.talent_manager
+				ops_manager: form.talent_manager,
+				email: form.email
 			};
 			let creatorId: number;
 			if (editing) {
@@ -132,6 +141,57 @@ export default function CreatorsPage() {
 		setDeletingCreator(r);
 	}
 
+	async function handleCreateAccount(e: React.FormEvent) {
+		e.preventDefault();
+		if (!accountTarget || !tempPassword) return;
+
+		try {
+			await createAccountMutation.mutateAsync({
+				id: accountTarget.id,
+				password: tempPassword
+			});
+			setCreatedCreds({
+				email: accountTarget.email || '',
+				pass: tempPassword
+			});
+			toast.success('Creator portal account created successfully.');
+			creatorsQuery.refetch();
+		} catch (err: any) {
+			toast.error('Failed to create account.', { description: err.message });
+		}
+	}
+
+	async function handleSaveEmail(e: React.FormEvent) {
+		e.preventDefault();
+		if (!accountTarget || !inputEmail.trim()) return;
+
+		try {
+			await updateMutation.mutateAsync({
+				id: accountTarget.id,
+				payload: {
+					name: accountTarget.name,
+					category: accountTarget.category,
+					relationship: accountTarget.relationship,
+					status: accountTarget.status,
+					doj: accountTarget.doj,
+					profile_url: accountTarget.profile_url,
+					location: accountTarget.location,
+					ops_manager: accountTarget.ops_manager,
+					email: inputEmail.trim().toLowerCase(),
+					version: accountTarget.version
+				}
+			});
+			setAccountTarget({
+				...accountTarget,
+				email: inputEmail.trim().toLowerCase()
+			});
+			toast.success('Email updated successfully.');
+			creatorsQuery.refetch();
+		} catch (err: any) {
+			toast.error('Failed to update email.', { description: err.message });
+		}
+	}
+
 	async function confirmDelete() {
 		if (!deletingCreator) return;
 		try {
@@ -155,7 +215,8 @@ export default function CreatorsPage() {
 						url: parseCreatorLinks(editing.profile_url),
 						location: editing.location,
 						talent_manager: editing.ops_manager,
-						attachments: []
+						attachments: [],
+						email: editing.email || ''
 					}
 				: EMPTY_FORM,
 		[editing]
@@ -200,6 +261,26 @@ export default function CreatorsPage() {
 				)
 			},
 			{
+				accessorKey: 'portalStatus',
+				header: 'Portal Status',
+				cell: ({ row }) => {
+					const pStatus = row.original.portalStatus || 'inactive';
+					const email = row.original.email || '';
+					const tone = pStatus === 'active' ? 'yes' : pStatus === 'invited' ? 'markup' : 'neutral';
+					const label = pStatus === 'active' ? 'Portal Active' : pStatus === 'invited' ? 'Invited' : 'Manual';
+					return (
+						<div className="flex flex-col gap-0.5">
+							<Tag tone={tone}>{label}</Tag>
+							{email && (
+								<span className="text-[10px] text-gray-400 font-mono truncate max-w-[120px]" title={email}>
+									{email}
+								</span>
+							)}
+						</div>
+					);
+				}
+			},
+			{
 				accessorKey: 'doj',
 				header: 'DOJ',
 				meta: { tdClassName: 'whitespace-nowrap', tdStyle: { color: 'var(--n-fg-muted)' } },
@@ -238,6 +319,24 @@ export default function CreatorsPage() {
 				meta: { thClassName: 'w-[90px]' },
 				cell: ({ row }) => (
 					<div className="flex gap-0.5 justify-end">
+						{row.original.portalStatus !== 'active' && (
+							<Button
+								variant="ghost"
+								size="sm"
+								onClick={() => {
+									const hasEmail = row.original.email && row.original.email.toLowerCase() !== 'na';
+									setAccountTarget(row.original);
+									setTempPassword('Temp' + Math.random().toString(36).slice(-8) + '!');
+									setCreatedCreds(null);
+									setInputEmail(hasEmail ? (row.original.email ?? '') : '');
+								}}
+								aria-label="Create Portal Account"
+								title="Create Portal Account"
+								style={{ color: 'var(--n-accent)' }}
+							>
+								<Icon name="key" size={14} />
+							</Button>
+						)}
 						<Button
 							variant="ghost"
 							size="sm"
@@ -354,6 +453,113 @@ export default function CreatorsPage() {
 						This creator will be removed from the master database. This action cannot be undone.
 					</p>
 				</div>
+			</Dialog>
+
+			{/* Create Portal Account Dialog */}
+			<Dialog
+				open={accountTarget !== null}
+				onOpenChange={(open) => {
+					if (!open) setAccountTarget(null);
+				}}
+				title="Create Portal Account"
+				className="max-w-md"
+				footer={
+					(() => {
+						const emailMissing = !accountTarget?.email || accountTarget.email.toLowerCase() === 'na';
+						if (createdCreds) {
+							return <Button variant="primary" onClick={() => setAccountTarget(null)}>Done</Button>;
+						}
+						if (emailMissing) {
+							return (
+								<>
+									<Button variant="outline" onClick={() => setAccountTarget(null)}>Cancel</Button>
+									<Button variant="primary" onClick={handleSaveEmail} disabled={updateMutation.isPending}>
+										{updateMutation.isPending ? 'Saving…' : 'Save Email & Continue'}
+									</Button>
+								</>
+							);
+						}
+						return (
+							<>
+								<Button variant="outline" onClick={() => setAccountTarget(null)}>Cancel</Button>
+								<Button variant="primary" onClick={handleCreateAccount} disabled={createAccountMutation.isPending}>
+									{createAccountMutation.isPending ? 'Creating…' : 'Create Account'}
+								</Button>
+							</>
+						);
+					})()
+				}
+			>
+				{(() => {
+					const emailMissing = !accountTarget?.email || accountTarget.email.toLowerCase() === 'na';
+					if (createdCreds) {
+						return (
+							<div className="space-y-4 text-[13px]">
+								<div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-800 space-y-2">
+									<p className="font-bold text-[14px]">✓ Portal Account Active</p>
+									<p>Provide the following credentials to the creator so they can log in:</p>
+								</div>
+								<div className="p-4 rounded-lg bg-gray-50 border space-y-2.5 font-mono">
+									<div>
+										<span className="text-[11px] text-gray-400 block font-sans font-medium">EMAIL</span>
+										<span className="text-gray-800 text-[13px] font-semibold select-all">{createdCreds.email}</span>
+									</div>
+									<div>
+										<span className="text-[11px] text-gray-400 block font-sans font-medium">TEMPORARY PASSWORD</span>
+										<span className="text-gray-800 text-[13px] font-semibold select-all">{createdCreds.pass}</span>
+									</div>
+								</div>
+								<p className="text-[12px] text-gray-400">
+									The creator can change this password at any time inside their profile settings after logging in.
+								</p>
+							</div>
+						);
+					}
+
+					if (emailMissing) {
+						return (
+							<div className="space-y-4 text-[13px]">
+								<div className="p-3.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-[12.5px] leading-relaxed">
+									<strong>Email Required</strong>: This creator does not have a registered email address. Please enter an email address to activate their login portal.
+								</div>
+								<form onSubmit={handleSaveEmail} className="space-y-4">
+									<div>
+										<Label>Creator Email Address</Label>
+										<input
+											type="email"
+											value={inputEmail}
+											onChange={(e) => setInputEmail(e.target.value)}
+											required
+											className="w-full h-9 rounded px-3 text-[13.5px] bg-white border border-gray-300 focus:outline-none focus:border-[#7e22ce] mt-1"
+											placeholder="e.g. creator@example.com"
+										/>
+									</div>
+								</form>
+							</div>
+						);
+					}
+
+					return (
+						<div className="space-y-4 text-[13px]">
+							<p style={{ color: 'var(--n-fg-subtle)' }}>
+								You are creating a login profile for <strong>{accountTarget?.name}</strong> using their email <strong>{accountTarget?.email}</strong>.
+							</p>
+							<form onSubmit={handleCreateAccount} className="space-y-4">
+								<div>
+									<Label>Temporary Password</Label>
+									<input
+										type="text"
+										value={tempPassword}
+										onChange={(e) => setTempPassword(e.target.value)}
+										required
+										className="w-full h-9 rounded px-3 text-[13.5px] bg-white border border-gray-300 focus:outline-none focus:border-[#7e22ce] mt-1"
+										placeholder="Minimum 6 characters"
+									/>
+								</div>
+							</form>
+						</div>
+					);
+				})()}
 			</Dialog>
 		</>
 	);

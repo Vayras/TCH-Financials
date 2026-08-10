@@ -340,7 +340,8 @@ export default function CommercialPage() {
 	const pagedCampaignGroups: CampaignGroup[] = groupBy === 'campaign'
 		? (groupQuery.data?.items as CampaignCardGroup[] | undefined ?? []).map((group) => ({
 			key: group.key, name: group.name, brand: group.brand, status: group.status,
-			creatorNames: group.creator_names, deals: [group.deal], total: group.total, invoices_uploaded: group.invoices_uploaded
+			creatorNames: group.creator_names, deals: [group.deal], total: group.total, invoices_uploaded: group.invoices_uploaded,
+			costToClient: group.cost_to_client, costToUs: group.cost_to_us
 		}))
 		: [];
 	const pagedCreatorGroups: CreatorGroup[] = groupBy === 'creator'
@@ -366,25 +367,7 @@ export default function CommercialPage() {
 
 	return (
 		<>
-			<style dangerouslySetInnerHTML={{
-				__html: `
-				@keyframes fadeUp {
-					from { opacity: 0; transform: translateY(10px); }
-					to { opacity: 1; transform: translateY(0); }
-				}
-				.anim-fade-up { animation: fadeUp 0.28s ease-out; }
-				.dir-badge-in {
-					background: var(--color-inbound-bg);
-					color: var(--color-inbound);
-					border: 1px solid var(--color-inbound-border);
-				}
-				.dir-badge-out {
-					background: var(--color-outbound-bg);
-					color: var(--color-outbound);
-					border: 1px solid var(--color-outbound-border);
-				}
-				.table-row:hover { background: var(--n-bg-hover); }
-			`}} />
+
 
 			<section className="space-y-5">
 				{/* ── Header ── */}
@@ -397,10 +380,10 @@ export default function CommercialPage() {
 								onClick={() => setViewMode('cards')}
 								title="Card view"
 								style={viewMode === 'cards'
-									? { background: '#441151', color: '#fff' }
-									: { background: 'transparent', color: '#441151', opacity: 0.45 }
+									? { background: 'var(--n-accent)', color: '#fff' }
+									: { background: 'transparent', color: 'var(--n-accent)', opacity: 0.45 }
 								}
-								className="h-8 w-9 flex items-center justify-center transition-all"
+								className="h-8 w-9 flex items-center justify-center transition-colors duration-100"
 							>
 								<Icon name="grid" size={14} />
 							</button>
@@ -409,10 +392,10 @@ export default function CommercialPage() {
 								onClick={() => setViewMode('table')}
 								title="Table view"
 								style={viewMode === 'table'
-									? { background: '#441151', color: '#fff' }
-									: { background: 'transparent', color: '#441151', opacity: 0.45 }
+									? { background: 'var(--n-accent)', color: '#fff' }
+									: { background: 'transparent', color: 'var(--n-accent)', opacity: 0.45 }
 								}
-								className="h-8 w-9 flex items-center justify-center transition-all"
+								className="h-8 w-9 flex items-center justify-center transition-colors duration-100"
 							>
 								<Icon name="list" size={14} />
 							</button>
@@ -458,7 +441,7 @@ export default function CommercialPage() {
 								>
 									{status === 'All' ? 'All Campaigns' : status}
 									{isActive && (
-										<div className="absolute bottom-[-1px] left-0 right-0 h-[2px] bg-current rounded-t-sm" />
+										<div className="absolute bottom-0 left-0 right-0 h-[2px] bg-current rounded-t-sm" />
 									)}
 								</button>
 							);
@@ -527,9 +510,7 @@ export default function CommercialPage() {
 								</button>
 								
 								{showFilters && (
-									<div className="absolute right-0 top-[calc(100%+8px)] w-[260px] rounded-xl border shadow-xl z-50 p-4 anim-fade-up"
-										style={{ background: 'var(--n-bg)', borderColor: 'var(--n-border)' }}
-									>
+									<div className="filter-popover absolute right-0 top-[calc(100%+8px)] w-[260px] rounded-xl z-50 p-4 anim-fade-up">
 										<div className="flex flex-col gap-4">
 											<div className="flex items-center justify-between">
 												<h4 className="text-[13px] font-bold" style={{ color: 'var(--n-fg)' }}>Filters</h4>
@@ -589,7 +570,7 @@ export default function CommercialPage() {
 				{/* ── Content ── */}
 				{loading ? (
 					<div className="flex items-center justify-center gap-3 py-16" style={{ color: 'var(--n-fg-subtle)' }}>
-						<svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+						<svg className="animate-spin h-5 w-5" style={{ willChange: 'transform' }} viewBox="0 0 24 24" fill="none">
 							<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
 							<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
 						</svg>
@@ -622,8 +603,6 @@ export default function CommercialPage() {
 											className="table-row border-b last:border-b-0 cursor-pointer transition-colors"
 											style={{ borderColor: 'var(--n-border)', animationDelay: `${idx * 0.03}s` }}
 											onClick={() => startEdit(deal)}
-											onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--n-bg-hover)')}
-											onMouseLeave={(e) => (e.currentTarget.style.background = '')}
 										>
 											<td className="px-4 py-3.5 max-w-[280px]">
 												<span className="text-[13px] font-semibold leading-tight block truncate" style={{ color: 'var(--n-fg)' }} title={label}>{label}</span>

@@ -52,6 +52,8 @@ export type CampaignGroup = {
 	creatorNames: string[];
 	deals: Deal[];
 	total: number;
+	costToClient?: number;
+	costToUs?: number;
 };
 
 export type CreatorGroup = {

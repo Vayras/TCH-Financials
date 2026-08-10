@@ -81,6 +81,8 @@ export class AnalyticsService {
     const emw = zeroBlock();
     const profits = zeroBlock();
     const totals = zeroBlock();
+    const billed = zeroBlock();
+    const unbilled = zeroBlock();
     const notInvoiced = { count: 0, totalFee: new Decimal(0), profit: new Decimal(0) };
 
     const brandsAgg = new Map<string, Decimal>();
@@ -113,6 +115,8 @@ export class AnalyticsService {
       const qk = quarterKey(period);
       const be = (deal.billingEntity || '').toUpperCase();
       const isEmw = be.includes('EMW') || be.includes('ELEMENTS MEDIAWORK');
+
+      const isBilled = !!(deal.clientInvoiceNumber || '').trim();
 
       const rowKey = deal.campaignId === null ? 'none' : String(deal.campaignId);
       let row = rows.get(rowKey);
@@ -150,6 +154,19 @@ export class AnalyticsService {
       bump(totals.byMonth, mk, dealFee);
       bump(totals.byQuarter, qk, dealFee);
       totals.total = totals.total.add(dealFee);
+
+      // Feature 2: Billed vs Unbilled split
+      if (isBilled) {
+        const billedFee = creatorName ? dealFee : D(deal.clientInvoiceAmount || deal.totalFee);
+        bump(billed.byMonth, mk, billedFee);
+        bump(billed.byQuarter, qk, billedFee);
+        billed.total = billed.total.add(billedFee);
+      } else {
+        bump(unbilled.byMonth, mk, dealFee);
+        bump(unbilled.byQuarter, qk, dealFee);
+        unbilled.total = unbilled.total.add(dealFee);
+      }
+
       bump(profits.byMonth, mk, dealProfit);
       bump(profits.byQuarter, qk, dealProfit);
       profits.total = profits.total.add(dealProfit);
@@ -248,6 +265,16 @@ export class AnalyticsService {
         by_month: plainMoney(totals.byMonth),
         by_quarter: plainMoney(totals.byQuarter),
         total: money(totals.total),
+      },
+      billed: {
+        by_month: plainMoney(billed.byMonth),
+        by_quarter: plainMoney(billed.byQuarter),
+        total: money(billed.total),
+      },
+      unbilled: {
+        by_month: plainMoney(unbilled.byMonth),
+        by_quarter: plainMoney(unbilled.byQuarter),
+        total: money(unbilled.total),
       },
       emw_billing: {
         by_month: plainMoney(emw.byMonth),

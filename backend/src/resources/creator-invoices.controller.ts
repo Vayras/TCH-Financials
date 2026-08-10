@@ -3,8 +3,12 @@ import * as path from 'path';
 import {
   BadRequestException, ConflictException, Controller, Delete, Get, HttpCode,
   NotFoundException, Param, Patch, Post, Put, Query, Body, UploadedFile,
-  UseInterceptors,
+  UseInterceptors, Req,
 } from '@nestjs/common';
+import { Roles } from '../auth/roles.decorator';
+import { type AppRole } from '../entities/profile.entity';
+import { type Request as ExpressRequest } from 'express';
+import { D } from '../common/decimal';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -118,6 +122,64 @@ export class CreatorInvoicesController {
     if (deal) qb.andWhere('invoice.dealId = :deal', { deal });
     if (creator) qb.andWhere('invoice.creatorId = :creator', { creator });
     return (await qb.getMany()).map(creatorInvoiceDto);
+  }
+
+  @Roles('creator')
+  @Get('creator-portal')
+  async creatorPortalList(@Req() req: any) {
+    const creatorId = req.user?.creatorId;
+    if (!creatorId) {
+      throw new BadRequestException('Your profile is not linked to any creator record.');
+    }
+    const qb = this.repo().createQueryBuilder('invoice')
+      .leftJoinAndSelect('invoice.creator', 'creatorRow')
+      .leftJoinAndSelect('invoice.deal', 'dealRow')
+      .leftJoinAndSelect('dealRow.campaign', 'campaign')
+      .andWhere('invoice.creatorId = :creatorId', { creatorId })
+      .orderBy('invoice.uploadedAt', 'DESC');
+    return (await qb.getMany()).map(creatorInvoiceDto);
+  }
+
+  @Roles('creator')
+  @Post('creator-portal')
+  @HttpCode(201)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
+  async creatorPortalCreate(@Req() req: any, @Body() body: Record<string, string>, @UploadedFile() file?: Express.Multer.File) {
+    const creatorId = req.user?.creatorId;
+    if (!creatorId) {
+      throw new BadRequestException('Your profile is not linked to any creator record.');
+    }
+    if (!body.deal) {
+      throw new BadRequestException({ deal: ['Campaign is required.'] });
+    }
+    validateFile(file);
+    await this.requireAssignment(body.deal, creatorId);
+
+    const existing = await this.repo().findOneBy({ dealId: body.deal, creatorId });
+    if (existing) {
+      throw new ConflictException({ detail: 'You have already submitted an invoice for this campaign.' });
+    }
+
+    const row = this.repo().create({
+      dealId: body.deal,
+      creatorId,
+      invoiceNumber: (body.invoice_number || '').trim().slice(0, 120),
+      invoiceDate: body.invoice_date || null,
+      invoiceAmount: Number(body.invoice_amount || 0).toFixed(2),
+      paymentStatus: 'Pending',
+      paymentCycle: body.payment_cycle || '',
+      label: `Creator Invoice — ${file.originalname}`,
+    });
+    row.file = storeUpload(body.deal, creatorId, file);
+
+    try {
+      await this.repo().save(row);
+    } catch (error) {
+      fs.rmSync(path.join(env.mediaRoot, row.file), { force: true });
+      throw error;
+    }
+    await refreshInvoiceCompletion(this.dataSource, row.dealId);
+    return this.serialize(row.id);
   }
 
   @Get(':id')
