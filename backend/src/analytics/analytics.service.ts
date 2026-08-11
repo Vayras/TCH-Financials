@@ -116,7 +116,13 @@ export class AnalyticsService {
       const be = (deal.billingEntity || '').toUpperCase();
       const isEmw = be.includes('EMW') || be.includes('ELEMENTS MEDIAWORK');
 
-      const isBilled = !!(deal.clientInvoiceNumber || '').trim();
+      const isValidInvoice = (invNo: string | null | undefined): boolean => {
+        if (!invNo) return false;
+        const clean = String(invNo).trim().toLowerCase();
+        return clean.length > 0 && !['na', 'n/a', 'n.a.', 'none', 'nil', '-', 'null'].includes(clean);
+      };
+
+      const isBilled = isValidInvoice(deal.clientInvoiceNumber) || isValidInvoice(deal.eInvoiceNumber);
 
       const rowKey = deal.campaignId === null ? 'none' : String(deal.campaignId);
       let row = rows.get(rowKey);

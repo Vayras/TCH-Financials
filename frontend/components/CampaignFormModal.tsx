@@ -247,9 +247,8 @@ export function CampaignFormModal({
 							{err('tch_poc') && <p className="mt-1 text-[12px] text-red-500">{err('tch_poc')}</p>}
 						</div>
 						<div>
-							<Label>E-Invoice Number *</Label>
-							<Input placeholder="e.g. TCH/2627/Jul01" {...reg('e_invoice_number', required)} className={fieldCls('e_invoice_number')} />
-							{err('e_invoice_number') && <p className="mt-1 text-[12px] text-red-500">{err('e_invoice_number')}</p>}
+							<Label>E-Invoice Number</Label>
+							<Input placeholder="Optional / e.g. TCH/2627/Jul01" {...reg('e_invoice_number')} className={fieldCls('e_invoice_number')} />
 						</div>
 					</div>
 				</div>
