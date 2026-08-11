@@ -99,7 +99,7 @@ export default function AccountsDashboardPage() {
 
 	return (
 		<div className="space-y-8">
-			<PageHeader title="Accounts Overview" description="Consolidated cash flow tracking, ledger totals, and campaign audits." />
+			<PageHeader title="Accounts Overview" description="Real-time cash flow tracking, statutory TDS dues, and campaign margin audits." />
 
 			{/* Metric Blocks Row */}
 			<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -160,7 +160,7 @@ export default function AccountsDashboardPage() {
 			<div className="space-y-3">
 				<h3 className="text-[14px] font-bold text-gray-900 flex items-center gap-2">
 					<Icon name="layers" size={15} className="text-gray-500" />
-					<span>Campaign Financial Audits (Cost to Us vs Cost to Client)</span>
+					<span>Campaign Profitability & Margin Audits</span>
 				</h3>
 
 				{aggregatedCampaigns.length === 0 ? (
@@ -190,9 +190,9 @@ export default function AccountsDashboardPage() {
 										<tr>
 											<th className="w-[220px]">Campaign Name</th>
 											<th className="w-[140px]">Brand</th>
-											<th className="num w-[140px]">Cost to Client (Billed)</th>
-											<th className="num w-[160px]">Cost to Us (Payouts + Overheads)</th>
-											<th className="num w-[120px]">Gross Margin</th>
+											<th className="num w-[140px]">Billed to Client</th>
+											<th className="num w-[180px]">Creator Payouts & Overheads</th>
+											<th className="num w-[120px]">Net Margin</th>
 										</tr>
 									</thead>
 									<tbody>
