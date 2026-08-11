@@ -162,6 +162,17 @@ export default function CampaignDetailPage() {
 		setValue('creator_fee', (total - a).toFixed(2));
 	};
 
+	const recomputeFromCreatorFee = () => {
+		const total = Number(getValues('total_fee'));
+		const creatorFee = Number(getValues('creator_fee'));
+		if (Number.isFinite(total) && total > 0 && Number.isFinite(creatorFee) && creatorFee >= 0) {
+			const agencyFeeInr = Math.max(0, total - creatorFee);
+			const pct = agencyFeeInr / total;
+			setValue('agency_fee_pct', pct.toFixed(4));
+			setValue('agency_fee_inr', agencyFeeInr.toFixed(2));
+		}
+	};
+
 	const required = { required: 'Required' } as const;
 	const creatorOptions = creators.map((c) => ({ value: String(c.id), label: `${c.name} · ${c.relationship}` }));
 
@@ -419,9 +430,8 @@ export default function CampaignDetailPage() {
 
 								<div className="grid grid-cols-2 gap-3">
 									<div>
-										<Label>E-Invoice Number *</Label>
-										<Input placeholder="e.g. TCH/2627/Jul01" {...reg('e_invoice_number', required)} />
-										{errors.e_invoice_number && <p className="text-[12px] mt-0.5 text-red-600">Required</p>}
+										<Label>E-Invoice Number</Label>
+										<Input placeholder="Optional / e.g. TCH/2627/Jul01" {...reg('e_invoice_number')} />
 									</div>
 									<div>
 										<Label>E-Invoice Date</Label>
@@ -614,7 +624,7 @@ export default function CampaignDetailPage() {
 												type="number"
 												step="0.01"
 												placeholder="0.00"
-												{...register('creator_fee', required)}
+												{...register('creator_fee', { ...required, onChange: recomputeFromCreatorFee })}
 											/>
 											{errors.creator_fee && <p className="text-[12px] mt-0.5 text-red-600">Required</p>}
 										</div>
@@ -696,6 +706,16 @@ export default function CampaignDetailPage() {
 									}
 								};
 
+								const recomputeSharePctFromCreatorFee = () => {
+									const t = Number(getValues(`shares.${i}.total_fee`));
+									const c = Number(getValues(`shares.${i}.creator_fee`));
+									if (Number.isFinite(t) && t > 0 && Number.isFinite(c) && c >= 0) {
+										const agencyFeeInr = Math.max(0, t - c);
+										const pct = agencyFeeInr / t;
+										setValue(`shares.${i}.agency_fee_pct`, pct.toFixed(4));
+									}
+								};
+
 								return (
 									<div key={field.id} className="rounded-xl border p-4 space-y-4 transition-all" style={{ background: 'var(--n-bg)', borderColor: 'var(--n-border)' }}>
 										<div className="flex items-center justify-between border-b pb-2" style={{ borderColor: 'var(--n-border)' }}>
@@ -742,7 +762,7 @@ export default function CampaignDetailPage() {
 													type="number"
 													step="0.01"
 													placeholder="0.00"
-													{...register(`shares.${i}.creator_fee`, { required: 'Required' })}
+													{...register(`shares.${i}.creator_fee`, { required: 'Required', onChange: recomputeSharePctFromCreatorFee })}
 												/>
 												{errors.shares?.[i]?.creator_fee && <p className="text-[12px] mt-0.5 text-red-600">Required</p>}
 											</div>

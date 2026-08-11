@@ -77,11 +77,49 @@ export default function OverviewPage() {
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 						{/* Financial Summary */}
 						<div className="md:col-span-2 grid grid-cols-2 gap-2">
-							<div className="col-span-full">
+							<div className="col-span-full grid grid-cols-3 gap-2">
 								<HeroMetricCard
 									label="Gross Bookings"
-									value={inr(data.totals.total)}
+									value={`₹${inr(data.totals.total) || '0'}`}
 								/>
+								<div
+									className="rounded-lg p-4 flex flex-col justify-between"
+									style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
+								>
+									<div
+										className="text-[11.5px] font-semibold uppercase flex items-center gap-1.5"
+										style={{ color: '#15803d', letterSpacing: '0.06em' }}
+									>
+										<span className="h-1.5 w-1.5 rounded-full bg-[#15803d]" />
+										Billed Revenue
+									</div>
+									<div
+										className="text-[20px] font-bold tabular-nums tracking-tight mt-2 leading-none"
+										style={{ color: 'var(--n-fg)' }}
+									>
+										₹{inr(data.billed?.total) || '0'}
+									</div>
+									<span className="text-[10px] text-gray-400 mt-1">Invoice issued</span>
+								</div>
+								<div
+									className="rounded-lg p-4 flex flex-col justify-between"
+									style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
+								>
+									<div
+										className="text-[11.5px] font-semibold uppercase flex items-center gap-1.5"
+										style={{ color: '#b45309', letterSpacing: '0.06em' }}
+									>
+										<span className="h-1.5 w-1.5 rounded-full bg-[#b45309]" />
+										Unbilled Revenue
+									</div>
+									<div
+										className="text-[20px] font-bold tabular-nums tracking-tight mt-2 leading-none"
+										style={{ color: 'var(--n-fg)' }}
+									>
+										₹{inr(data.unbilled?.total) || '0'}
+									</div>
+									<span className="text-[10px] text-gray-400 mt-1">Confirmed deal, pending invoice</span>
+								</div>
 							</div>
 							<MetricCard
 								label="EMW Retained Bookings"

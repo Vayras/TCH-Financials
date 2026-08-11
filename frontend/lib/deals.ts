@@ -111,8 +111,8 @@ export function billingPeriodOf(r: Deal): string | null {
 }
 
 export function getStatusDisplay(status: string, invoicesUploaded: boolean) {
-	if (status === 'Over') return { label: 'Completed', tone: 'neutral' as const };
-	if (invoicesUploaded) return { label: 'Pending Payment', tone: 'yes' as const };
+	if (status === 'Over') return { label: 'Completed', tone: 'yes' as const };
+	if (invoicesUploaded) return { label: 'Pending Payment', tone: 'markup' as const };
 	return { label: 'Awaiting Invoices', tone: 'exclusive' as const };
 }
 

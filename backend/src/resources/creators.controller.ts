@@ -10,6 +10,11 @@ import { creatorDto } from '../common/serializers';
 import { versionedUpdate } from '../common/versioned-update';
 import { paginationParams } from '../common/pagination';
 import { Creator } from '../entities';
+import { createClient } from '@supabase/supabase-js';
+import { Profile } from '../entities/profile.entity';
+import { env } from '../env';
+import * as https from 'https';
+
 
 const FIELDS = {
   name: 'name',
@@ -24,6 +29,7 @@ const FIELDS = {
   location: 'location',
   ops_manager: 'opsManager',
   notes: 'notes',
+  email: 'email',
 };
 
 // Everything the Add Creator form collects is mandatory (documents are
@@ -158,6 +164,102 @@ export class CreatorsController {
       serialize: async (rowId, manager) =>
         creatorDto((await manager.getRepository(Creator).findOneBy({ id: rowId }))!),
     });
+  }
+
+  @Post(':id/create-account')
+  async createAccount(
+    @Param('id') id: string,
+    @Body() body: { password?: string }
+  ) {
+    const creatorRepo = this.repo();
+    const creator = await creatorRepo.findOneBy({ id });
+    if (!creator) throw new NotFoundException({ detail: 'Creator not found.' });
+    if (!creator.email) {
+      throw new BadRequestException('Creator must have an email address to create a login account.');
+    }
+    if (creator.portalStatus === 'active') {
+      throw new BadRequestException('Creator already has an active portal account.');
+    }
+
+    const email = creator.email.trim().toLowerCase();
+    const password = body.password?.trim();
+    if (!password || password.length < 6) {
+      throw new BadRequestException('Password must be at least 6 characters.');
+    }
+
+    // 1. Create user in Supabase auth using raw HTTPS to avoid local fetch proxy/TLS issues
+    const authUserId = await new Promise<string>((resolve, reject) => {
+      const payload = JSON.stringify({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { role: 'creator' }
+      });
+
+      const req = https.request(`${env.supabaseUrl}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: {
+          'apikey': env.supabaseServiceRoleKey,
+          'Authorization': 'Bearer ' + env.supabaseServiceRoleKey,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        }
+      }, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            try {
+              const parsed = JSON.parse(data);
+              if (parsed.id) {
+                resolve(parsed.id);
+              } else {
+                reject(new Error('User ID missing in Supabase response.'));
+              }
+            } catch {
+              reject(new Error('Failed to parse Supabase response.'));
+            }
+          } else {
+            try {
+              const parsed = JSON.parse(data);
+              reject(new Error(parsed.message || `HTTP ${res.statusCode}`));
+            } catch {
+              reject(new Error(`HTTP ${res.statusCode}`));
+            }
+          }
+        });
+      });
+
+      req.on('error', (e) => {
+        reject(e);
+      });
+
+      req.write(payload);
+      req.end();
+    }).catch(err => {
+      console.error('SUPABASE_AUTH_RAW_ERROR:', err);
+      throw new BadRequestException(`Supabase account creation failed: ${err.message}`);
+    });
+
+    // 2. Create Profile record in database
+    const profileRepo = this.dataSource.getRepository(Profile);
+    const profile = profileRepo.create({
+      id: authUserId,
+      email,
+      displayName: creator.name || '',
+      role: 'creator',
+      status: 'approved',
+      passwordSet: true,
+      creatorId: creator.id
+    });
+
+    await profileRepo.save(profile);
+
+    // 3. Update Creator portalStatus
+    creator.portalStatus = 'active';
+    await creatorRepo.save(creator);
+
+    return { success: true, profile };
   }
 
   @Delete(':id')

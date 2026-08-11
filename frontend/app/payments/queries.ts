@@ -86,3 +86,137 @@ export function useUploadInvoiceMutation(fyStart: number | null) {
 		}
 	});
 }
+
+export interface PaymentTransactionItem {
+	id: string;
+	transactionDate: string;
+	vendorName: string;
+	utrOrRef: string;
+	debitAmount: string;
+	creditAmount: string;
+	notes: string;
+	createdAt: string;
+	deal?: any;
+	creator?: any;
+}
+
+export interface PaymentTransactionResponse {
+	items: PaymentTransactionItem[];
+	page: number;
+	page_size: number;
+	total: number;
+	total_pages: number;
+	summary: {
+		total_debit: string;
+		total_credit: string;
+	};
+}
+
+export const PAYMENT_TRANSACTIONS_QUERY_KEY = (page: number, search: string) =>
+	['payment-transactions', { page, search }] as const;
+
+export function usePaymentTransactionsQuery(page: number, search: string) {
+	return useQuery<PaymentTransactionResponse>({
+		queryKey: PAYMENT_TRANSACTIONS_QUERY_KEY(page, search),
+		queryFn: () => {
+			const params = new URLSearchParams({ page: String(page) });
+			if (search.trim()) params.set('search', search.trim());
+			return api.get<PaymentTransactionResponse>(`/payment-transactions?${params.toString()}`);
+		}
+	});
+}
+
+export function useAddPaymentTransactionMutation() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (body: {
+			transactionDate: string;
+			vendorName: string;
+			utrOrRef: string;
+			debitAmount?: number;
+			creditAmount?: number;
+			notes?: string;
+		}) => api.post('/payment-transactions', body),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['payment-transactions'] });
+		}
+	});
+}
+
+export function useImportPaymentTransactionsMutation() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (file: File) => {
+			const formData = new FormData();
+			formData.append('file', file);
+			return api.upload<{ success: boolean; imported_count: number; skipped: any[] }>('/payment-transactions/import', formData);
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['payment-transactions'] });
+		}
+	});
+}
+
+export interface TdsEntryItem {
+	id: string;
+	creatorId: string;
+	dealId: string | null;
+	quarter: string;
+	tdsRate: string;
+	grossAmount: string;
+	tdsAmount: string;
+	netPayable: string;
+	remittanceDate: string | null;
+	challanNumber: string;
+	status: 'Pending' | 'Remitted';
+	notes: string;
+	createdAt: string;
+	creator: {
+		id: string;
+		name: string;
+	};
+}
+
+export function useTdsEntriesQuery(creatorId?: string, status?: string) {
+	return useQuery<TdsEntryItem[]>({
+		queryKey: ['tds-entries', { creatorId, status }],
+		queryFn: () => {
+			const params = new URLSearchParams();
+			if (creatorId) params.set('creatorId', creatorId);
+			if (status) params.set('status', status);
+			return api.get<TdsEntryItem[]>(`/tds?${params.toString()}`);
+		}
+	});
+}
+
+export function useAddTdsEntryMutation() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (body: {
+			creatorId: string;
+			dealId?: string | null;
+			quarter: string;
+			tdsRate: number;
+			grossAmount: number;
+			notes?: string;
+		}) => api.post('/tds', body),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['tds-entries'] });
+		}
+	});
+}
+
+export function useUpdateTdsRemittanceMutation() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: ({ id, remittanceDate, challanNumber, notes }: {
+			id: string;
+			remittanceDate: string;
+			challanNumber: string;
+			notes?: string;
+		}) => api.patch(`/tds/${id}`, { remittanceDate, challanNumber, notes }),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['tds-entries'] });
+		}
+	});
+}

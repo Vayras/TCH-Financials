@@ -57,13 +57,12 @@ export default function SetPasswordPage() {
 		<div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--n-bg)' }}>
 			<form
 				onSubmit={submit}
-				className="w-full max-w-[360px] rounded-lg p-8 shadow-sm"
-				style={{ background: 'var(--n-bg-soft)', border: '1px solid var(--n-border)' }}
+				className="filter-popover w-full max-w-[360px] rounded-xl p-8 shadow-lg anim-fade-up"
 			>
 				<div className="flex items-center gap-2.5 mb-6">
 					<div
-						className="h-8 w-8 rounded flex items-center justify-center text-[15px] font-semibold"
-						style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
+						className="h-8 w-8 rounded flex items-center justify-center text-[15px] font-semibold shadow-sm"
+						style={{ background: 'var(--n-fg)', color: 'var(--n-bg)', boxShadow: '0 2px 4px rgba(0,0,0,0.12)' }}
 					>
 						T
 					</div>
@@ -87,7 +86,7 @@ export default function SetPasswordPage() {
 				) : (
 					<>
 						<p className="text-[12.5px] mb-5 leading-relaxed" style={{ color: 'var(--n-fg-subtle)' }}>
-							Welcome! You've been invited to TCH Financials. Please set a password to secure your account.
+							Welcome! You&apos;ve been invited to TCH Financials. Please set a password to secure your account.
 						</p>
 
 						<div className="mb-3">
@@ -152,7 +151,7 @@ export default function SetPasswordPage() {
 						<button
 							type="submit"
 							disabled={busy}
-							className="w-full h-9 rounded text-[13.5px] font-medium transition-opacity disabled:opacity-60"
+							className="w-full h-9 rounded text-[13.5px] font-medium transition-transform duration-100 active:scale-[0.985] disabled:opacity-60 cursor-pointer"
 							style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
 						>
 							{busy ? 'Setting password…' : 'Set Password & Continue'}

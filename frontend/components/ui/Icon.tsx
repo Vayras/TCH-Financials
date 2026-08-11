@@ -17,6 +17,8 @@ const NAME_MAP: Record<string, keyof typeof LucideIcons> = {
 	'chevron-left': 'ChevronLeft',
 	'chevrons-left': 'ChevronsLeft',
 	'chevron-down': 'ChevronDown',
+	'chevron-up': 'ChevronUp',
+	user: 'User',
 	filter: 'Filter',
 	plus: 'Plus',
 	refresh: 'RefreshCw',

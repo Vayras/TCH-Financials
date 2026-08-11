@@ -77,3 +77,14 @@ export function useDeleteCreatorMutation() {
 		}
 	});
 }
+
+export function useCreateCreatorAccountMutation() {
+	const queryClient = useQueryClient();
+	return useMutation<unknown, Error, { id: number; password?: string }>({
+		mutationFn: ({ id, password }) => api.post(`/creators/${id}/create-account`, { password }),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: CREATORS_QUERY_KEY });
+			queryClient.invalidateQueries({ queryKey: ['creators-page'] });
+		}
+	});
+}

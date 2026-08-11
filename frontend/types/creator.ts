@@ -12,4 +12,5 @@ export type CreatorForm = {
 	location: string;
 	talent_manager: string;
 	attachments: CreatorAttachment[];
+	email?: string;
 };

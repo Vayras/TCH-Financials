@@ -2,6 +2,8 @@ import {
   Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn,
 } from 'typeorm';
 
+export type PortalStatus = 'none' | 'invited' | 'active';
+
 @Entity('tch_creator')
 export class Creator {
   @PrimaryGeneratedColumn('identity', { type: 'bigint', generatedIdentity: 'BY DEFAULT' })
@@ -46,6 +48,14 @@ export class Creator {
 
   @Column({ type: 'text', default: '' })
   notes: string;
+
+  // Portal access fields — optional, only populated when creator is given portal access
+  @Column({ length: 200, default: '' })
+  email: string;
+
+  // none | invited | active
+  @Column({ name: 'portal_status', length: 20, default: 'none' })
+  portalStatus: PortalStatus;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

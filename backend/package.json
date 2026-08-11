@@ -29,7 +29,8 @@
     "reflect-metadata": "^0.2.2",
     "resend": "^6.18.0",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.31"
+    "typeorm": "^0.3.31",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",

@@ -33,6 +33,8 @@ export function creatorDto(c: Creator) {
     created_at: ts(c.createdAt),
     updated_at: ts(c.updatedAt),
     version: c.version,
+    email: c.email,
+    portalStatus: c.portalStatus,
   };
 }
 

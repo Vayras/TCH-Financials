@@ -41,7 +41,7 @@ export class SupabaseAuthGuard implements CanActivate {
       (req as Request & { user?: unknown }).user = {
         id: '00000000-0000-0000-0000-000000000000',
         email: 'dev@theculturehub.co.in',
-        role: 'admin',
+        role: 'super_admin',
         status: 'approved',
       };
       return true;
@@ -74,9 +74,10 @@ export class SupabaseAuthGuard implements CanActivate {
       const user = {
         id: userId,
         email: email,
-        role: profile ? profile.role : 'member',
+        role: profile ? profile.role : 'tch_member',
         status: profile ? profile.status : 'unknown',
         passwordSet: profile ? (profile.passwordSet ?? true) : true,
+        creatorId: profile ? profile.creatorId : null,
       };
 
       (req as Request & { user?: unknown }).user = user;

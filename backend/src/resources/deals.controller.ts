@@ -1,6 +1,6 @@
 import {
   BadRequestException, Body, Controller, Delete, Get, HttpCode,
-  NotFoundException, Param, Patch, Post, Put, Query,
+  NotFoundException, Param, Patch, Post, Put, Query, Req,
 } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
@@ -13,6 +13,7 @@ import { dealDto } from '../common/serializers';
 import { versionedUpdate } from '../common/versioned-update';
 import { Campaign, CommercialDeal, DealCreatorShare } from '../entities';
 import { refreshCampaignStatus } from './campaigns.controller';
+import { Roles } from '../auth/roles.decorator';
 
 const FIELDS = {
   confirmation_date: 'confirmationDate',
@@ -322,6 +323,8 @@ export class DealsController {
             status: row.campaign?.status ?? '',
             creator_names: [] as string[],
             total: 0,
+            cost_to_client: 0,
+            cost_to_us: 0,
             deal_count: 0,
             invoices_uploaded: true,
             deal: dealDto(row),
@@ -330,6 +333,8 @@ export class DealsController {
             current.invoices_uploaded = false;
           }
           current.total = Number(current.total) + (Number(row.totalFee) || 0);
+          current.cost_to_client = Number(current.cost_to_client) + (Number(row.clientInvoiceAmount || row.totalFee) || 0);
+          current.cost_to_us = Number(current.cost_to_us) + (Number(row.creatorFee) || 0);
           current.deal_count = Number(current.deal_count) + 1;
           const names = (row.creatorShares?.length ? row.creatorShares.map((s) => s.creator?.name || s.creatorNameRaw) : [row.creator?.name || row.creatorNameRaw]).filter(Boolean);
           for (const name of names) if (!(current.creator_names as string[]).includes(name)) (current.creator_names as string[]).push(name);
@@ -392,6 +397,30 @@ export class DealsController {
       total_pages: Math.max(1, Math.ceil(total / pagination.pageSize)),
       summary: { total_billing: totalBilling.toFixed(2), deal_count: total },
     };
+  }
+
+  @Roles('creator')
+  @Get('creator-portal')
+  async creatorPortalDeals(@Req() req: any) {
+    const creatorId = req.user?.creatorId;
+    if (!creatorId) {
+      throw new BadRequestException('Your profile is not linked to any creator record.');
+    }
+
+    const qb = this.repo()
+      .createQueryBuilder('deal')
+      .leftJoinAndSelect('deal.creator', 'creator')
+      .leftJoinAndSelect('deal.campaign', 'campaign')
+      .leftJoinAndSelect('deal.creatorShares', 'share')
+      .leftJoinAndSelect('share.creator', 'shareCreator')
+      .leftJoin('deal.creatorShares', 'filterShare')
+      .andWhere('(deal.creator_id = :creatorId OR filterShare.creator_id = :creatorId)', { creatorId })
+      .distinct(true)
+      .orderBy('deal.confirmationDate', 'DESC')
+      .addOrderBy('deal.id', 'ASC');
+
+    const rows = await qb.getMany();
+    return rows.map(dealDto);
   }
 
   @Get(':id')

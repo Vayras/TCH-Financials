@@ -4,6 +4,8 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
 
+import Link from 'next/link';
+
 export default function LoginPage() {
 	const router = useRouter();
 	const [email, setEmail] = React.useState('');
@@ -42,13 +44,12 @@ export default function LoginPage() {
 		<div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--n-bg)' }}>
 			<form
 				onSubmit={submit}
-				className="w-full max-w-[360px] rounded-lg p-8"
-				style={{ background: 'var(--n-bg-soft)', border: '1px solid var(--n-border)' }}
+				className="filter-popover w-full max-w-[360px] rounded-xl p-8 shadow-lg anim-fade-up"
 			>
 				<div className="flex items-center gap-2.5 mb-6">
 					<div
-						className="h-8 w-8 rounded flex items-center justify-center text-[15px] font-semibold"
-						style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
+						className="h-8 w-8 rounded flex items-center justify-center text-[15px] font-semibold shadow-sm"
+						style={{ background: 'var(--n-fg)', color: 'var(--n-bg)', boxShadow: '0 2px 4px rgba(0,0,0,0.12)' }}
 					>
 						T
 					</div>
@@ -98,11 +99,18 @@ export default function LoginPage() {
 				<button
 					type="submit"
 					disabled={busy}
-					className="w-full h-9 rounded text-[13.5px] font-medium transition-opacity disabled:opacity-60"
+					className="w-full h-9 rounded text-[13.5px] font-medium transition-transform duration-100 active:scale-[0.985] disabled:opacity-60 cursor-pointer mb-4"
 					style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
 				>
 					{busy ? 'Signing in…' : 'Sign in'}
 				</button>
+
+				<div className="text-center text-[12px] mt-2">
+					<span style={{ color: 'var(--n-fg-subtle)' }}>New here? </span>
+					<Link href="/signup" className="font-medium underline hover:text-[var(--n-accent)]">
+						Request Access
+					</Link>
+				</div>
 			</form>
 		</div>
 	);

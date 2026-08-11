@@ -29,6 +29,7 @@ type FormValues = {
 	location: string;
 	talent_manager: string;
 	attachments: Record<AttachmentType, FileList | null>;
+	email: string;
 };
 
 const EMPTY_ATTACHMENTS: Record<AttachmentType, FileList | null> = {
@@ -48,7 +49,8 @@ function toValues(f: CreatorForm): FormValues {
 		url: f.url.map((value) => ({ value })),
 		location: f.location,
 		talent_manager: f.talent_manager,
-		attachments: EMPTY_ATTACHMENTS
+		attachments: EMPTY_ATTACHMENTS,
+		email: f.email || ''
 	};
 }
 
@@ -65,7 +67,8 @@ function fromValues(v: FormValues): CreatorForm {
 		attachments: ATTACH_SLOTS.flatMap((slot) => {
 			const file = v.attachments[slot.key]?.[0];
 			return file ? [{ doc_type: slot.key, file }] : [];
-		})
+		}),
+		email: v.email || ''
 	};
 }
 
@@ -177,7 +180,7 @@ export function CreatorFormModal({
 				})}
 				className="grid grid-cols-2 gap-3"
 			>
-				<div className="col-span-2">
+				<div>
 					<Label>Name</Label>
 					<Input
 						{...register('name', { required: 'Name is required' })}
@@ -188,6 +191,14 @@ export function CreatorFormModal({
 							{errors.name.message}
 						</div>
 					)}
+				</div>
+				<div>
+					<Label>Email Address</Label>
+					<Input
+						type="email"
+						{...register('email')}
+						placeholder="e.g. saili@example.com"
+					/>
 				</div>
 				<div>
 					<Label>Niche</Label>
