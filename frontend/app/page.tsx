@@ -67,8 +67,7 @@ export default function OverviewPage() {
 	return (
 		<section className="space-y-6">
 			<PageHeader eyebrow={<>Dashboard · {fyLabelFor(fyStart)}</>} title="Current Overview" description={<>
-				Total billing by campaign, derived live from Campaign Tracking. Each deal lands in the
-				fiscal year and month of its E-Invoice No (e.g. TCH/2526/Dec01 → Dec, FY 25-26).
+				Live financial performance and campaign revenue metrics for the selected fiscal year.
 			</>} />
 
 			{data && (
@@ -99,7 +98,7 @@ export default function OverviewPage() {
 									>
 										₹{inr(data.billed?.total) || '0'}
 									</div>
-									<span className="text-[10px] text-gray-400 mt-1">Invoice issued</span>
+									<span className="text-[10px] text-gray-400 mt-1">Invoices issued</span>
 								</div>
 								<div
 									className="rounded-lg p-4 flex flex-col justify-between"
@@ -118,7 +117,7 @@ export default function OverviewPage() {
 									>
 										₹{inr(data.unbilled?.total) || '0'}
 									</div>
-									<span className="text-[10px] text-gray-400 mt-1">Confirmed deal, pending invoice</span>
+									<span className="text-[10px] text-gray-400 mt-1">Confirmed deals awaiting invoice</span>
 								</div>
 							</div>
 							<MetricCard

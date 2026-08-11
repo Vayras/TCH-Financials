@@ -119,9 +119,9 @@ export default function BillingBarChart({
 			>
 				{(
 					[
-						['Elements (EMW)', C_EMW],
-						['External', C_EXTERNAL],
-						['Profit (TCH Fee)', C_PROFIT]
+						['EMW Retained', C_EMW],
+						['Third-Party Payouts', C_EXTERNAL],
+						['Agency Margin', C_PROFIT]
 					] as const
 				).map(([label, color]) => (
 					<span key={label} className="inline-flex items-center gap-1.5">
@@ -130,7 +130,7 @@ export default function BillingBarChart({
 					</span>
 				))}
 				<span className="ml-auto text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
-					Billing stack + profit, per {rows[0]?.key.startsWith('Q') ? 'quarter' : 'month'}
+					Revenue breakdown and net margin, per {rows[0]?.key.startsWith('Q') ? 'quarter' : 'month'}
 				</span>
 			</div>
 
