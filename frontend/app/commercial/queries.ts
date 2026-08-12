@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, type Deal, type DealPage, type CommercialGroupPage, type Creator, type DealDocument, type CreatorInvoice, type Campaign } from '@/lib/api';
+import { api, type Deal, type DealPage, type CommercialGroupPage, type Creator, type DealDocument, type CreatorInvoice, type Campaign, ConflictError } from '@/lib/api';
 import { uploadDealInvoice } from '@/lib/payments';
 import { toast } from 'sonner';
 
@@ -155,11 +155,23 @@ export function useSaveDealMutation(fyStart: number | null) {
 	return useMutation<Deal, Error, SaveDealParams>({
 		mutationFn: async ({ editingId, editingVersion, payload, clientInvoiceFile, creatorInvoiceFile }) => {
 			let deal: Deal;
-			if (editingId && editingVersion !== undefined) {
-				deal = await api.patch<Deal>(`/deals/${editingId}/`, {
+			if (editingId) {
+				const buildBody = (ver?: number) => ({
 					...(payload as Record<string, unknown>),
-					version: editingVersion
+					...(ver !== undefined && ver !== null ? { version: ver } : {})
 				});
+
+				try {
+					deal = await api.patch<Deal>(`/deals/${editingId}/`, buildBody(editingVersion));
+				} catch (err) {
+					if (err instanceof ConflictError && err.current && typeof (err.current as any).version === 'number') {
+						// Server version was updated by an automatic action (e.g. invoice status update). Retry once with latest version.
+						const latestVersion = (err.current as any).version;
+						deal = await api.patch<Deal>(`/deals/${editingId}/`, buildBody(latestVersion));
+					} else {
+						throw err;
+					}
+				}
 			} else {
 				deal = await api.post<Deal>('/deals/', payload);
 			}
@@ -193,6 +205,9 @@ export function useSaveDealMutation(fyStart: number | null) {
 					return [updatedDeal, ...old];
 				});
 			}
+			queryClient.setQueryData(['deal', updatedDeal.id], updatedDeal);
+			queryClient.invalidateQueries({ queryKey: ['deal', updatedDeal.id] });
+			queryClient.invalidateQueries({ queryKey: ['deal'] });
 			queryClient.invalidateQueries({ queryKey: ['deals'] });
 			queryClient.invalidateQueries({ queryKey: COMMERCIAL_CREATORS_KEY });
 			queryClient.invalidateQueries({ queryKey: ['deals-page'] });
