@@ -60,7 +60,6 @@ const REQUIRED: Record<string, string> = {
   brand_poc: 'POC Email',
   campaign: 'Campaign',
   deliverables: 'Deliverables',
-  e_invoice_number: 'E-Invoice #',
 };
 
 const RELATIONS = ['creator', 'campaign', 'creatorShares', 'creatorShares.creator'];

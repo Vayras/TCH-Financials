@@ -29,19 +29,19 @@ export default function CreatorDealsPage() {
 
 	return (
 		<div className="space-y-6">
-			<PageHeader title="My Deals" description="Overview of all campaigns, deliverables, and agreed payout fees." />
+			<PageHeader title="My Deals" description="Track your campaign deliverables, payment schedules, and verified invoices." />
 
 			{deals.length === 0 ? (
 				<div className="text-center py-20 rounded-xl border bg-white border-gray-200">
 					<div className="h-12 w-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
 						<Icon name="briefcase" size={20} className="text-gray-400" />
 					</div>
-					<h3 className="text-[15px] font-bold text-gray-900 mb-1">No deals yet</h3>
-					<p className="text-[13px] text-gray-500 max-w-[280px] mx-auto">
-						You&apos;ll see your campaign deals here once the TCH team assigns you to one.
+					<h3 className="text-[15px] font-bold text-gray-900 mb-1">No Active Campaigns Yet</h3>
+					<p className="text-[13px] text-gray-500 max-w-[320px] mx-auto leading-relaxed">
+						Your campaign details and payment terms will appear here as soon as a project is assigned.
 					</p>
-					<p className="text-[11.5px] text-gray-400 mt-3 max-w-[240px] mx-auto">
-						Reach out to your manager if you expected to see a deal listed here.
+					<p className="text-[11.5px] text-gray-400 mt-3 max-w-[280px] mx-auto">
+						If you&apos;re expecting a campaign to show up, please reach out to your Talent Manager.
 					</p>
 				</div>
 			) : (

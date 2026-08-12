@@ -244,7 +244,7 @@ function GlobalFySelect() {
 
 const NAV = [
 	{ href: '/', label: 'Overview', icon: 'home' },
-	{ href: '/commercial', label: 'Campaign', icon: 'briefcase' },
+	{ href: '/commercial', label: 'Campaigns', icon: 'briefcase' },
 	{ href: '/payments', label: 'Payments', icon: 'credit-card' },
 	{ href: '/creators', label: 'Creators', icon: 'users' },
 	{ href: '/alerts', label: 'Alerts', icon: 'bell' },
@@ -305,7 +305,14 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 								>
 									T
 								</div>
-								<span className="text-[13.5px] font-semibold truncate">TCH Financials</span>
+								<div className="flex flex-col min-w-0 leading-none">
+									<span className="text-[13.5px] font-bold truncate" style={{ color: 'var(--n-fg)' }}>
+										{role === 'super_admin' ? 'TCH MIS' : role === 'accounts' ? 'TCH Financials' : 'TCH Commercial'}
+									</span>
+									<span className="text-[9px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--n-fg-subtle)' }}>
+										{role === 'super_admin' ? 'Super Admin' : role === 'accounts' ? 'Accounts & Ledger' : 'Operations'}
+									</span>
+								</div>
 							</div>
 						) : (
 							<div
