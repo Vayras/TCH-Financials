@@ -11,7 +11,7 @@ import { csvValues, paginationParams } from '../common/pagination';
 import { refreshInvoiceCompletion } from '../common/invoice-completion';
 import { dealDto } from '../common/serializers';
 import { versionedUpdate } from '../common/versioned-update';
-import { Campaign, CommercialDeal, DealCreatorShare } from '../entities';
+import { Campaign, CommercialDeal, DealCreatorShare, CreatorInvoice } from '../entities';
 import { refreshCampaignStatus } from './campaigns.controller';
 import { Roles } from '../auth/roles.decorator';
 
@@ -198,20 +198,35 @@ export class DealsController {
   ): Promise<void> {
     const repo = manager.getRepository(DealCreatorShare);
     await repo.delete({ dealId });
-    if (shares.length === 0) return;
-    const entities = shares.map((s) =>
-      repo.create({
-        dealId,
-        creatorId: String(s.creator),
-        creatorNameRaw: '',
-        totalFee: String(s.total_fee ?? '0') || '0',
-        agencyFeePct: String(s.agency_fee_pct ?? '0') || '0',
-        agencyFeeInr: String(s.agency_fee_inr ?? '0') || '0',
-        creatorFee: String(s.creator_fee ?? '0') || '0',
-        roNumber: String(s.ro_number ?? '') || '',
-      }),
-    );
-    await repo.save(entities);
+    if (shares.length > 0) {
+      const entities = shares.map((s) =>
+        repo.create({
+          dealId,
+          creatorId: String(s.creator),
+          creatorNameRaw: '',
+          totalFee: String(s.total_fee ?? '0') || '0',
+          agencyFeePct: String(s.agency_fee_pct ?? '0') || '0',
+          agencyFeeInr: String(s.agency_fee_inr ?? '0') || '0',
+          creatorFee: String(s.creator_fee ?? '0') || '0',
+          roNumber: String(s.ro_number ?? '') || '',
+        }),
+      );
+      await repo.save(entities);
+    }
+
+    // Clean up orphaned creator invoices for creators who are no longer assigned to this deal
+    const deal = await manager.getRepository(CommercialDeal).findOne({ where: { id: dealId } });
+    if (deal) {
+      const activeCreatorIds = new Set(
+        [deal.creatorId, ...shares.map((s) => String(s.creator))].filter(Boolean),
+      );
+      const invoices = await manager.getRepository(CreatorInvoice).find({ where: { dealId } });
+      for (const inv of invoices) {
+        if (inv.creatorId && !activeCreatorIds.has(inv.creatorId)) {
+          await manager.getRepository(CreatorInvoice).delete({ id: inv.id });
+        }
+      }
+    }
   }
 
   @Get()

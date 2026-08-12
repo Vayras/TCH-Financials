@@ -166,8 +166,11 @@ export default function CampaignDetailPage() {
 		const total = Number(getValues('total_fee'));
 		const creatorFee = Number(getValues('creator_fee'));
 		if (Number.isFinite(total) && total > 0 && Number.isFinite(creatorFee) && creatorFee >= 0) {
+			if (creatorFee > total) {
+				toast.warning('Net Payout exceeds Their Fee. Agency Fee % will be 0%.');
+			}
 			const agencyFeeInr = Math.max(0, total - creatorFee);
-			const pct = agencyFeeInr / total;
+			const pct = total > 0 ? agencyFeeInr / total : 0;
 			setValue('agency_fee_pct', pct.toFixed(4));
 			setValue('agency_fee_inr', agencyFeeInr.toFixed(2));
 		}
@@ -194,6 +197,11 @@ export default function CampaignDetailPage() {
 
 	async function submit(values: FormValues) {
 		setSummaryError(null);
+		if (hasDuplicateCreator) {
+			toast.error('Duplicate creators assigned. Please select unique creators for each split row.');
+			setSummaryError('Duplicate creators assigned. Each creator in a campaign split must be unique.');
+			return;
+		}
 		const clientInvoiceFile = values.client_invoice_file?.[0] ?? null;
 
 		const payload: Record<string, any> = {};
@@ -787,13 +795,20 @@ export default function CampaignDetailPage() {
 
 				{/* Actions Panel */}
 				{isEditing && (
-					<div className="border-t pt-4 flex justify-end gap-3" style={{ borderColor: 'var(--n-border)' }}>
-						<Button type="button" variant="outline" onClick={() => { setIsEditing(false); reset({ ...initialForm, shares: initialShares }); }}>
-							Cancel
-						</Button>
-						<Button type="submit" variant="primary" disabled={isSubmitting}>
-							{isSubmitting ? 'Saving...' : 'Save Changes'}
-						</Button>
+					<div className="border-t pt-4 flex items-center justify-between gap-3" style={{ borderColor: 'var(--n-border)' }}>
+						{hasDuplicateCreator ? (
+							<p className="text-[12.5px] text-red-600 font-semibold flex items-center gap-1.5">
+								<Icon name="alert-circle" size={15} /> Duplicate creators selected. Each split row must be unique.
+							</p>
+						) : <div />}
+						<div className="flex items-center gap-3">
+							<Button type="button" variant="outline" onClick={() => { setIsEditing(false); reset({ ...initialForm, shares: initialShares }); }}>
+								Cancel
+							</Button>
+							<Button type="submit" variant="primary" disabled={isSubmitting || hasDuplicateCreator}>
+								{isSubmitting ? 'Saving...' : 'Save Changes'}
+							</Button>
+						</div>
 					</div>
 				)}
 			</form>
