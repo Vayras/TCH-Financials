@@ -18,6 +18,7 @@ import { DealsController } from './resources/deals.controller';
 import { DocumentsController } from './resources/documents.controller';
 import { PaymentTransactionsController } from './resources/payment-transactions.controller';
 import { TdsController } from './resources/tds.controller';
+import { HealthController } from './health.controller';
 import {
   ContractingController, DropOffsController, EmployeeReportsController,
   EventInvitesController, SocialSnapshotsController,
@@ -29,6 +30,7 @@ import {
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 300 }]),
   ],
   controllers: [
+    HealthController,
     AnalyticsController,
     AuthController,
     UsersController,

@@ -44,6 +44,7 @@ import {
 	type TdsEntryItem
 } from './queries';
 import { useCommercialCreatorsQuery } from '../commercial/queries';
+import { downloadAuthenticatedFile } from '@/lib/download';
 
 type StatusFilter = 'all' | PaymentStatus;
 type TabState = 'receivables' | 'payables' | 'utr' | 'tds';
@@ -74,9 +75,9 @@ function InvoiceTag({
 	);
 	if (doc?.file) {
 		return (
-			<a href={doc.file} target="_blank" rel="noopener" title={doc.label || label}>
+			<button type="button" onClick={() => void downloadAuthenticatedFile(doc.file, doc.label || label)} title={doc.label || label}>
 				{tag}
-			</a>
+			</button>
 		);
 	}
 	return tag;
@@ -862,14 +863,13 @@ export default function PaymentsPage() {
 										<li key={d.id} className="flex items-center gap-2 py-1.5">
 											<Tag tone="neutral">{d.doc_type === 'ClientInvoice' ? 'Client' : 'Creator'}</Tag>
 											{d.file ? (
-												<a
+												<button
+													type="button"
 													className="inline-link text-[13px]"
-													href={d.file}
-													target="_blank"
-													rel="noopener"
+													onClick={() => void downloadAuthenticatedFile(d.file, d.label || 'deal-document')}
 												>
 													{d.label || d.file.split('/').pop()} ↗
-												</a>
+												</button>
 											) : (
 												<span className="text-[13px]" style={{ color: 'var(--n-fg-muted)' }}>
 													{d.label || '(no file)'}
@@ -907,11 +907,11 @@ export default function PaymentsPage() {
 			>
 				<form onSubmit={submitImport} className="space-y-4">
 					<div>
-						<Label>Select Excel File (.xlsx, .xls)</Label>
+						<Label>Select Excel File (.xlsx)</Label>
 						<input
 							type="file"
 							required
-							accept=".xlsx, .xls"
+							accept=".xlsx"
 							onChange={(e) => setExcelFile(e.target.files?.[0] ?? null)}
 							className="block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
 						/>

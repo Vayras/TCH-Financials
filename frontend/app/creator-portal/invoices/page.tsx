@@ -11,6 +11,7 @@ import Icon from '@/components/ui/Icon';
 import PageHeader from '@/components/PageHeader';
 import QueryErrorState from '@/components/QueryErrorState';
 import { toast } from 'sonner';
+import { downloadAuthenticatedFile } from '@/lib/download';
 
 export default function CreatorInvoicesPage() {
 	const { data: invoices = [], isLoading: invLoading, error: invError, refetch: refetchInvoices } = useCreatorPortalInvoicesQuery();
@@ -128,9 +129,9 @@ export default function CreatorInvoicesPage() {
 									</td>
 									<td className="px-4 py-3.5">
 										{inv.file ? (
-											<a href={inv.file} target="_blank" rel="noopener noreferrer" className="font-medium hover:underline flex items-center gap-1" style={{ color: 'var(--n-accent)' }}>
+											<button type="button" onClick={() => void downloadAuthenticatedFile(inv.file, inv.label || 'creator-invoice')} className="font-medium hover:underline flex items-center gap-1" style={{ color: 'var(--n-accent)' }}>
 												View Invoice ↗
-											</a>
+											</button>
 										) : '—'}
 									</td>
 								</tr>

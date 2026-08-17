@@ -36,7 +36,10 @@ export class SupabaseAuthGuard implements CanActivate {
     ]);
 
     if (!env.supabaseUrl && !env.supabaseJwtSecret) {
-      // In local dev without auth, we simulate a mock admin user
+      // Only the explicitly isolated development environment may use mock auth.
+      if (env.appEnv !== 'development') {
+        throw new UnauthorizedException({ detail: 'Authentication is not configured.' });
+      }
       const req = context.switchToHttp().getRequest<Request>();
       (req as Request & { user?: unknown }).user = {
         id: '00000000-0000-0000-0000-000000000000',
@@ -97,9 +100,7 @@ export class SupabaseAuthGuard implements CanActivate {
       if (err instanceof UnauthorizedException) {
         throw err;
       }
-      throw new UnauthorizedException({
-        detail: `Invalid or expired token: ${(err as Error).message}`,
-      });
+      throw new UnauthorizedException({ detail: 'Invalid or expired token.' });
     }
   }
 }

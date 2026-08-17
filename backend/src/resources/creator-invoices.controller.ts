@@ -6,8 +6,6 @@ import {
   UseInterceptors, Req,
 } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator';
-import { type AppRole } from '../entities/profile.entity';
-import { type Request as ExpressRequest } from 'express';
 import { D } from '../common/decimal';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -16,10 +14,12 @@ import { creatorInvoiceDto } from '../common/serializers';
 import { refreshInvoiceCompletion } from '../common/invoice-completion';
 import { env } from '../env';
 import { CommercialDeal, Creator, CreatorInvoice, DealDocument } from '../entities';
+import { privateFile, removePrivateFile } from '../common/private-file';
+import { UPLOAD_LIMITS, validateUpload } from '../common/uploads';
+import { optionalDate, optionalEnum, optionalMoney } from '../common/integrity';
 
 const PAYMENT_STATUSES = ['', 'Pending', 'Scheduled', 'Paid', 'Overdue'];
 const PAYMENT_CYCLES = ['', 'Immediate', 'Net15', 'Net30', 'Net45', 'Net60'];
-const ALLOWED_MIME = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
 const RELATIONS = ['creator', 'deal', 'deal.campaign'];
 
 function cleanFilename(original: string): string {
@@ -41,49 +41,27 @@ function storeUpload(dealId: string, creatorId: string, file: Express.Multer.Fil
   return path.posix.join('creator_invoices', dealId, creatorId, name);
 }
 
-function validateFile(file?: Express.Multer.File): asserts file is Express.Multer.File {
-  if (!file) throw new BadRequestException({ file: ['Choose an invoice file to upload.'] });
-  if (!ALLOWED_MIME.has(file.mimetype)) {
-    throw new BadRequestException({ file: ['Upload a PDF, JPEG, PNG, or WebP file.'] });
-  }
-}
-
 function applyMetadata(invoice: CreatorInvoice, body: Record<string, string>): void {
   if ('invoice_number' in body) invoice.invoiceNumber = body.invoice_number.trim().slice(0, 120);
   if ('invoice_date' in body) {
-    if (body.invoice_date && !/^\d{4}-\d{2}-\d{2}$/.test(body.invoice_date)) {
-      throw new BadRequestException({ invoice_date: ['Use YYYY-MM-DD format.'] });
-    }
-    invoice.invoiceDate = body.invoice_date || null;
+    invoice.invoiceDate = optionalDate(body.invoice_date, 'invoice_date') ?? null;
   }
   if ('invoice_amount' in body) {
-    const amount = Number(body.invoice_amount || 0);
-    if (!Number.isFinite(amount) || amount < 0) {
-      throw new BadRequestException({ invoice_amount: ['Enter a valid non-negative amount.'] });
-    }
-    invoice.invoiceAmount = amount.toFixed(2);
+    invoice.invoiceAmount = optionalMoney(body.invoice_amount, 'invoice_amount')!;
   }
   if ('payment_status' in body) {
-    if (!PAYMENT_STATUSES.includes(body.payment_status)) {
-      throw new BadRequestException({ payment_status: [`Use one of: ${PAYMENT_STATUSES.filter(Boolean).join(', ')}.`] });
-    }
-    invoice.paymentStatus = body.payment_status;
+    invoice.paymentStatus = optionalEnum(body.payment_status, 'payment_status', PAYMENT_STATUSES)!;
   }
   if ('payment_cycle' in body) {
-    if (!PAYMENT_CYCLES.includes(body.payment_cycle)) {
-      throw new BadRequestException({ payment_cycle: [`Use one of: ${PAYMENT_CYCLES.filter(Boolean).join(', ')}.`] });
-    }
-    invoice.paymentCycle = body.payment_cycle;
+    invoice.paymentCycle = optionalEnum(body.payment_cycle, 'payment_cycle', PAYMENT_CYCLES)!;
   }
   if ('payment_date' in body) {
-    if (body.payment_date && !/^\d{4}-\d{2}-\d{2}$/.test(body.payment_date)) {
-      throw new BadRequestException({ payment_date: ['Use YYYY-MM-DD format.'] });
-    }
-    invoice.paymentDate = body.payment_date || null;
+    invoice.paymentDate = optionalDate(body.payment_date, 'payment_date') ?? null;
   }
   if ('label' in body) invoice.label = body.label.trim().slice(0, 200);
 }
 
+@Roles('super_admin', 'accounts', 'tch_member')
 @Controller('creator-invoices')
 export class CreatorInvoicesController {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
@@ -143,7 +121,7 @@ export class CreatorInvoicesController {
   @Roles('creator')
   @Post('creator-portal')
   @HttpCode(201)
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', { limits: UPLOAD_LIMITS }))
   async creatorPortalCreate(@Req() req: any, @Body() body: Record<string, string>, @UploadedFile() file?: Express.Multer.File) {
     const creatorId = req.user?.creatorId;
     if (!creatorId) {
@@ -152,7 +130,7 @@ export class CreatorInvoicesController {
     if (!body.deal) {
       throw new BadRequestException({ deal: ['Campaign is required.'] });
     }
-    validateFile(file);
+    validateUpload(file, 'Choose an invoice file to upload.');
     await this.requireAssignment(body.deal, creatorId);
 
     const existing = await this.repo().findOneBy({ dealId: body.deal, creatorId });
@@ -164,12 +142,11 @@ export class CreatorInvoicesController {
       dealId: body.deal,
       creatorId,
       invoiceNumber: (body.invoice_number || '').trim().slice(0, 120),
-      invoiceDate: body.invoice_date || null,
-      invoiceAmount: Number(body.invoice_amount || 0).toFixed(2),
       paymentStatus: 'Pending',
-      paymentCycle: body.payment_cycle || '',
       label: `Creator Invoice — ${file.originalname}`,
     });
+    applyMetadata(row, body);
+    row.paymentStatus = 'Pending';
     row.file = storeUpload(body.deal, creatorId, file);
 
     try {
@@ -185,13 +162,24 @@ export class CreatorInvoicesController {
   @Get(':id')
   retrieve(@Param('id') id: string) { return this.serialize(id); }
 
+  @Roles('super_admin', 'accounts', 'tch_member', 'creator')
+  @Get(':id/download')
+  async download(@Param('id') id: string, @Req() req: any) {
+    const row = await this.repo().findOneBy({ id });
+    if (!row) throw new NotFoundException({ detail: 'Creator invoice not found.' });
+    if (req.user?.role === 'creator' && String(req.user?.creatorId ?? '') !== String(row.creatorId)) {
+      throw new NotFoundException({ detail: 'Creator invoice not found.' });
+    }
+    return privateFile(row.file, row.label || path.basename(row.file));
+  }
+
   @Post()
   @HttpCode(201)
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', { limits: UPLOAD_LIMITS }))
   async create(@Body() body: Record<string, string>, @UploadedFile() file?: Express.Multer.File) {
     if (!body.deal) throw new BadRequestException({ deal: ['Campaign is required.'] });
     if (!body.creator) throw new BadRequestException({ creator: ['Creator is required.'] });
-    validateFile(file);
+    validateUpload(file, 'Choose an invoice file to upload.');
     await this.requireAssignment(body.deal, body.creator);
     if (await this.repo().findOneBy({ dealId: body.deal, creatorId: body.creator })) {
       throw new ConflictException({ detail: 'This creator already has an invoice for the campaign. Use Replace instead.' });
@@ -212,7 +200,7 @@ export class CreatorInvoicesController {
 
   @Put(':id')
   @Patch(':id')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 15 * 1024 * 1024 } }))
+  @UseInterceptors(FileInterceptor('file', { limits: UPLOAD_LIMITS }))
   async update(
     @Param('id') id: string,
     @Body() body: Record<string, string>,
@@ -224,7 +212,7 @@ export class CreatorInvoicesController {
     if (!Number.isInteger(version) || version !== row.version) {
       throw new ConflictException({ detail: 'This invoice changed since it was opened. Refresh and try again.' });
     }
-    if (file) validateFile(file);
+    if (file) validateUpload(file);
     applyMetadata(row, body);
     const oldFile = row.file;
     const newFile = file ? storeUpload(row.dealId, row.creatorId, file) : null;
@@ -241,7 +229,7 @@ export class CreatorInvoicesController {
     }
     await refreshInvoiceCompletion(this.dataSource, row.dealId);
     if (newFile && oldFile && !(await this.isLegacyFile(oldFile))) {
-      fs.rm(path.join(env.mediaRoot, oldFile), { force: true }, () => undefined);
+      removePrivateFile(oldFile);
     }
     return this.serialize(row.id);
   }
@@ -262,7 +250,7 @@ export class CreatorInvoicesController {
     await this.repo().delete({ id });
     await refreshInvoiceCompletion(this.dataSource, row.dealId);
     if (row.file && !(await this.isLegacyFile(row.file))) {
-      fs.rm(path.join(env.mediaRoot, row.file), { force: true }, () => undefined);
+      removePrivateFile(row.file);
     }
   }
 }

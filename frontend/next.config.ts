@@ -11,9 +11,7 @@ const config: NextConfig = {
 	trailingSlash: true,
 	async rewrites() {
 		return [
-			{ source: '/api/:path*', destination: `${API_TARGET}/api/:path*` },
-			// Uploaded creator documents are served by the backend.
-			{ source: '/media/:path*', destination: `${API_TARGET}/media/:path*` }
+			{ source: '/api/:path*', destination: `${API_TARGET}/api/:path*` }
 		];
 	}
 };

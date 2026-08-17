@@ -276,7 +276,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 				{ href: '/users', label: 'Users', icon: 'settings' }
 			];
 		}
-		return NAV;
+		return NAV.filter((item) => item.href !== '/payments');
 	}, [role]);
 
 	const current = filteredNav.find((n) => isActiveHref(pathname, n.href));

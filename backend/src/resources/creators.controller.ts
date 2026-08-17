@@ -13,6 +13,7 @@ import { Creator } from '../entities';
 import { createClient } from '@supabase/supabase-js';
 import { Profile } from '../entities/profile.entity';
 import { env } from '../env';
+import { Roles } from '../auth/roles.decorator';
 import * as https from 'https';
 
 
@@ -75,6 +76,7 @@ function checkRequired(body: Record<string, unknown>, instance: Creator | null):
   }
 }
 
+@Roles('super_admin', 'accounts', 'tch_member')
 @Controller('creators')
 export class CreatorsController {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
@@ -136,6 +138,7 @@ export class CreatorsController {
   }
 
   @Post()
+  @Roles('super_admin', 'tch_member')
   @HttpCode(201)
   async create(@Body() body: Record<string, unknown>) {
     checkRequired(body, null);
@@ -150,11 +153,13 @@ export class CreatorsController {
   }
 
   @Put(':id')
+  @Roles('super_admin', 'tch_member')
   replace(@Param('id') id: string, @Body() body: Record<string, unknown>) {
     return this.update(id, body);
   }
 
   @Patch(':id')
+  @Roles('super_admin', 'tch_member')
   update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
     return versionedUpdate(this.dataSource, Creator, id, body, {
       apply: (row) => {
@@ -167,6 +172,7 @@ export class CreatorsController {
   }
 
   @Post(':id/create-account')
+  @Roles('super_admin', 'tch_member')
   async createAccount(
     @Param('id') id: string,
     @Body() body: { password?: string }
@@ -263,6 +269,7 @@ export class CreatorsController {
   }
 
   @Delete(':id')
+  @Roles('super_admin', 'tch_member')
   @HttpCode(204)
   async remove(@Param('id') id: string) {
     const res = await this.repo().delete({ id });

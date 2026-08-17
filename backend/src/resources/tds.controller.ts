@@ -2,8 +2,8 @@ import { Controller, Get, Post, Patch, Body, Query, Param, BadRequestException, 
 import { DataSource } from 'typeorm';
 import { Roles } from '../auth/roles.decorator';
 import { TdsEntry } from '../entities/tds-entry.entity';
-import { Creator } from '../entities/creator.entity';
-import { D } from '../common/decimal';
+import { CommercialDeal, Creator } from '../entities';
+import { optionalDate, optionalEnum, requiredText, strictDecimal } from '../common/integrity';
 
 @Controller('tds')
 export class TdsController {
@@ -22,7 +22,22 @@ export class TdsController {
       .leftJoinAndSelect('tds.deal', 'deal')
       .andWhere('tds.creatorId = :creatorId', { creatorId })
       .orderBy('tds.createdAt', 'DESC');
-    return qb.getMany();
+    const rows = await qb.getMany();
+    return rows.map((row) => ({
+      id: Number(row.id),
+      creatorId: Number(row.creatorId),
+      dealId: row.dealId ? Number(row.dealId) : null,
+      quarter: row.quarter,
+      tdsRate: row.tdsRate,
+      grossAmount: row.grossAmount,
+      tdsAmount: row.tdsAmount,
+      netPayable: row.netPayable,
+      remittanceDate: row.remittanceDate,
+      challanNumber: row.challanNumber,
+      status: row.status,
+      notes: row.notes,
+      createdAt: row.createdAt,
+    }));
   }
 
   @Roles('super_admin', 'accounts')
@@ -70,9 +85,21 @@ export class TdsController {
       throw new BadRequestException('Creator not found.');
     }
 
+    const normalizedQuarter = optionalEnum(quarter, 'quarter', ['Q1', 'Q2', 'Q3', 'Q4']);
+    const rate = strictDecimal(tdsRate, 'tdsRate', { min: 0, max: 1, scale: 4 });
+    const gross = strictDecimal(grossAmount, 'grossAmount', { min: 0, scale: 2 });
+    if (body.dealId) {
+      const deal = await this.dataSource.getRepository(CommercialDeal).findOne({
+        where: { id: body.dealId }, relations: ['creatorShares'],
+      });
+      if (!deal) throw new BadRequestException({ dealId: ['Deal not found.'] });
+      const assigned = new Set([deal.creatorId, ...(deal.creatorShares ?? []).map((share) => share.creatorId)].filter(Boolean));
+      if (!assigned.has(creatorId)) {
+        throw new BadRequestException({ dealId: ['The selected creator is not assigned to this deal.'] });
+      }
+    }
+
     // Calculate TDS amount and net payable
-    const gross = D(grossAmount);
-    const rate = D(tdsRate);
     const tdsAmt = gross.mul(rate);
     const net = gross.sub(tdsAmt);
 
@@ -80,7 +107,7 @@ export class TdsController {
     const entry = repo.create({
       creatorId,
       dealId: body.dealId || null,
-      quarter,
+      quarter: normalizedQuarter!,
       tdsRate: rate.toFixed(4),
       grossAmount: gross.toFixed(2),
       tdsAmount: tdsAmt.toFixed(2),
@@ -113,8 +140,8 @@ export class TdsController {
       throw new BadRequestException('TDS entry not found.');
     }
 
-    entry.remittanceDate = remittanceDate;
-    entry.challanNumber = challanNumber;
+    entry.remittanceDate = optionalDate(remittanceDate, 'remittanceDate')!;
+    entry.challanNumber = requiredText(challanNumber, 'challanNumber', 120);
     entry.status = 'Remitted';
     if (body.notes !== undefined) {
       entry.notes = body.notes;

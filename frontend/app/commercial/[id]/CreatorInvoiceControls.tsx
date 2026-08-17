@@ -13,6 +13,7 @@ import {
 	useDeleteCreatorInvoiceMutation,
 	useSaveCreatorInvoiceMutation
 } from '../queries';
+import { downloadAuthenticatedFile } from '@/lib/download';
 
 export function InvoiceReadinessSummary({ dealId, creatorCount, documents }: { dealId: number; creatorCount: number; documents: DealDocument[] }) {
 	const { data: invoices = [], isLoading, isError } = useCreatorInvoicesQuery(dealId);
@@ -74,7 +75,7 @@ export default function CreatorInvoiceControls({ dealId, creatorId, pendingAssig
 				{message && <p className="mt-1 text-[11px] text-red-700">{message}</p>}
 			</div>
 			<div className="flex items-center gap-2">
-				{invoice?.file && <a href={invoice.file} target="_blank" rel="noopener"><Button type="button" variant="outline"><Icon name="external-link" size={12} className="mr-1" />View</Button></a>}
+				{invoice?.file && <Button type="button" variant="outline" onClick={() => void downloadAuthenticatedFile(invoice.file, invoice.label || 'creator-invoice')}><Icon name="external-link" size={12} className="mr-1" />View</Button>}
 				<label className={`inline-flex h-9 cursor-pointer items-center rounded-md px-3 text-[12px] font-medium text-white ${busy || !creatorId || pendingAssignment ? 'pointer-events-none opacity-50' : ''}`} style={{ background: 'var(--n-accent)' }}>
 					{busy ? 'Working…' : invoice ? 'Replace' : 'Upload'}
 					<input className="sr-only" type="file" accept="application/pdf,image/*" disabled={busy || !creatorId || pendingAssignment} onChange={(event) => {

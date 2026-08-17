@@ -8,6 +8,10 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
+    "test": "NODE_ENV=test node --test -r ts-node/register test/*.spec.ts",
+    "integrity:preflight": "ts-node scripts/integrity-preflight.ts",
+    "production:preflight": "ts-node scripts/production-preflight.ts",
+    "smoke:critical": "ts-node scripts/critical-path-smoke.ts",
     "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts",
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
@@ -26,11 +30,11 @@
     "dotenv": "^16.4.5",
     "jose": "^5.9.6",
     "pg": "^8.13.1",
+    "read-excel-file": "^9.3.10",
     "reflect-metadata": "^0.2.2",
     "resend": "^6.18.0",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.31",
-    "xlsx": "^0.18.5"
+    "typeorm": "^0.3.31"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
@@ -39,5 +43,8 @@
     "@types/node": "^22.10.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3"
+  },
+  "overrides": {
+    "brace-expansion": "2.1.4"
   }
 }

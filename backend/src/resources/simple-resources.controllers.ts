@@ -9,7 +9,9 @@ import {
   SocialMediaSnapshot,
 } from '../entities';
 import { VersionedCrudBase } from './versioned-crud.base';
+import { Roles } from '../auth/roles.decorator';
 
+@Roles('super_admin', 'tch_member')
 @Controller('contracting')
 export class ContractingController extends VersionedCrudBase<ContractingCompliance> {
   constructor(@InjectDataSource() dataSource: DataSource) {
@@ -33,6 +35,7 @@ export class ContractingController extends VersionedCrudBase<ContractingComplian
   }
 }
 
+@Roles('super_admin', 'tch_member')
 @Controller('dropoffs')
 export class DropOffsController extends VersionedCrudBase<DropOff> {
   constructor(@InjectDataSource() dataSource: DataSource) {
@@ -54,6 +57,7 @@ export class DropOffsController extends VersionedCrudBase<DropOff> {
   }
 }
 
+@Roles('super_admin', 'tch_member')
 @Controller('social-snapshots')
 export class SocialSnapshotsController extends VersionedCrudBase<SocialMediaSnapshot> {
   constructor(@InjectDataSource() dataSource: DataSource) {
@@ -78,6 +82,7 @@ export class SocialSnapshotsController extends VersionedCrudBase<SocialMediaSnap
   }
 }
 
+@Roles('super_admin', 'tch_member')
 @Controller('event-invites')
 export class EventInvitesController extends VersionedCrudBase<EventInvite> {
   constructor(@InjectDataSource() dataSource: DataSource) {
@@ -99,6 +104,7 @@ export class EventInvitesController extends VersionedCrudBase<EventInvite> {
   }
 }
 
+@Roles('super_admin', 'tch_member')
 @Controller('employee-reports')
 export class EmployeeReportsController extends VersionedCrudBase<EmployeeWeeklyReport> {
   constructor(@InjectDataSource() dataSource: DataSource) {

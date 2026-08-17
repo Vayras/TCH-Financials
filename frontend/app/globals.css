@@ -58,7 +58,6 @@ body {
 	background: var(--n-bg);
 	color: var(--n-fg);
 	font-family:
-		var(--font-host-grotesk),
 		'Host Grotesk',
 		ui-sans-serif,
 		system-ui,

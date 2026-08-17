@@ -74,3 +74,5 @@ backend/media/
 *.log
 *.tmp
 .cache/backups/
+backups/
+.staging/

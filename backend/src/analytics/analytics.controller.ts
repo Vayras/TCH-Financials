@@ -3,6 +3,7 @@ import { todayISO } from '../common/dates';
 import { fiscalYearOf } from '../common/fy';
 import { AlertsService } from './alerts.service';
 import { AnalyticsService } from './analytics.service';
+import { Roles } from '../auth/roles.decorator';
 
 function fyStartOf(fy?: string): number {
   return fy ? Number(fy) : fiscalYearOf(todayISO());
@@ -16,11 +17,13 @@ export class AnalyticsController {
   ) {}
 
   @Get('overview')
+  @Roles('super_admin', 'accounts', 'tch_member')
   overview(@Query('fy') fy?: string, @Query('creator') creator?: string) {
     return this.analytics.overview(fyStartOf(fy), creator ?? '');
   }
 
   @Get('entity-summary')
+  @Roles('super_admin', 'accounts', 'tch_member')
   entitySummary(
     @Query('fy') fy?: string,
     @Query('entity') entity?: string,
@@ -31,22 +34,26 @@ export class AnalyticsController {
   }
 
   @Get('creator-insights')
+  @Roles('super_admin', 'tch_member')
   creatorInsights(@Query('fy') fy?: string) {
     return this.analytics.creatorInsights(fyStartOf(fy));
   }
 
   @Get('exclusives/quarterly')
+  @Roles('super_admin', 'tch_member')
   async quarterlyExclusives(@Query('fy') fy?: string) {
     const fyStart = fyStartOf(fy);
     return { fy_start: fyStart, rows: await this.analytics.quarterlyExclusives(fyStart) };
   }
 
   @Get('alerts')
+  @Roles('super_admin', 'tch_member')
   alertsView() {
     return this.alerts.compute();
   }
 
   @Post('alerts/dismiss')
+  @Roles('super_admin', 'tch_member')
   async dismiss(@Body() body: { keys?: unknown }) {
     const keys = body?.keys;
     if (
@@ -60,6 +67,7 @@ export class AnalyticsController {
   }
 
   @Post('alerts/restore')
+  @Roles('super_admin', 'tch_member')
   async restore() {
     return { restored: await this.alerts.restore() };
   }

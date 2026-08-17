@@ -15,6 +15,7 @@ import type { AttachmentType, CreatorForm } from '@/types/creator';
 import { ATTACH_SLOTS, REL, STATUS } from '@/lib/creators';
 import { toast } from 'sonner';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { downloadAuthenticatedFile } from '@/lib/download';
 
 // react-hook-form works with input-native values: dates as yyyy-mm-dd
 // strings, files as FileList, and field arrays as objects. Convert to/from
@@ -336,14 +337,13 @@ export function CreatorFormModal({
 									<li key={d.id} className="flex items-center gap-2 px-3 py-2">
 										<Tag tone="neutral">{d.doc_type}</Tag>
 										<div className="min-w-0 flex-1">
-											<a
+											<button
+												type="button"
 												className="inline-link text-[13px] font-medium"
-												href={d.file}
-												target="_blank"
-												rel="noopener"
+												onClick={() => void downloadAuthenticatedFile(d.file, d.label || 'creator-document')}
 											>
 												{d.label || d.file.split('/').pop()} ↗
-											</a>
+											</button>
 											<div className="text-[11.5px]" style={{ color: 'var(--n-fg-subtle)' }}>
 												Uploaded {formatDocDate(d.uploaded_at)}
 											</div>

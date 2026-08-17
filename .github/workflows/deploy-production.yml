@@ -17,9 +17,12 @@ jobs:
   deploy:
     name: Deploy frontend and backend
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
 
     steps:
+      - name: Check out approved release
+        uses: actions/checkout@v4
+
       - name: Configure restricted SSH access
         env:
           DEPLOY_PRIVATE_KEY: ${{ secrets.TCH_DEPLOY_SSH_KEY }}
@@ -42,4 +45,5 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o ServerAliveInterval=15 \
             -o ServerAliveCountMax=4 \
-            "$DEPLOY_USER@$DEPLOY_HOST"
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            'bash -s --' "$GITHUB_SHA" < scripts/remote_release.sh

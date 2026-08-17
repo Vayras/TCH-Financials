@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import * as express from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { env } from './env';
 
@@ -12,10 +12,26 @@ async function bootstrap() {
   // (next.config has trailingSlash: true); Express's non-strict routing
   // accepts both forms, so no redirect dance is needed.
   app.setGlobalPrefix('api');
-  app.enableCors({ origin: true, credentials: true });
-
-  // Uploaded creator documents, same URL layout Django's MEDIA_URL used.
-  app.use('/media', express.static(env.mediaRoot));
+  const allowedOrigins = new Set([env.appUrl, ...env.corsOrigins]);
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    const origin = req.headers.origin;
+    if (origin && !allowedOrigins.has(origin)) {
+      res.status(403).json({ statusCode: 403, message: 'Origin is not allowed.' });
+      return;
+    }
+    next();
+  });
+  app.enableCors({
+    credentials: true,
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+      return callback(null, false);
+    },
+  });
 
   await app.listen(env.port);
   console.log(`TCH Financials API listening on :${env.port} (prefix /api)`);

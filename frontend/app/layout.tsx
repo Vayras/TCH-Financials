@@ -1,19 +1,8 @@
 import type { Metadata } from 'next';
-import { Host_Grotesk } from 'next/font/google';
 import './globals.css';
 import AuthGuard from '@/components/AuthGuard';
 import QueryProvider from '@/components/QueryProvider';
 import { Toaster } from 'sonner';
-
-// Self-hosted via next/font: fonts are downloaded at build time and served
-// from our own origin with no render-blocking Google Fonts CSS request.
-// Host Grotesk is the single typeface for the whole app.
-const hostGrotesk = Host_Grotesk({
-	subsets: ['latin'],
-	weight: ['400', '500', '600', '700'],
-	display: 'swap',
-	variable: '--font-host-grotesk'
-});
 
 export const metadata: Metadata = {
 	title: 'TCH Financials — MIS',
@@ -22,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
-		<html lang="en" className={hostGrotesk.variable}>
+		<html lang="en">
 			<head>
 				<meta name="text-scale" content="scale" />
 			</head>
