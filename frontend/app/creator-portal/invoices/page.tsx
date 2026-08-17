@@ -11,6 +11,7 @@ import Icon from '@/components/ui/Icon';
 import PageHeader from '@/components/PageHeader';
 import QueryErrorState from '@/components/QueryErrorState';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/utils';
 import { downloadAuthenticatedFile } from '@/lib/download';
 
 export default function CreatorInvoicesPage() {
@@ -51,8 +52,8 @@ export default function CreatorInvoicesPage() {
 			setInvAmt('');
 			setFile(null);
 			refetchInvoices();
-		} catch (err: any) {
-			toast.error('Failed to submit invoice.', { description: err.message });
+		} catch (err: unknown) {
+			toast.error('Failed to submit invoice.', { description: errorMessage(err) });
 		} finally {
 			setSubmitting(false);
 		}

@@ -15,7 +15,8 @@ async function expectResponse(
 }
 
 async function main() {
-  await expectResponse('health', '/api/health', 200);
+  await expectResponse('liveness', '/api/health/live', 200);
+  await expectResponse('readiness', '/api/health/ready', 200);
   const overview = await expectResponse('overview', '/api/overview', 200);
   if (overview.headers.get('x-content-type-options') !== 'nosniff' || overview.headers.get('x-frame-options') !== 'DENY') {
     throw new Error('security_headers: required response headers are missing.');

@@ -24,6 +24,7 @@ export const env = {
     .split(',')
     .map((origin) => origin.trim().replace(/\/+$/, ''))
     .filter(Boolean),
+  alertWebhookUrl: process.env.ALERT_WEBHOOK_URL?.trim() ?? '',
   // Resend — used to send invite emails. Prefer RESEND_FROM_EMAIL; falls back to onboarding sender.
   resendApiKey: process.env.RESEND_API_KEY ?? '',
   resendFromEmail:

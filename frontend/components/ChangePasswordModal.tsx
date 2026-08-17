@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { errorMessage } from '@/lib/utils';
 import { getSupabase } from '@/lib/supabase';
 import Icon from '@/components/ui/Icon';
 
@@ -91,8 +92,8 @@ export function ChangePasswordModal({ isOpen, onClose, userEmail }: ChangePasswo
 			setTimeout(() => {
 				onClose();
 			}, 1500);
-		} catch (err: any) {
-			setError(err?.message || 'Failed to change password. Please try again.');
+		} catch (err: unknown) {
+			setError(errorMessage(err) || 'Failed to change password. Please try again.');
 		} finally {
 			setBusy(false);
 		}

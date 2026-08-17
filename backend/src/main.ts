@@ -4,6 +4,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { env } from './env';
+import { requestContext, structuredLog } from './common/observability';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -12,6 +13,7 @@ async function bootstrap() {
   // (next.config has trailingSlash: true); Express's non-strict routing
   // accepts both forms, so no redirect dance is needed.
   app.setGlobalPrefix('api');
+  app.use(requestContext);
   const allowedOrigins = new Set([env.appUrl, ...env.corsOrigins]);
   app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -34,7 +36,7 @@ async function bootstrap() {
   });
 
   await app.listen(env.port);
-  console.log(`TCH Financials API listening on :${env.port} (prefix /api)`);
+  structuredLog('info', 'application_started', { port: env.port, prefix: '/api', app_env: env.appEnv });
 }
 
 void bootstrap();

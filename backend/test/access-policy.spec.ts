@@ -19,6 +19,8 @@ import {
   ContractingController, DropOffsController, EmployeeReportsController,
   EventInvitesController, SocialSnapshotsController,
 } from '../src/resources/simple-resources.controllers';
+import { AuditController } from '../src/resources/audit.controller';
+import { HealthController } from '../src/health.controller';
 
 const CONTROLLERS = [
   AnalyticsController, AuthController, CampaignsController, CreatorInvoicesController,
@@ -26,6 +28,7 @@ const CONTROLLERS = [
   PaymentTransactionsController, TdsController, UsersController, ContractingController,
   DropOffsController, EmployeeReportsController, EventInvitesController,
   SocialSnapshotsController,
+  AuditController, HealthController,
 ];
 
 test('every HTTP route declares roles or skip-auth metadata', () => {

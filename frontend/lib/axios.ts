@@ -58,9 +58,8 @@ httpClient.interceptors.response.use(
 			if (status === 409) {
 				const body = error.response.data;
 				let detail = 'Someone else updated this record while you were editing. Reload and re-apply your change.';
-				let current: unknown;
+				const current: unknown = body?.current;
 				if (typeof body?.detail === 'string') detail = body.detail;
-				current = body?.current;
 				return Promise.reject(new ConflictError(detail, current));
 			}
 

@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 import { BadRequestException } from '@nestjs/common';
 import { optionalDate, optionalEnum, optionalMoney, strictDecimal } from '../src/common/integrity';
 import { normalizedPayment } from '../src/resources/payment-transactions.controller';
+import { safeFieldNames } from '../src/common/audit.interceptor';
 
 describe('financial integrity validation', () => {
   it('rejects malformed, negative, and over-precision money instead of silently storing zero', () => {
@@ -41,5 +42,12 @@ describe('financial integrity validation', () => {
       transactionDate: '2026-08-17', vendorName: 'Creator', utrOrRef: 'UTR-3',
       debitAmount: '0', creditAmount: '0',
     }), BadRequestException);
+  });
+
+  it('audit metadata records field names without secret or file fields', () => {
+    assert.deepEqual(
+      safeFieldNames({ amount: 10, password: 'hidden', token: 'hidden', file: 'hidden', notes: 'ok' }),
+      ['amount', 'notes'],
+    );
   });
 });

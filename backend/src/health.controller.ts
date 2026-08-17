@@ -9,13 +9,25 @@ export class HealthController {
 
   @Get()
   @SkipAuth()
-  async health() {
+  health() { return this.ready(); }
+
+  @Get('live')
+  @SkipAuth()
+  live() { return { status: 'ok' }; }
+
+  @Get('ready')
+  @SkipAuth()
+  async ready() {
     try {
       await this.dataSource.query('SELECT 1');
-      return { status: 'ok', database: 'reachable' };
-    } catch {
+      const pendingMigrations = await this.dataSource.showMigrations();
+      if (pendingMigrations) {
+        throw new ServiceUnavailableException({ status: 'unavailable', database: 'reachable', migrations: 'pending' });
+      }
+      return { status: 'ok', database: 'reachable', migrations: 'current' };
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error;
       throw new ServiceUnavailableException({ status: 'unavailable', database: 'unreachable' });
     }
   }
 }
-

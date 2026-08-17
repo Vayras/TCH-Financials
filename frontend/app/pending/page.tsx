@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export default function PendingPage() {
 	const router = useRouter();
@@ -13,7 +14,7 @@ export default function PendingPage() {
 	React.useEffect(() => {
 		const supabase = getSupabase();
 		let active = true;
-		let channel: any = null;
+		let channel: RealtimeChannel | null = null;
 
 		async function init() {
 			const { data: { session } } = await supabase.auth.getSession();

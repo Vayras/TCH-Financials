@@ -2,12 +2,10 @@
 
 import * as React from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { useForm, useFieldArray, type Path, type RegisterOptions, type FieldErrors } from 'react-hook-form';
-import { ConflictError, type Deal, type Creator } from '@/lib/api';
+import { useForm, useFieldArray, type Path, type RegisterOptions } from 'react-hook-form';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import {
 	buildShare,
-	creatorNamesOf,
 	EMPTY_DEAL_FORM,
 	normalisePctString,
 	DIRECTION,
@@ -45,17 +43,6 @@ function monthYearLabel(iso: string): string {
 	return `${MONTH_NAMES[Number(m)] ?? m} ${y}`;
 }
 
-function countErrors(errs: FieldErrors<FormValues>): number {
-	let n = 0;
-	const walk = (node: unknown) => {
-		if (!node || typeof node !== 'object') return;
-		if ('message' in (node as object) && 'type' in (node as object)) { n += 1; return; }
-		for (const v of Object.values(node as object)) walk(v);
-	};
-	walk(errs);
-	return n;
-}
-
 export default function CampaignDetailPage() {
 	const router = useRouter();
 	const params = useParams();
@@ -71,7 +58,7 @@ export default function CampaignDetailPage() {
 	const { data: docs = [], isLoading: docsLoading } = useCommercialDocsQuery(id);
 
 	const saveDealMutation = useSaveDealMutation(fyStart);
-	const deleteDealMutation = useDeleteDealMutation(fyStart);
+	const deleteDealMutation = useDeleteDealMutation();
 
 	const initialForm = React.useMemo<DealForm>(() => {
 		if (!deal) {
@@ -192,7 +179,7 @@ export default function CampaignDetailPage() {
 
 	const splitTotal =
 		(watchShares?.length ?? 0) > 0
-			? (Number(watchTotalFee) || 0) + watchShares.reduce((n: number, s: any) => n + (Number(s.total_fee) || 0), 0)
+			? (Number(watchTotalFee) || 0) + watchShares.reduce((n, s) => n + (Number(s.total_fee) || 0), 0)
 			: 0;
 
 	async function submit(values: FormValues) {
@@ -204,7 +191,7 @@ export default function CampaignDetailPage() {
 		}
 		const clientInvoiceFile = values.client_invoice_file?.[0] ?? null;
 
-		const payload: Record<string, any> = {};
+		const payload: Record<string, unknown> = {};
 		const simpleFields: (keyof DealForm)[] = [
 			'confirmation_date', 'e_invoice_number', 'e_invoice_date', 'creator', 'tch_poc',
 			'direction', 'total_fee', 'agency_fee_pct', 'agency_fee_inr', 'creator_fee',
@@ -231,11 +218,11 @@ export default function CampaignDetailPage() {
 			const finalShareRows = hasSplit
 				? [
 					buildShare(values.creator, values.total_fee, values.agency_fee_pct, values.creator_fee, values.ro_number),
-					...values.shares.map((s: any) => buildShare(s.creator, s.total_fee, s.agency_fee_pct, s.creator_fee, s.ro_number))
+					...values.shares.map((s) => buildShare(s.creator, s.total_fee, s.agency_fee_pct, s.creator_fee, s.ro_number))
 				]
 				: [];
 			const sum = (k: 'total_fee' | 'agency_fee_inr' | 'creator_fee') =>
-				finalShareRows.reduce((n: number, s: any) => n + (Number(s[k]) || 0), 0).toFixed(2);
+				finalShareRows.reduce((n, s) => n + (Number(s[k]) || 0), 0).toFixed(2);
 
 			payload.creator_shares = finalShareRows;
 			payload.total_fee = hasSplit ? sum('total_fee') : values.total_fee || '0';
@@ -277,7 +264,7 @@ export default function CampaignDetailPage() {
 	}
 
 	const selectedCreatorIds = React.useMemo(() => {
-		return [watchCreator, ...(watchShares || []).map((s: any) => s.creator)].filter(Boolean);
+		return [watchCreator, ...(watchShares || []).map((s) => s.creator)].filter(Boolean);
 	}, [watchCreator, watchShares]);
 
 	const hasDuplicateCreator = React.useMemo(() => {

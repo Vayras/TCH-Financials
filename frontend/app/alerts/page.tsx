@@ -4,7 +4,6 @@ import * as React from 'react';
 import { toast } from 'sonner';
 import PageHeader from '@/components/PageHeader';
 import { type AlertItem } from '@/lib/api';
-import { cn } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
 import {
@@ -15,7 +14,6 @@ import {
 import { type AlertsState, type AlertSectionKey, type AlertFilterKey } from '@/lib/types';
 import {
 	ORDER,
-	FILTERS,
 	filterLabel,
 	AlertsDashboardView
 } from './components';

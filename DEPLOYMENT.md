@@ -67,6 +67,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon/publishable key>
 APP_ENV=production
 PORT=8000
 MEDIA_ROOT=/var/lib/tch/media
+BACKUP_DIR=/var/lib/tch/backups
+
+# Optional approved webhook for privacy-safe API 5xx alerts.
+ALERT_WEBHOOK_URL=https://<monitoring-provider>/<secret-path>
 ```
 
 > **Rotate the committed credentials.** The repo's git history contains a

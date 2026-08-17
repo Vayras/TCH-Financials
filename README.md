@@ -108,6 +108,8 @@ Phase 2 financial validation, database guards, and the production rollout
 safety gates are documented in [PHASE_2_DATA_INTEGRITY.md](PHASE_2_DATA_INTEGRITY.md).
 Staging rehearsal, verified backups, go/no-go gates, and rollback are documented
 in [PHASE_3_4_READINESS.md](PHASE_3_4_READINESS.md).
+System hierarchy, roles and data flows are in [ARCHITECTURE.md](ARCHITECTURE.md);
+health, logging, alerting and incident response are in [OPERATIONS.md](OPERATIONS.md).
 
 ### Host Node.js setup
 

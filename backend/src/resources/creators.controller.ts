@@ -14,6 +14,7 @@ import { createClient } from '@supabase/supabase-js';
 import { Profile } from '../entities/profile.entity';
 import { env } from '../env';
 import { Roles } from '../auth/roles.decorator';
+import { structuredLog } from '../common/observability';
 import * as https from 'https';
 
 
@@ -242,9 +243,9 @@ export class CreatorsController {
 
       req.write(payload);
       req.end();
-    }).catch(err => {
-      console.error('SUPABASE_AUTH_RAW_ERROR:', err);
-      throw new BadRequestException(`Supabase account creation failed: ${err.message}`);
+    }).catch(() => {
+      structuredLog('error', 'supabase_creator_account_creation_failed', { creator_id: creator.id });
+      throw new BadRequestException('Supabase account creation failed. Check the server logs using the request ID.');
     });
 
     // 2. Create Profile record in database

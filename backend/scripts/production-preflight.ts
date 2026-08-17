@@ -19,6 +19,7 @@ check('app_url', /^https:\/\//.test(value('APP_URL')), 'APP_URL must use HTTPS.'
 const cors = value('CORS_ORIGINS').split(',').map((item) => item.trim()).filter(Boolean);
 check('cors', cors.every((origin) => /^https:\/\//.test(origin) && !origin.includes('*')), 'CORS_ORIGINS may contain only explicit HTTPS origins.');
 check('resend', value('RESEND_API_KEY').length > 10 && value('RESEND_FROM_EMAIL').includes('@'), 'Resend key and sender address are required.');
+check('alert_webhook', !value('ALERT_WEBHOOK_URL') || /^https:\/\//.test(value('ALERT_WEBHOOK_URL')), 'ALERT_WEBHOOK_URL must use HTTPS when configured.');
 
 const mediaRoot = value('MEDIA_ROOT');
 check('media_root', path.isAbsolute(mediaRoot), 'MEDIA_ROOT must be an absolute path.');
@@ -38,4 +39,3 @@ if (failures.length) {
 } else {
   process.stdout.write('[preflight] Static production configuration checks passed.\n');
 }
-

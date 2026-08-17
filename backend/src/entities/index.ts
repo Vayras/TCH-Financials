@@ -15,15 +15,16 @@ import { Profile } from './profile.entity';
 import { Invitation } from './invitation.entity';
 import { PaymentTransaction } from './payment-transaction.entity';
 import { TdsEntry } from './tds-entry.entity';
+import { AuditLog } from './audit-log.entity';
 
 export {
   AlertDismissal, Campaign, CommercialDeal, ContractingCompliance, Creator,
   CreatorDocument, CreatorInvoice, DealCreatorShare, DealDocument, DropOff, EmployeeWeeklyReport,
-  EventInvite, SocialMediaSnapshot, Profile, Invitation, PaymentTransaction, TdsEntry,
+  EventInvite, SocialMediaSnapshot, Profile, Invitation, PaymentTransaction, TdsEntry, AuditLog,
 };
 
 export const entities = [
   AlertDismissal, Campaign, CommercialDeal, ContractingCompliance, Creator,
   CreatorDocument, CreatorInvoice, DealCreatorShare, DealDocument, DropOff, EmployeeWeeklyReport,
-  EventInvite, SocialMediaSnapshot, Profile, Invitation, PaymentTransaction, TdsEntry,
+  EventInvite, SocialMediaSnapshot, Profile, Invitation, PaymentTransaction, TdsEntry, AuditLog,
 ];

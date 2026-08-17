@@ -17,6 +17,7 @@ import useDebounce from '@/hooks/useDebounce';
 import { type ColumnDef } from '@tanstack/react-table';
 import type { CreatorForm } from '@/types/creator';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/utils';
 import Link from 'next/link';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import {
@@ -156,8 +157,8 @@ export default function CreatorsPage() {
 			});
 			toast.success('Creator portal account created successfully.');
 			creatorsQuery.refetch();
-		} catch (err: any) {
-			toast.error('Failed to create account.', { description: err.message });
+		} catch (err: unknown) {
+			toast.error('Failed to create account.', { description: errorMessage(err) });
 		}
 	}
 
@@ -187,8 +188,8 @@ export default function CreatorsPage() {
 			});
 			toast.success('Email updated successfully.');
 			creatorsQuery.refetch();
-		} catch (err: any) {
-			toast.error('Failed to update email.', { description: err.message });
+		} catch (err: unknown) {
+			toast.error('Failed to update email.', { description: errorMessage(err) });
 		}
 	}
 

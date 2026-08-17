@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
 import { api } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
+import type { Session } from '@supabase/supabase-js';
 
 // ─── Capture URL hash at module scope ─────────────────────────────────────────
 // The Supabase JS SDK automatically parses and CLEARS the URL hash fragment
@@ -64,7 +65,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
 	const [passwordSet, setPasswordSet] = React.useState<boolean>(true);
 
-	const checkAuthStatus = React.useCallback(async (session: any) => {
+	const checkAuthStatus = React.useCallback(async (session: Session | null) => {
 		if (!session) {
 			setStatus('anon');
 			return;
