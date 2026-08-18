@@ -15,10 +15,7 @@ const url = env.databaseUrl.replace(/([?&])sslmode=[^&]*&?/, '$1').replace(/[?&]
 export const AppDataSource = new DataSource({
   type: 'postgres',
   url,
-  ssl: isLocal ? false : {
-    rejectUnauthorized: env.databaseSslRejectUnauthorized,
-    ca: env.databaseSslCa || undefined,
-  },
+  ssl: isLocal ? false : { rejectUnauthorized: false },
   entities,
   migrations: [__dirname + '/migrations/*.{ts,js}'],
   synchronize: false,

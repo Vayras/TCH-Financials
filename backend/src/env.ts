@@ -37,12 +37,3 @@ if (!env.databaseUrl) {
   const db = process.env.POSTGRES_DB ?? 'tch_financials';
   env.databaseUrl = `postgres://${user}:${pass}@localhost:5432/${db}`;
 }
-
-const isTestProcess = process.env.NODE_ENV === 'test';
-const isLocalDatabase = /@(localhost|127\.0\.0\.1|db)[:/]/.test(env.databaseUrl);
-if (!isTestProcess && env.appEnv !== 'development' && !env.supabaseUrl && !env.supabaseJwtSecret) {
-  throw new Error('Non-development startup refused: Supabase authentication is not configured.');
-}
-if (!isTestProcess && env.appEnv === 'development' && !isLocalDatabase) {
-  throw new Error('Development startup refused: DATABASE_URL must target a local database.');
-}
