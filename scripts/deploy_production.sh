@@ -27,6 +27,10 @@ if [ -f frontend/.env.local ]; then
 fi
 set +a
 export APP_ENV=production BACKUP_DIR="$backup_dir" MEDIA_ROOT="$media_root"
+[ "$APP_ENV" = "production" ] || {
+  echo "[deploy] APP_ENV must be production." >&2
+  exit 1
+}
 
 echo "[deploy] Running fail-closed production configuration preflight."
 (cd backend && npm ci && npm run production:preflight)
@@ -38,6 +42,36 @@ database_backup="$(find "$backup_dir" -maxdepth 1 -type f -name 'tch_db_*.dump' 
 media_backup="$(find "$backup_dir" -maxdepth 1 -type f -name 'tch_media_*.tar.gz' -print | sort | tail -1)"
 ./scripts/verify_backup.sh "$database_backup" "$media_backup"
 
+echo "[deploy] Verifying the production migration ledger before allowing migrations."
+psql "$DATABASE_URL" --set=ON_ERROR_STOP=1 <<'SQL'
+DO $migration_guard$
+DECLARE
+  domain_tables_exist boolean;
+  migration_table_exists boolean;
+  initial_migration_recorded boolean := false;
+BEGIN
+  domain_tables_exist :=
+    to_regclass('public.tch_creator') IS NOT NULL OR
+    to_regclass('public.tch_campaign') IS NOT NULL OR
+    to_regclass('public.tch_commercialdeal') IS NOT NULL;
+  migration_table_exists := to_regclass('public.migrations') IS NOT NULL;
+
+  IF migration_table_exists THEN
+    SELECT EXISTS (
+      SELECT 1 FROM public.migrations
+      WHERE name = 'InitialSchema1751800000000'
+         OR timestamp = 1751800000000
+    ) INTO initial_migration_recorded;
+  END IF;
+
+  IF domain_tables_exist AND NOT initial_migration_recorded THEN
+    RAISE EXCEPTION USING MESSAGE =
+      'Deployment refused: domain tables exist but the initial TypeORM migration is not recorded. Baseline the migration ledger manually after schema verification; do not run the destructive initial migration.';
+  END IF;
+END
+$migration_guard$;
+SQL
+
 echo "[deploy] Building release before changing the database or services."
 (cd backend && npm run typecheck && npm test && npm run build)
 (cd frontend && npm ci && npm run typecheck && npm run build)
@@ -47,7 +81,7 @@ mkdir -p "$backup_dir/release-manifests"
 psql "$DATABASE_URL" -Atc "SELECT 'creators',COUNT(*) FROM tch_creator UNION ALL SELECT 'campaigns',COUNT(*) FROM tch_campaign UNION ALL SELECT 'deals',COUNT(*) FROM tch_commercialdeal UNION ALL SELECT 'invoices',COUNT(*) FROM tch_creatorinvoice UNION ALL SELECT 'payments',COUNT(*) FROM tch_payment_transaction UNION ALL SELECT 'tds',COUNT(*) FROM tch_tds_entry ORDER BY 1" > "$backup_dir/release-manifests/$release_sha.before-counts"
 
 echo "[deploy] Running additive migrations and restarting services."
-(cd backend && npm run migration:run)
+(cd backend && APP_ENV=production npm run migration:run)
 sudo systemctl restart tch-backend tch-frontend
 curl --fail --silent --show-error --retry 12 --retry-delay 2 http://127.0.0.1:8000/api/health >/dev/null
 
