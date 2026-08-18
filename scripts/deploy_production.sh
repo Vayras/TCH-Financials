@@ -81,7 +81,7 @@ mkdir -p "$backup_dir/release-manifests"
 psql "$DATABASE_URL" -Atc "SELECT 'creators',COUNT(*) FROM tch_creator UNION ALL SELECT 'campaigns',COUNT(*) FROM tch_campaign UNION ALL SELECT 'deals',COUNT(*) FROM tch_commercialdeal UNION ALL SELECT 'invoices',COUNT(*) FROM tch_creatorinvoice UNION ALL SELECT 'payments',COUNT(*) FROM tch_payment_transaction UNION ALL SELECT 'tds',COUNT(*) FROM tch_tds_entry ORDER BY 1" > "$backup_dir/release-manifests/$release_sha.before-counts"
 
 echo "[deploy] Running additive migrations and restarting services."
-(cd backend && APP_ENV=production npm run migration:run)
+(cd backend && APP_ENV=production npx typeorm-ts-node-commonjs -d src/data-source.ts migration:run)
 sudo systemctl restart tch-backend tch-frontend
 curl --fail --silent --show-error --retry 12 --retry-delay 2 http://127.0.0.1:8000/api/health >/dev/null
 
