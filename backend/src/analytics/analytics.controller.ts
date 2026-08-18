@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { todayISO } from '../common/dates';
 import { fiscalYearOf } from '../common/fy';
 import { AlertsService } from './alerts.service';
@@ -37,6 +37,13 @@ export class AnalyticsController {
   @Roles('super_admin', 'tch_member')
   creatorInsights(@Query('fy') fy?: string) {
     return this.analytics.creatorInsights(fyStartOf(fy));
+  }
+
+  @Get('creators/:id/dashboard')
+  @Roles('super_admin', 'accounts', 'tch_member')
+  creatorDashboard(@Param('id') id: string, @Query('fy') fy?: string) {
+    if (!/^\d+$/.test(id)) throw new BadRequestException({ detail: 'Invalid creator id.' });
+    return this.analytics.creatorDashboard(Number(id), fyStartOf(fy));
   }
 
   @Get('exclusives/quarterly')
