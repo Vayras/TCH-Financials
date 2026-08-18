@@ -12,6 +12,7 @@
     "integrity:preflight": "ts-node scripts/integrity-preflight.ts",
     "production:preflight": "ts-node scripts/production-preflight.ts",
     "smoke:critical": "ts-node scripts/critical-path-smoke.ts",
+    "seed:dev-users": "ts-node scripts/seed-dev-users.ts",
     "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts",
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",

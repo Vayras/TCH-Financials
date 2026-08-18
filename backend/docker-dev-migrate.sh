@@ -15,3 +15,4 @@ fi
 
 echo 'Running migrations against isolated Docker database tch_financials_dev...'
 npm run migration:run
+npm run seed:dev-users

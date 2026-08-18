@@ -42,8 +42,19 @@ TypeORM migration, and starts:
 - PostgreSQL: localhost:5433
 
 Supabase auth is deliberately disabled locally. The existing backend and
-frontend development behavior supplies a mock Super Admin session, so no real
-login credentials are required.
+frontend development behavior supplies development-only identities, so no real
+login credentials are required. Use the **Development account** selector in the
+bottom-right corner of the browser to switch between:
+
+- Dev Admin (`admin.dev@tch.local`)
+- Dev Accounts (`accounts.dev@tch.local`)
+- Dev Creator (`creator.dev@tch.local`)
+
+The selector and its request header are active only when Supabase is
+unconfigured and the backend is explicitly running with `APP_ENV=development`.
+The backend refuses the header in production. The Docker migration step seeds
+these local identities idempotently after migrations, including after a dev
+environment reset.
 
 ## Run in the background
 
