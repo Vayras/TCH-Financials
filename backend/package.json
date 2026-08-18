@@ -14,7 +14,7 @@
     "smoke:critical": "ts-node scripts/critical-path-smoke.ts",
     "seed:dev-users": "ts-node scripts/seed-dev-users.ts",
     "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts",
-    "migration:run": "npm run typeorm -- migration:run",
+    "migration:run": "APP_ENV=production typeorm-ts-node-commonjs -d src/data-source.ts migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
     "migration:show": "npm run typeorm -- migration:show",
     "migration:generate": "npm run typeorm -- migration:generate"
