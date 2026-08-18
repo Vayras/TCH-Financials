@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AppDataSource } from './data-source';
@@ -18,6 +18,9 @@ import { DealsController } from './resources/deals.controller';
 import { DocumentsController } from './resources/documents.controller';
 import { PaymentTransactionsController } from './resources/payment-transactions.controller';
 import { TdsController } from './resources/tds.controller';
+import { HealthController } from './health.controller';
+import { AuditController } from './resources/audit.controller';
+import { AuditInterceptor } from './common/audit.interceptor';
 import {
   ContractingController, DropOffsController, EmployeeReportsController,
   EventInvitesController, SocialSnapshotsController,
@@ -29,6 +32,8 @@ import {
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 300 }]),
   ],
   controllers: [
+    HealthController,
+    AuditController,
     AnalyticsController,
     AuthController,
     UsersController,
@@ -52,6 +57,7 @@ import {
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: SupabaseAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],
 })
 export class AppModule {}

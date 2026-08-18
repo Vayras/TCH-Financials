@@ -1,5 +1,5 @@
 import type { Deal } from '@/lib/api';
-import type { DealForm, ShareForm } from '@/types/deal';
+import type { DealForm } from '@/types/deal';
 
 export const DIRECTION = [
 	{ value: 'Inbound', label: 'Inbound' },
@@ -99,11 +99,6 @@ export function calYearOfMonth(mm: string, fyStart: number): number {
 // disagrees with e_invoice_date — with e_invoice_date as the fallback when the
 // number is blank or unparseable. Keeping the two in lockstep is what makes
 // this page's headline match the Overview's "Campaigns this FY".
-const INVOICE_NO_RE = /(\d{2})(\d{2})\s*\/\s*([A-Za-z]{3,9})/;
-const MONTH_NUM: Record<string, number> = {
-	jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
-	jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12
-};
 export function billingPeriodOf(r: Deal): string | null {
 	if (r.e_invoice_date) return `${r.e_invoice_date.slice(0, 7)}-01`;
 	if (r.confirmation_date) return `${r.confirmation_date.slice(0, 7)}-01`;

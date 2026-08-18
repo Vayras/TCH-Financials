@@ -45,7 +45,7 @@ export function creatorDocumentDto(d: CreatorDocument) {
     creator_name: d.creator?.name ?? '',
     doc_type: d.docType,
     label: d.label,
-    file: d.file ? `/media/${d.file}` : '',
+    file: d.file ? `/api/creator-documents/${d.id}/download` : '',
     uploaded_at: ts(d.uploadedAt),
   };
 }
@@ -66,7 +66,7 @@ export function creatorInvoiceDto(invoice: CreatorInvoice) {
     payment_cycle: invoice.paymentCycle,
     payment_date: invoice.paymentDate,
     label: invoice.label,
-    file: invoice.file ? `/media/${invoice.file}` : '',
+    file: invoice.file ? `/api/creator-invoices/${invoice.id}/download` : '',
     uploaded_at: ts(invoice.uploadedAt),
     updated_at: ts(invoice.updatedAt),
     version: invoice.version,
@@ -174,7 +174,7 @@ export function dealDocumentDto(d: DealDocument) {
     deal: Number(d.dealId),
     doc_type: d.docType,
     label: d.label,
-    file: d.file ? `/media/${d.file}` : '',
+    file: d.file ? `/api/deal-documents/${d.id}/download` : '',
     uploaded_at: ts(d.uploadedAt),
   };
 }

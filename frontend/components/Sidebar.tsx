@@ -267,6 +267,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 			return [
 				{ href: '/accounts-dashboard', label: 'Overview', icon: 'home' },
 				{ href: '/payments', label: 'Payments', icon: 'credit-card' },
+				{ href: '/creators', label: 'Creators', icon: 'users' },
 				{ href: '/entity-summary', label: 'Entity Summary', icon: 'layers' }
 			];
 		}
@@ -276,7 +277,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 				{ href: '/users', label: 'Users', icon: 'settings' }
 			];
 		}
-		return NAV;
+		return NAV.filter((item) => item.href !== '/payments');
 	}, [role]);
 
 	const current = filteredNav.find((n) => isActiveHref(pathname, n.href));

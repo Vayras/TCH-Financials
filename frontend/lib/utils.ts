@@ -5,6 +5,10 @@ export function cn(...inputs: ClassValue[]): string {
 	return twMerge(clsx(inputs));
 }
 
+export function errorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : 'Unknown error';
+}
+
 export function inr(value: string | number | null | undefined): string {
 	if (value === null || value === undefined || value === '') return '';
 	const n = typeof value === 'string' ? Number(value) : value;

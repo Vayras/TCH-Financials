@@ -1,13 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
 import { api } from '@/lib/api';
+import { errorMessage } from '@/lib/utils';
 
 export default function SignupPage() {
-	const router = useRouter();
 	const [name, setName] = React.useState('');
 	const [email, setEmail] = React.useState('');
 	const [password, setPassword] = React.useState('');
@@ -52,8 +51,8 @@ export default function SignupPage() {
 			});
 
 			setSuccess(true);
-		} catch (e: any) {
-			setError(e.message || 'Something went wrong during sign-up.');
+		} catch (e: unknown) {
+			setError(errorMessage(e) || 'Something went wrong during sign-up.');
 		} finally {
 			setBusy(false);
 		}

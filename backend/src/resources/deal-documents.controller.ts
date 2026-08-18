@@ -11,11 +11,14 @@ import { env } from '../env';
 import { refreshInvoiceCompletion } from '../common/invoice-completion';
 import { dealDocumentDto } from '../common/serializers';
 import { CommercialDeal, DealDocument } from '../entities';
+import { Roles } from '../auth/roles.decorator';
+import { privateFile, removePrivateFile } from '../common/private-file';
+import { UPLOAD_LIMITS, validateUpload } from '../common/uploads';
 
 const DOC_TYPES = ['ClientInvoice', 'CreatorInvoice'];
 
-// Uploads land under MEDIA_ROOT/deal_docs/<deal_id>/<filename>, mirroring the
-// creator-documents layout; the API returns them as /media/... URLs.
+// Uploads retain the existing disk layout but are downloaded only through an
+// authenticated API route.
 function storeUpload(dealId: string, file: Express.Multer.File): string {
   const safeName =
     path.basename(file.originalname || 'upload').replace(/[^\w.\-()+ ]+/g, '_') || 'upload';
@@ -33,6 +36,7 @@ function storeUpload(dealId: string, file: Express.Multer.File): string {
   return path.posix.join('deal_docs', dealId, name);
 }
 
+@Roles('super_admin', 'accounts', 'tch_member')
 @Controller('deal-documents')
 export class DealDocumentsController {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
@@ -56,7 +60,7 @@ export class DealDocumentsController {
 
   @Post()
   @HttpCode(201)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: UPLOAD_LIMITS }))
   async create(
     @Body() body: Record<string, string>,
     @UploadedFile() file?: Express.Multer.File,
@@ -70,7 +74,7 @@ export class DealDocumentsController {
         doc_type: [`doc_type must be one of: ${DOC_TYPES.join(', ')}.`],
       });
     }
-    if (!file) throw new BadRequestException({ file: ['No file was submitted.'] });
+    validateUpload(file, 'No file was submitted.');
 
     const row = this.repo().create({
       dealId,
@@ -86,6 +90,13 @@ export class DealDocumentsController {
     return dealDocumentDto(saved!);
   }
 
+  @Get(':id/download')
+  async download(@Param('id') id: string) {
+    const row = await this.repo().findOneBy({ id });
+    if (!row) throw new NotFoundException({ detail: 'Not found.' });
+    return privateFile(row.file, row.label || path.basename(row.file));
+  }
+
   @Delete(':id')
   @HttpCode(204)
   async remove(@Param('id') id: string) {
@@ -93,8 +104,6 @@ export class DealDocumentsController {
     if (!row) throw new NotFoundException({ detail: 'Not found.' });
     await this.repo().delete({ id });
     await refreshInvoiceCompletion(this.dataSource, row.dealId);
-    if (row.file) {
-      fs.rm(path.join(env.mediaRoot, row.file), { force: true }, () => undefined);
-    }
+    if (row.file) removePrivateFile(row.file);
   }
 }

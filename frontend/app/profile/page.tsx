@@ -9,7 +9,7 @@ import PageHeader from '@/components/PageHeader';
 import { toast } from 'sonner';
 
 export default function ProfilePage() {
-	const { email, role, status, displayName } = useAuth();
+	const { email, role, displayName } = useAuth();
 	const updateProfileMutation = useUpdateProfileMutation();
 
 	const [name, setName] = React.useState(displayName || '');
@@ -30,8 +30,8 @@ export default function ProfilePage() {
 			toast.success('Profile updated successfully.', {
 				description: 'Please reload or re-login to see name updates across all dashboards.'
 			});
-		} catch (err: any) {
-			toast.error('Failed to update profile.', { description: err.message });
+		} catch (err: unknown) {
+			toast.error('Failed to update profile.', { description: err instanceof Error ? err.message : 'Unknown error' });
 		}
 	}
 

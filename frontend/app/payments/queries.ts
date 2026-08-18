@@ -30,7 +30,7 @@ export function useCreatorInvoicesQuery() {
 	});
 }
 
-export function useMarkClientPaidMutation(fyStart: number | null) {
+export function useMarkClientPaidMutation() {
 	const queryClient = useQueryClient();
 	return useMutation<unknown, Error, { id: number; version: number }>({
 		mutationFn: ({ id, version }) =>
@@ -46,7 +46,7 @@ export function useMarkClientPaidMutation(fyStart: number | null) {
 	});
 }
 
-export function useMarkCreatorPaidMutation(fyStart: number | null) {
+export function useMarkCreatorPaidMutation() {
 	const queryClient = useQueryClient();
 	return useMutation<unknown, Error, { id: number; version: number }>({
 		mutationFn: ({ id, version }) =>
@@ -68,7 +68,7 @@ interface UploadInvoiceParams {
 	creatorFile: File | null;
 }
 
-export function useUploadInvoiceMutation(fyStart: number | null) {
+export function useUploadInvoiceMutation() {
 	const queryClient = useQueryClient();
 	return useMutation<void, Error, UploadInvoiceParams>({
 		mutationFn: async ({ dealId, clientFile, creatorFile }) => {
@@ -96,8 +96,8 @@ export interface PaymentTransactionItem {
 	creditAmount: string;
 	notes: string;
 	createdAt: string;
-	deal?: any;
-	creator?: any;
+	deal?: Deal;
+	creator?: { id: string; name: string };
 }
 
 export interface PaymentTransactionResponse {
@@ -149,7 +149,7 @@ export function useImportPaymentTransactionsMutation() {
 		mutationFn: (file: File) => {
 			const formData = new FormData();
 			formData.append('file', file);
-			return api.upload<{ success: boolean; imported_count: number; skipped: any[] }>('/payment-transactions/import', formData);
+			return api.upload<{ success: boolean; imported_count: number; skipped: Array<{ row: number; reason: string }> }>('/payment-transactions/import', formData);
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['payment-transactions'] });

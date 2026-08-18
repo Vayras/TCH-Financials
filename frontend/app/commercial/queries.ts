@@ -164,9 +164,9 @@ export function useSaveDealMutation(fyStart: number | null) {
 				try {
 					deal = await api.patch<Deal>(`/deals/${editingId}/`, buildBody(editingVersion));
 				} catch (err) {
-					if (err instanceof ConflictError && err.current && typeof (err.current as any).version === 'number') {
+					if (err instanceof ConflictError && err.current && typeof (err.current as { version?: unknown }).version === 'number') {
 						// Server version was updated by an automatic action (e.g. invoice status update). Retry once with latest version.
-						const latestVersion = (err.current as any).version;
+						const latestVersion = (err.current as { version: number }).version;
 						deal = await api.patch<Deal>(`/deals/${editingId}/`, buildBody(latestVersion));
 					} else {
 						throw err;
@@ -219,7 +219,7 @@ export function useSaveDealMutation(fyStart: number | null) {
 	});
 }
 
-export function useDeleteDealMutation(fyStart: number | null) {
+export function useDeleteDealMutation() {
 	const queryClient = useQueryClient();
 	return useMutation<void, Error, number>({
 		mutationFn: (id) => api.del(`/deals/${id}/`),

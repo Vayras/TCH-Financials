@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { type AlertItem, type AlertSeverity } from '@/lib/api';
+import { type AlertItem, type AlertSeverity, type AlertsPayload } from '@/lib/api';
 import Icon from '@/components/ui/Icon';
 import Tag from '@/components/ui/Tag';
 import { type AlertSectionKey, type AlertFilterKey } from '@/lib/types';
@@ -294,7 +294,7 @@ export function AlertsDashboardView({
 	listFor,
 	shouldShow
 }: {
-	payload: any;
+	payload: AlertsPayload;
 	totalCount: number;
 	activeSection: AlertFilterKey;
 	setActiveSection: (key: AlertFilterKey) => void;

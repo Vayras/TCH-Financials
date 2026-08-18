@@ -6,6 +6,7 @@ import { sendInviteEmail } from '../common/mail';
 import { Profile, type AppRole } from '../entities/profile.entity';
 import { Invitation } from '../entities/invitation.entity';
 import { Roles } from '../auth/roles.decorator';
+import { structuredLog } from '../common/observability';
 
 // Roles that can self-select at sign-up — admins cannot be self-assigned
 const SELF_SELECTABLE_ROLES: AppRole[] = ['creator', 'tch_member'];
@@ -230,7 +231,7 @@ export class UsersController {
         throw new BadRequestException(`Failed to send invite email: ${message}`);
       }
     } else {
-      console.log(`[DEV] Simulating invite to: ${trimmedEmail} with role: ${role}`);
+      structuredLog('info', 'development_invite_simulated', { role });
     }
 
     return { success: true, invitation };

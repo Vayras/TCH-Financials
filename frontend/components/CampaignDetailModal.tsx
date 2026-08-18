@@ -7,6 +7,7 @@ import { inr } from '@/lib/utils';
 import Dialog from '@/components/ui/Dialog';
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
+import { downloadAuthenticatedFile } from '@/lib/download';
 
 // One label/value pair in the read-only campaign detail modal.
 function DetailField({ label, value }: { label: string; value: React.ReactNode }) {
@@ -162,16 +163,15 @@ export function CampaignDetailModal({ deal, docs, onClose, onEdit, onDelete }: C
 									key={doc.id}
 									label={doc.doc_type === 'ClientInvoice' ? 'Client Invoice' : 'Creator Invoice'}
 									value={
-										<a
-											href={doc.file}
-											target="_blank"
-											rel="noopener"
+										<button
+											type="button"
+											onClick={() => void downloadAuthenticatedFile(doc.file, doc.label || 'deal-document')}
 											className="underline font-medium hover:text-[var(--n-accent)]"
 											style={{ color: 'var(--n-accent)' }}
 											title={doc.label}
 										>
 											{doc.label || doc.file.split('/').pop()} ↗
-										</a>
+										</button>
 									}
 								/>
 							))}

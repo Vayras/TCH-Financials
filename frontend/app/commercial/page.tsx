@@ -6,7 +6,7 @@ import { ConflictError, type CampaignCardGroup, type CreatorCardGroup, type Deal
 import { inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import useDebounce from '@/hooks/useDebounce';
-import type { CampaignGroup, CardGroupBy, CreatorGroup, DealForm, DirFilter, ShareForm } from '@/types/deal';
+import type { CampaignGroup, CardGroupBy, CreatorGroup, DealForm, DirFilter } from '@/types/deal';
 import {
 	buildShare,
 	calYearOfMonth,
@@ -19,7 +19,6 @@ import {
 } from '@/lib/deals';
 import Icon from '@/components/ui/Icon';
 import Button from '@/components/ui/Button';
-import MetricCard from '@/components/MetricCard';
 import PageHeader from '@/components/PageHeader';
 import Pagination from '@/components/Pagination';
 import QueryErrorState from '@/components/QueryErrorState';
@@ -188,16 +187,6 @@ export default function CommercialPage() {
 			comments: editing.comments
 		};
 	}, [editing]);
-
-	const initialShares = React.useMemo<ShareForm[]>(
-		() =>
-			(editing?.creator_shares ?? []).slice(1).map((s) => ({
-				creator: s.creator ? String(s.creator) : '',
-				total_fee: s.total_fee,
-				agency_fee_pct: s.agency_fee_pct
-			})),
-		[editing]
-	);
 
 	async function submit({ form, shares, clientInvoiceFile, creatorInvoiceFile }: CampaignFormResult) {
 		// A campaign is "split" when extra creators are added. We then send the
@@ -680,8 +669,6 @@ export default function CommercialPage() {
 				title={editing ? 'Edit Campaign' : 'Add Campaign'}
 				submitLabel={editing ? 'Save' : 'Create'}
 				initial={initialForm}
-				initialShares={initialShares}
-				creators={creators}
 				campaignNames={campaigns.map((c) => c.name)}
 				onSubmit={submit}
 			/>

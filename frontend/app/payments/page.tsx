@@ -6,7 +6,7 @@ import { type Deal, type DealDocument, type CreatorInvoice } from '@/lib/api';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import { cn, formatDocDate, inr } from '@/lib/utils';
+import { errorMessage, formatDocDate, inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import { creatorLabel, creatorNamesOf } from '@/lib/deals';
 import {
@@ -44,6 +44,7 @@ import {
 	type TdsEntryItem
 } from './queries';
 import { useCommercialCreatorsQuery } from '../commercial/queries';
+import { downloadAuthenticatedFile } from '@/lib/download';
 
 type StatusFilter = 'all' | PaymentStatus;
 type TabState = 'receivables' | 'payables' | 'utr' | 'tds';
@@ -74,9 +75,9 @@ function InvoiceTag({
 	);
 	if (doc?.file) {
 		return (
-			<a href={doc.file} target="_blank" rel="noopener" title={doc.label || label}>
+			<button type="button" onClick={() => void downloadAuthenticatedFile(doc.file, doc.label || label)} title={doc.label || label}>
 				{tag}
-			</a>
+			</button>
 		);
 	}
 	return tag;
@@ -108,9 +109,9 @@ export default function PaymentsPage() {
 	);
 
 	// Mutations
-	const markClientPaidMutation = useMarkClientPaidMutation(fyStart);
-	const markCreatorPaidMutation = useMarkCreatorPaidMutation(fyStart);
-	const uploadInvoiceMutation = useUploadInvoiceMutation(fyStart);
+	const markClientPaidMutation = useMarkClientPaidMutation();
+	const markCreatorPaidMutation = useMarkCreatorPaidMutation();
+	const uploadInvoiceMutation = useUploadInvoiceMutation();
 	const addTransactionMutation = useAddPaymentTransactionMutation();
 	const importTransactionsMutation = useImportPaymentTransactionsMutation();
 	const addTdsEntryMutation = useAddTdsEntryMutation();
@@ -294,8 +295,8 @@ export default function PaymentsPage() {
 			setTxAmount('');
 			setTxNotes('');
 			refetchUtr();
-		} catch (err: any) {
-			toast.error('Failed to add transaction.', { description: err.message });
+		} catch (err: unknown) {
+			toast.error('Failed to add transaction.', { description: errorMessage(err) });
 		}
 	}
 
@@ -314,8 +315,8 @@ export default function PaymentsPage() {
 			setImportOpen(false);
 			setExcelFile(null);
 			refetchUtr();
-		} catch (err: any) {
-			toast.error('Import failed.', { description: err.message });
+		} catch (err: unknown) {
+			toast.error('Import failed.', { description: errorMessage(err) });
 		} finally {
 			setImporting(false);
 		}
@@ -340,8 +341,8 @@ export default function PaymentsPage() {
 			setTdsGross('');
 			setTdsNotes('');
 			refetchTds();
-		} catch (err: any) {
-			toast.error('Failed to record TDS entry.', { description: err.message });
+		} catch (err: unknown) {
+			toast.error('Failed to record TDS entry.', { description: errorMessage(err) });
 		}
 	}
 
@@ -361,8 +362,8 @@ export default function PaymentsPage() {
 			setTdsRemitOpen(false);
 			setTdsChallan('');
 			refetchTds();
-		} catch (err: any) {
-			toast.error('Failed to record remittance.', { description: err.message });
+		} catch (err: unknown) {
+			toast.error('Failed to record remittance.', { description: errorMessage(err) });
 		}
 	}
 
@@ -705,7 +706,7 @@ export default function PaymentsPage() {
 						) : (
 							<DataTable
 								data={filtered}
-								columns={columns as any}
+								columns={columns}
 								loading={loading}
 								emptyMessage="No completed campaigns match."
 							/>
@@ -745,7 +746,7 @@ export default function PaymentsPage() {
 
 						<DataTable
 							data={utrData?.items ?? []}
-							columns={utrColumns as any}
+							columns={utrColumns}
 							loading={loading}
 							emptyMessage="No payment transactions logged yet."
 						/>
@@ -779,10 +780,10 @@ export default function PaymentsPage() {
 					<div className="space-y-4 anim-fade-up">
 						<div className="flex flex-wrap items-center justify-between gap-3">
 							<div className="flex bg-[var(--n-bg-soft)] p-1 rounded-lg border border-[var(--n-border)]">
-								{['All', 'Pending', 'Remitted'].map((statusOption) => (
+								{(['All', 'Pending', 'Remitted'] as const).map((statusOption) => (
 									<button
 										key={statusOption}
-										onClick={() => setTdsStatusFilter(statusOption as any)}
+										onClick={() => setTdsStatusFilter(statusOption)}
 										className={`px-3 py-1 text-[12px] font-medium rounded-md transition-colors duration-100 ${tdsStatusFilter === statusOption ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
 									>
 										{statusOption}
@@ -797,7 +798,7 @@ export default function PaymentsPage() {
 
 						<DataTable
 							data={tdsData}
-							columns={tdsColumns as any}
+							columns={tdsColumns}
 							loading={loading}
 							emptyMessage="No TDS records recorded."
 						/>
@@ -862,14 +863,13 @@ export default function PaymentsPage() {
 										<li key={d.id} className="flex items-center gap-2 py-1.5">
 											<Tag tone="neutral">{d.doc_type === 'ClientInvoice' ? 'Client' : 'Creator'}</Tag>
 											{d.file ? (
-												<a
+												<button
+													type="button"
 													className="inline-link text-[13px]"
-													href={d.file}
-													target="_blank"
-													rel="noopener"
+													onClick={() => void downloadAuthenticatedFile(d.file, d.label || 'deal-document')}
 												>
 													{d.label || d.file.split('/').pop()} ↗
-												</a>
+												</button>
 											) : (
 												<span className="text-[13px]" style={{ color: 'var(--n-fg-muted)' }}>
 													{d.label || '(no file)'}
@@ -907,11 +907,11 @@ export default function PaymentsPage() {
 			>
 				<form onSubmit={submitImport} className="space-y-4">
 					<div>
-						<Label>Select Excel File (.xlsx, .xls)</Label>
+						<Label>Select Excel File (.xlsx)</Label>
 						<input
 							type="file"
 							required
-							accept=".xlsx, .xls"
+							accept=".xlsx"
 							onChange={(e) => setExcelFile(e.target.files?.[0] ?? null)}
 							className="block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
 						/>

@@ -5,7 +5,7 @@ processes behind nginx, with the database and auth hosted on Supabase:
 
 ```
 Internet ──► nginx :443 (TLS)
-              ├── /api/*    ──► NestJS backend   127.0.0.1:8000  (also /media/*)
+              ├── /api/*    ──► NestJS backend   127.0.0.1:8000
               └── everything else ──► Next.js frontend 127.0.0.1:5050
                                           │
 Supabase (managed) ◄──────────────────────┘
@@ -15,7 +15,7 @@ Supabase (managed) ◄───────────────────�
 
 - **Frontend**: Next.js 15 (`frontend/`), serves the UI on port 5050.
 - **Backend**: NestJS + TypeORM (`backend/`), serves the REST API on port 8000
-  under `/api/`, uploaded creator documents under `/media/`, and owns database
+  under `/api/`, serves authorized document downloads, and owns database
   migrations.
 - **Database/Auth**: Supabase. Nothing DB-related runs on the VPS itself.
 
@@ -50,6 +50,8 @@ Create `/opt/tch/app/.env` (the backend reads it via dotenv; Next.js reads the
 # The direct db.<ref>.supabase.co host is IPv6-only and unreachable from most
 # VPSes. TLS to the pooler is handled in code — no extra config needed.
 DATABASE_URL=postgresql://postgres.<project-ref>:<db-password>@aws-1-ap-south-1.pooler.supabase.com:5432/postgres
+DATABASE_SSL_CA=<project CA certificate with newlines escaped as \n>
+DATABASE_SSL_REJECT_UNAUTHORIZED=true
 
 # --- Supabase Auth -----------------------------------------------------------
 # Setting SUPABASE_URL turns API auth ON: every request must carry a valid
@@ -62,8 +64,13 @@ NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon/publishable key>
 
 # --- Backend -----------------------------------------------------------------
+APP_ENV=production
 PORT=8000
 MEDIA_ROOT=/var/lib/tch/media
+BACKUP_DIR=/var/lib/tch/backups
+
+# Optional approved webhook for privacy-safe API 5xx alerts.
+ALERT_WEBHOOK_URL=https://<monitoring-provider>/<secret-path>
 ```
 
 > **Rotate the committed credentials.** The repo's git history contains a
@@ -166,18 +173,13 @@ server {
 
     client_max_body_size 25m;   # creator-document uploads
 
-    # API and uploaded documents go straight to the backend.
+    # API and authenticated document downloads go straight to the backend.
     location /api/ {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
-    location /media/ {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-    }
-
     # Everything else is the Next.js app.
     location / {
         proxy_pass http://127.0.0.1:5050;
@@ -211,20 +213,24 @@ sudo ufw enable          # 5050/8000 stay unreachable from outside
 
 ## 8. Backups
 
-Supabase keeps its own database backups, but the repo ships a `pg_dump` script
-for an independent copy (`scripts/db_backup.sh` — dumps to `backups/`, keeps
-the newest 28):
+Supabase keeps managed backups, but create an independent atomic database dump
+and media archive. Both scripts validate their archive and create a SHA-256
+checksum. They never automatically prune older backups:
 
 ```bash
 # as the tch user's crontab (sudo -u tch crontab -e) — every 6 hours
 0 */6 * * * cd /opt/tch/app && BACKUP_DIR=/var/lib/tch/backups ./scripts/db_backup.sh >> /var/log/tch-backup.log 2>&1
+15 */6 * * * cd /opt/tch/app && MEDIA_ROOT=/var/lib/tch/media BACKUP_DIR=/var/lib/tch/backups ./scripts/media_backup.sh >> /var/log/tch-backup.log 2>&1
 ```
 
-Also back up `/var/lib/tch/media` (uploaded creator documents) — e.g. include
-it in whatever file backup / snapshot the VPS provider offers. The database
-only stores paths; the files themselves live on disk.
+Verify and copy each database/media pair to approved encrypted off-host
+storage. The database stores file paths, so both artifacts must represent the
+same deployment window.
 
 ## 9. Deploying updates
+
+First run `cd backend && npm run production:preflight`, create and restore-test
+fresh backups, and complete every gate in `PHASE_3_4_READINESS.md`.
 
 ```bash
 cd /opt/tch/app
@@ -242,7 +248,10 @@ sudo systemctl restart tch-backend tch-frontend
 ## 10. Smoke test
 
 ```bash
-# Backend up and auth enforced (expect 401 when SUPABASE_URL is set):
+# Public health endpoint includes a database reachability check:
+curl -i https://financials.example.com/api/health
+
+# Auth enforced (expect 401 when SUPABASE_URL is set):
 curl -i https://financials.example.com/api/creators/
 
 # Frontend up:
@@ -260,6 +269,7 @@ curl -sI https://financials.example.com/ | head -1
 | Backend service | `systemctl {status,restart} tch-backend` · logs: `journalctl -u tch-backend -f` |
 | Frontend service | `systemctl {status,restart} tch-frontend` · logs: `journalctl -u tch-frontend -f` |
 | Run migrations | `cd /opt/tch/app/backend && npm run migration:run` |
+| Production preflight | `cd /opt/tch/app/backend && npm run production:preflight` |
 | Uploaded documents | `/var/lib/tch/media` (`MEDIA_ROOT`) |
 | DB backups | `/var/lib/tch/backups` via `scripts/db_backup.sh` cron |
 | Ports | nginx 80/443 public · frontend 5050 and backend 8000 localhost-only |

@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import { useForm, type FieldErrors, type RegisterOptions, type Path } from 'react-hook-form';
-import type { Creator } from '@/lib/api';
 import type { DealForm, ShareForm } from '@/types/deal';
 import { DIRECTION, MONTH_NAMES } from '@/lib/deals';
 import Dialog from '@/components/ui/Dialog';
@@ -43,8 +42,6 @@ export interface CampaignFormModalProps {
 	title: string;
 	submitLabel: string;
 	initial: DealForm;
-	initialShares: ShareForm[];
-	creators: Creator[];
 	campaignNames: string[];
 	onSubmit: (values: CampaignFormResult) => Promise<void> | void;
 }
@@ -55,8 +52,6 @@ export function CampaignFormModal({
 	title,
 	submitLabel,
 	initial,
-	initialShares,
-	creators,
 	campaignNames,
 	onSubmit,
 }: CampaignFormModalProps) {

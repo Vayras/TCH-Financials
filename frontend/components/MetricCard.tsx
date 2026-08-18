@@ -18,14 +18,14 @@ export function MetricCard({ label, value, dotColor, valueColor }: MetricCardPro
 			<div className="flex items-center gap-1.5">
 				{dotColor && <span className="h-1.5 w-1.5 rounded-full" style={{ background: dotColor }} />}
 				<div
-					className="text-[11.5px] font-medium uppercase leading-[1.2]"
+					className="text-[12px] font-medium uppercase leading-[1.3]"
 					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
 				>
 					{label}
 				</div>
 			</div>
 			<div
-				className="mt-1 text-[22px] font-semibold tabular-nums leading-[1.25]"
+				className="mt-1.5 text-[22px] font-semibold tabular-nums leading-[1.2]"
 				style={{ color: valueColor ?? 'var(--n-fg)' }}
 			>
 				{value}

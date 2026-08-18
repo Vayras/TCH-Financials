@@ -1,0 +1,93 @@
+name: tch-financials-dev
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: tch_dev
+      POSTGRES_PASSWORD: tch_dev_only
+      POSTGRES_DB: tch_financials_dev
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - tch_dev_postgres:/var/lib/postgresql/data
+      - ./docker/dev/init-auth.sql:/docker-entrypoint-initdb.d/00-init-auth.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tch_dev -d tch_financials_dev"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    environment: &backend-environment
+      APP_ENV: development
+      DATABASE_URL: postgres://tch_dev:tch_dev_only@db:5432/tch_financials_dev
+      PORT: "8000"
+      APP_URL: http://localhost:5050
+      MEDIA_ROOT: /app/media
+      SUPABASE_URL: ""
+      SUPABASE_JWT_SECRET: ""
+      SUPABASE_SERVICE_ROLE_KEY: ""
+      RESEND_API_KEY: ""
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "/app/docker-dev-migrate.sh"]
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    environment: *backend-environment
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./backend:/app
+      - backend_node_modules:/app/node_modules
+      - tch_dev_media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["npm", "run", "dev"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8000/api/overview || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      NODE_ENV: development
+      API_PROXY_TARGET: http://backend:8000
+      NEXT_PUBLIC_API_BASE: /api
+      NEXT_PUBLIC_SUPABASE_URL: ""
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ""
+    ports:
+      - "127.0.0.1:5050:5050"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+      - frontend_next:/app/.next
+    depends_on:
+      backend:
+        condition: service_healthy
+    command: ["npm", "run", "dev"]
+    restart: unless-stopped
+
+volumes:
+  tch_dev_postgres:
+  tch_dev_media:
+  backend_node_modules:
+  frontend_node_modules:
+  frontend_next:

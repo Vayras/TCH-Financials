@@ -1,10 +1,44 @@
-import { Controller, Get, Post, Body, Query, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseInterceptors, UploadedFile, BadRequestException, ConflictException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Roles } from '../auth/roles.decorator';
 import { PaymentTransaction } from '../entities/payment-transaction.entity';
 import { paginationParams } from '../common/pagination';
 import { FileInterceptor } from '@nestjs/platform-express';
-import * as xlsx from 'xlsx';
+import { readSheet, type CellValue, type Row } from 'read-excel-file/node';
+import { SPREADSHEET_MIME, UPLOAD_LIMITS, validateUpload } from '../common/uploads';
+import { optionalDate, requiredText, strictDecimal } from '../common/integrity';
+import { CommercialDeal, Creator } from '../entities';
+
+type PaymentInput = {
+  transactionDate: unknown;
+  vendorName: unknown;
+  utrOrRef: unknown;
+  debitAmount?: unknown;
+  creditAmount?: unknown;
+  dealId?: string | null;
+  creatorId?: string | null;
+  notes?: unknown;
+};
+
+export function normalizedPayment(body: PaymentInput) {
+  const transactionDate = optionalDate(body.transactionDate, 'transactionDate');
+  if (!transactionDate) throw new BadRequestException({ transactionDate: ['Transaction date is required.'] });
+  const debit = strictDecimal(body.debitAmount ?? 0, 'debitAmount', { min: 0, scale: 2 });
+  const credit = strictDecimal(body.creditAmount ?? 0, 'creditAmount', { min: 0, scale: 2 });
+  if ((debit.isZero() && credit.isZero()) || (!debit.isZero() && !credit.isZero())) {
+    throw new BadRequestException({ detail: 'Enter exactly one positive debit or credit amount.' });
+  }
+  return {
+    transactionDate,
+    vendorName: requiredText(body.vendorName, 'vendorName', 200),
+    utrOrRef: requiredText(body.utrOrRef, 'utrOrRef', 120),
+    debitAmount: debit.toFixed(2),
+    creditAmount: credit.toFixed(2),
+    dealId: body.dealId || null,
+    creatorId: body.creatorId || null,
+    notes: String(body.notes ?? '').trim(),
+  };
+}
 
 @Roles('super_admin', 'accounts')
 @Controller('payment-transactions')
@@ -61,66 +95,71 @@ export class PaymentTransactionsController {
 
   @Post()
   async create(
-    @Body() body: {
-      transactionDate: string;
-      vendorName: string;
-      utrOrRef: string;
-      debitAmount?: number;
-      creditAmount?: number;
-      dealId?: string | null;
-      creatorId?: string | null;
-      notes?: string;
-    }
+    @Body() body: PaymentInput,
   ) {
     const repo = this.dataSource.getRepository(PaymentTransaction);
-    const pt = repo.create({
-      transactionDate: body.transactionDate,
-      vendorName: body.vendorName,
-      utrOrRef: body.utrOrRef,
-      debitAmount: String(body.debitAmount || 0),
-      creditAmount: String(body.creditAmount || 0),
-      dealId: body.dealId || null,
-      creatorId: body.creatorId || null,
-      notes: body.notes || '',
+    const values = normalizedPayment(body);
+    if (values.dealId && !await this.dataSource.getRepository(CommercialDeal).existsBy({ id: values.dealId })) {
+      throw new BadRequestException({ dealId: ['Deal not found.'] });
+    }
+    if (values.creatorId && !await this.dataSource.getRepository(Creator).existsBy({ id: values.creatorId })) {
+      throw new BadRequestException({ creatorId: ['Creator not found.'] });
+    }
+    const duplicate = await repo.existsBy({
+      transactionDate: values.transactionDate, vendorName: values.vendorName,
+      utrOrRef: values.utrOrRef, debitAmount: values.debitAmount, creditAmount: values.creditAmount,
     });
-    return repo.save(pt);
+    if (duplicate) throw new ConflictException({ detail: 'This payment transaction already exists.' });
+    const pt = repo.create(values);
+    try {
+      return await repo.save(pt);
+    } catch (error) {
+      if ((error as { code?: string })?.code === '23505') {
+        throw new ConflictException({ detail: 'This payment transaction already exists.' });
+      }
+      throw error;
+    }
   }
 
   @Post('import')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: UPLOAD_LIMITS }))
   async importExcel(@UploadedFile() file: any) {
-    if (!file) {
-      throw new BadRequestException('No file uploaded.');
-    }
+    validateUpload(file, 'No file uploaded.', SPREADSHEET_MIME);
 
     try {
-      const workbook = xlsx.read(file.buffer, { type: 'buffer' });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const rows = xlsx.utils.sheet_to_json<any>(sheet);
+      const sheetRows = await readSheet(file.buffer);
+      if (!sheetRows.length) throw new BadRequestException('The spreadsheet is empty.');
+      const headers = sheetRows[0].map((cell) => String(cell ?? '').trim());
+      const column = (name: string) => headers.indexOf(name);
+      const cellAt = (row: Row, name: string): CellValue | null => {
+        const index = column(name);
+        return index >= 0 ? row[index] : null;
+      };
 
-      const repo = this.dataSource.getRepository(PaymentTransaction);
-      const imported: PaymentTransaction[] = [];
+      const pending: ReturnType<typeof normalizedPayment>[] = [];
       const skipped: Array<{ row: number; reason: string }> = [];
+      const seen = new Set<string>();
 
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
+      for (let i = 1; i < sheetRows.length; i++) {
+        const row = sheetRows[i];
         
         // Excel headers: Transaction Date | Vendor Name | Cheque/UTR or Ref No | Debit Amount | Credit Amount
-        const dateRaw = row['Transaction Date'];
-        const vendor = row['Vendor Name'];
-        const utr = row['Cheque/UTR or Ref No'];
-        const debit = Number(row['Debit Amount'] || 0);
-        const credit = Number(row['Credit Amount'] || 0);
+        const dateRaw = cellAt(row, 'Transaction Date');
+        const vendor = cellAt(row, 'Vendor Name');
+        const utr = cellAt(row, 'Cheque/UTR or Ref No');
+        const debit = cellAt(row, 'Debit Amount') || 0;
+        const credit = cellAt(row, 'Credit Amount') || 0;
 
         if (!dateRaw || !vendor || !utr) {
-          skipped.push({ row: i + 2, reason: 'Missing required columns (Date, Vendor, or UTR/Ref).' });
+          skipped.push({ row: i + 1, reason: 'Missing required columns (Date, Vendor, or UTR/Ref).' });
           continue;
         }
 
         // Format date string from raw input
         let dateStr = '';
-        if (typeof dateRaw === 'number') {
+        if (dateRaw instanceof Date) {
+          dateStr = dateRaw.toISOString().slice(0, 10);
+        } else if (typeof dateRaw === 'number') {
           // Excel serial date number
           const dateObj = new Date((dateRaw - 25569) * 86400 * 1000);
           dateStr = dateObj.toISOString().slice(0, 10);
@@ -137,26 +176,48 @@ export class PaymentTransactionsController {
         }
 
         if (!dateStr || isNaN(Date.parse(dateStr))) {
-          skipped.push({ row: i + 2, reason: `Invalid date format: ${dateRaw}.` });
+          skipped.push({ row: i + 1, reason: `Invalid date format: ${dateRaw}.` });
           continue;
         }
-
-        const pt = repo.create({
-          transactionDate: dateStr,
-          vendorName: String(vendor),
-          utrOrRef: String(utr),
-          debitAmount: debit.toFixed(2),
-          creditAmount: credit.toFixed(2),
-          notes: row['Notes'] || 'Imported via Excel',
-        });
-        
-        await repo.save(pt);
-        imported.push(pt);
+        try {
+          const values = normalizedPayment({
+            transactionDate: dateStr, vendorName: vendor, utrOrRef: utr,
+            debitAmount: debit, creditAmount: credit,
+            notes: cellAt(row, 'Notes') || 'Imported via Excel',
+          });
+          const key = [values.transactionDate, values.vendorName.toLowerCase(), values.utrOrRef.toLowerCase(), values.debitAmount, values.creditAmount].join('|');
+          if (seen.has(key)) {
+            skipped.push({ row: i + 1, reason: 'Duplicate row in this spreadsheet.' });
+            continue;
+          }
+          seen.add(key);
+          pending.push(values);
+        } catch (error: any) {
+          skipped.push({ row: i + 1, reason: error?.response?.detail ?? 'Invalid debit or credit amount.' });
+        }
       }
+
+      const importedCount = await this.dataSource.transaction(async (manager) => {
+        const repo = manager.getRepository(PaymentTransaction);
+        let count = 0;
+        for (const values of pending) {
+          const duplicate = await repo.existsBy({
+            transactionDate: values.transactionDate, vendorName: values.vendorName,
+            utrOrRef: values.utrOrRef, debitAmount: values.debitAmount, creditAmount: values.creditAmount,
+          });
+          if (duplicate) {
+            skipped.push({ row: count + 2, reason: 'Transaction already exists.' });
+            continue;
+          }
+          await repo.save(repo.create(values));
+          count += 1;
+        }
+        return count;
+      });
 
       return {
         success: true,
-        imported_count: imported.length,
+        imported_count: importedCount,
         skipped,
       };
     } catch (e: any) {

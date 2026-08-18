@@ -1,5 +1,5 @@
 import {
-  BadRequestException, Body, Controller, Delete, Get, HttpCode,
+  BadRequestException, Body, Controller, Delete, ForbiddenException, Get, HttpCode,
   NotFoundException, Param, Patch, Post, Put, Query, Req,
 } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -11,9 +11,10 @@ import { csvValues, paginationParams } from '../common/pagination';
 import { refreshInvoiceCompletion } from '../common/invoice-completion';
 import { dealDto } from '../common/serializers';
 import { versionedUpdate } from '../common/versioned-update';
-import { Campaign, CommercialDeal, DealCreatorShare, CreatorInvoice } from '../entities';
+import { Campaign, CommercialDeal, Creator, DealCreatorShare, CreatorInvoice } from '../entities';
 import { refreshCampaignStatus } from './campaigns.controller';
 import { Roles } from '../auth/roles.decorator';
+import { optionalDate, optionalEnum, optionalMoney, strictDecimal } from '../common/integrity';
 
 const FIELDS = {
   confirmation_date: 'confirmationDate',
@@ -63,6 +64,14 @@ const REQUIRED: Record<string, string> = {
 };
 
 const RELATIONS = ['creator', 'campaign', 'creatorShares', 'creatorShares.creator'];
+const DEAL_DATES = [
+  'confirmation_date', 'e_invoice_date', 'client_invoice_date', 'client_payment_date',
+  'creator_invoice_date', 'creator_payment_date', 'completed_at',
+] as const;
+const DEAL_MONEY = [
+  'total_fee', 'agency_fee_inr', 'creator_fee', 'client_invoice_amount',
+  'client_payment_received_amount', 'creator_invoice_amount',
+] as const;
 
 interface SharePayload {
   creator?: number | string | null;
@@ -73,6 +82,46 @@ interface SharePayload {
   ro_number?: unknown;
 }
 
+const ACCOUNTS_PATCH_FIELDS = new Set([
+  'version',
+  'invoice_received', 'payment_cleared', 'payment_received',
+  'client_invoice_number', 'client_invoice_date', 'client_invoice_amount',
+  'client_payment_status', 'client_payment_received_amount', 'client_payment_date',
+  'creator_invoice_number', 'creator_invoice_date', 'creator_invoice_amount',
+  'creator_payment_status', 'creator_payment_cycle', 'creator_payment_date',
+  'completed_at', 'comments',
+]);
+
+export function assertDealPatchAllowed(role: string | undefined, body: Record<string, unknown>): void {
+  if (role !== 'accounts') return;
+  const denied = Object.keys(body).filter((field) => !ACCOUNTS_PATCH_FIELDS.has(field));
+  if (denied.length) {
+    throw new ForbiddenException({
+      detail: `Accounts users cannot update commercial fields: ${denied.join(', ')}.`,
+    });
+  }
+}
+
+export function creatorPortalDealDto(row: CommercialDeal, creatorId: string) {
+  const assignedShare = row.creatorShares?.find((share) => String(share.creatorId) === creatorId);
+  const isPrimary = String(row.creatorId ?? '') === creatorId;
+  return {
+    id: Number(row.id),
+    brand: row.brand,
+    campaign: row.campaign?.name ?? null,
+    campaign_id: row.campaignId ? Number(row.campaignId) : null,
+    campaign_status: row.campaign?.status ?? '',
+    deliverables: row.deliverables,
+    creator_fee: assignedShare?.creatorFee ?? (isPrimary ? row.creatorFee : '0.00'),
+    creator_payment_status: row.creatorPaymentStatus,
+    creator_payment_cycle: row.creatorPaymentCycle,
+    creator_payment_date: row.creatorPaymentDate,
+    campaign_over: row.campaignOver,
+    confirmation_date: row.confirmationDate,
+  };
+}
+
+@Roles('super_admin', 'accounts', 'tch_member')
 @Controller('deals')
 export class DealsController {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
@@ -98,12 +147,41 @@ export class DealsController {
     instance: CommercialDeal | null,
     manager: EntityManager,
   ): Promise<{ campaignId: string | null }> {
+    for (const field of DEAL_DATES) {
+      const value = optionalDate(body[field], field);
+      if (value !== undefined) body[field] = value;
+    }
+    for (const field of DEAL_MONEY) {
+      const value = optionalMoney(body[field], field);
+      if (value !== undefined) body[field] = value;
+    }
+    for (const [field, allowed] of [
+      ['direction', ['Inbound', 'Outbound', 'MarkUp']],
+      ['campaign_over', ['', 'Y', 'N']],
+      ['invoice_received', ['', 'Y', 'N']],
+      ['payment_cleared', ['', 'Y', 'N']],
+      ['payment_received', ['', 'Y', 'N']],
+      ['client_payment_status', ['', 'Pending', 'Partial', 'Received', 'Overdue']],
+      ['creator_payment_status', ['', 'Pending', 'Scheduled', 'Paid', 'Overdue']],
+      ['creator_payment_cycle', ['', 'Immediate', 'Net15', 'Net30', 'Net45', 'Net60']],
+    ] as const) {
+      const value = optionalEnum(body[field], field, allowed);
+      if (value !== undefined) body[field] = value;
+    }
     if ('creator' in body) {
       body.creator = isBlank(body.creator) ? null : Number(body.creator);
+      if (body.creator !== null && (!Number.isSafeInteger(body.creator) || Number(body.creator) <= 0)) {
+        throw new BadRequestException({ creator: ['Select a valid creator.'] });
+      }
+      if (body.creator !== null && !await manager.getRepository(Creator).existsBy({ id: String(body.creator) })) {
+        throw new BadRequestException({ creator: ['Creator not found.'] });
+      }
     }
     body.creator_name_raw = '';
     if ('agency_fee_pct' in body) {
+      strictDecimal(body.agency_fee_pct, 'agency_fee_pct', { min: 0, max: 100, scale: 4 });
       body.agency_fee_pct = normalisePct(body.agency_fee_pct);
+      strictDecimal(body.agency_fee_pct, 'agency_fee_pct', { min: 0, max: 1, scale: 4 });
     }
 
     const instanceWire: Record<string, unknown> = instance
@@ -141,6 +219,10 @@ export class DealsController {
 
     const shares = body.creator_shares as SharePayload[] | undefined;
     if (shares !== undefined && shares !== null) {
+      if (!Array.isArray(shares)) {
+        throw new BadRequestException({ creator_shares: ['Must be a list.'] });
+      }
+      const creatorIds = new Set<string>();
       for (const share of shares) {
         if (isBlank(share.creator)) {
           throw new BadRequestException({
@@ -148,9 +230,28 @@ export class DealsController {
           });
         }
         if ('agency_fee_pct' in share) {
+          strictDecimal(share.agency_fee_pct, 'creator_shares.agency_fee_pct', { min: 0, max: 100, scale: 4 });
           share.agency_fee_pct = normalisePct(share.agency_fee_pct);
+          strictDecimal(share.agency_fee_pct, 'creator_shares.agency_fee_pct', { min: 0, max: 1, scale: 4 });
+        }
+        const creatorId = String(share.creator);
+        if (creatorIds.has(creatorId)) {
+          throw new BadRequestException({ creator_shares: ['A creator can appear only once in a split.'] });
+        }
+        creatorIds.add(creatorId);
+        if (!/^\d+$/.test(creatorId) || !await manager.getRepository(Creator).existsBy({ id: creatorId })) {
+          throw new BadRequestException({ creator_shares: [`Creator ${creatorId} was not found.`] });
+        }
+        for (const field of ['total_fee', 'agency_fee_inr', 'creator_fee'] as const) {
+          if (field in share) share[field] = optionalMoney(share[field], `creator_shares.${field}`);
         }
       }
+    }
+
+    const clientAmount = D(String(body.client_invoice_amount ?? instance?.clientInvoiceAmount ?? 0));
+    const receivedAmount = D(String(body.client_payment_received_amount ?? instance?.clientPaymentReceivedAmount ?? 0));
+    if (receivedAmount.gt(clientAmount) && !clientAmount.isZero()) {
+      throw new BadRequestException({ client_payment_received_amount: ['Cannot exceed the client invoice amount.'] });
     }
 
     // Resolve the campaign name string into a Campaign row.
@@ -434,7 +535,7 @@ export class DealsController {
       .addOrderBy('deal.id', 'ASC');
 
     const rows = await qb.getMany();
-    return rows.map(dealDto);
+    return rows.map((row) => creatorPortalDealDto(row, String(creatorId)));
   }
 
   @Get(':id')
@@ -443,6 +544,7 @@ export class DealsController {
   }
 
   @Post()
+  @Roles('super_admin', 'tch_member')
   @HttpCode(201)
   async create(@Body() body: Record<string, unknown>) {
     const id = await this.dataSource.transaction(async (manager) => {
@@ -465,12 +567,18 @@ export class DealsController {
   }
 
   @Put(':id')
+  @Roles('super_admin', 'tch_member')
   replace(@Param('id') id: string, @Body() body: Record<string, unknown>) {
     return this.update(id, body);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
+  update(
+    @Param('id') id: string,
+    @Body() body: Record<string, unknown>,
+    @Req() req?: { user?: { role?: string } },
+  ) {
+    assertDealPatchAllowed(req?.user?.role, body);
     return versionedUpdate(this.dataSource, CommercialDeal, id, body, {
       apply: async (row, manager) => {
         const oldCampaignId = row.campaignId;
@@ -500,12 +608,15 @@ export class DealsController {
   }
 
   @Delete(':id')
+  @Roles('super_admin', 'tch_member')
   @HttpCode(204)
   async remove(@Param('id') id: string) {
-    const row = await this.repo().findOneBy({ id });
-    if (!row) throw new NotFoundException({ detail: 'Not found.' });
-    const campaignId = row.campaignId;
-    await this.repo().delete({ id });
-    await this.dataSource.transaction((m) => refreshCampaignStatus(m, campaignId));
+    await this.dataSource.transaction(async (manager) => {
+      const repo = manager.getRepository(CommercialDeal);
+      const row = await repo.findOneBy({ id });
+      if (!row) throw new NotFoundException({ detail: 'Not found.' });
+      await repo.delete({ id });
+      await refreshCampaignStatus(manager, row.campaignId);
+    });
   }
 }

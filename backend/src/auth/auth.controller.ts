@@ -6,6 +6,7 @@ import { Throttle } from '@nestjs/throttler';
 import { Profile, type AppRole } from '../entities/profile.entity';
 import { Invitation } from '../entities/invitation.entity';
 import { Creator } from '../entities/creator.entity';
+import { Roles } from './roles.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -84,6 +85,7 @@ export class AuthController {
   }
 
   @Post('complete-password-setup')
+  @Roles('super_admin', 'accounts', 'tch_member', 'creator')
   async completePasswordSetup(@Req() req: Request & { user?: any }) {
     const userId = req.user?.id;
     const email = req.user?.email;
@@ -126,6 +128,7 @@ export class AuthController {
   }
 
   @Patch('profile')
+  @Roles('super_admin', 'accounts', 'tch_member', 'creator')
   async updateProfile(
     @Req() req: Request & { user?: any },
     @Body() body: { displayName?: string; avatarUrl?: string }

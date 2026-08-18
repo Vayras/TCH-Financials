@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/host-grotesk/wght.css';
 
 :root {
 	--n-bg: #ffffff;
@@ -58,7 +59,7 @@ body {
 	background: var(--n-bg);
 	color: var(--n-fg);
 	font-family:
-		var(--font-host-grotesk),
+		'Host Grotesk Variable',
 		'Host Grotesk',
 		ui-sans-serif,
 		system-ui,
@@ -74,6 +75,13 @@ body {
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	letter-spacing: 0;
+}
+
+button,
+input,
+select,
+textarea {
+	font: inherit;
 }
 
 /* Single-typeface scale: headings 28px bold over a 16px body. */

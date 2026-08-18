@@ -8,6 +8,7 @@ import Icon from '@/components/ui/Icon';
 import Tag from '@/components/ui/Tag';
 import PageHeader from '@/components/PageHeader';
 import { toast } from 'sonner';
+import { errorMessage } from '@/lib/utils';
 import {
 	useAdminUsersQuery,
 	useApproveUserMutation,
@@ -17,8 +18,6 @@ import {
 	useUpdateRoleMutation,
 	useInviteUserMutation,
 	useRemoveInviteMutation,
-	type Profile,
-	type Invitation,
 	type AppRole,
 	ROLE_LABELS,
 } from './queries';
@@ -62,8 +61,8 @@ export default function UsersPage() {
 	const inviteMutation = useInviteUserMutation();
 	const removeInviteMutation = useRemoveInviteMutation();
 
-	const profiles = data?.profiles ?? [];
-	const invitations = data?.invitations ?? [];
+	const profiles = React.useMemo(() => data?.profiles ?? [], [data?.profiles]);
+	const invitations = React.useMemo(() => data?.invitations ?? [], [data?.invitations]);
 
 	// Dialog states
 	const [inviteOpen, setInviteOpen] = React.useState(false);
@@ -103,8 +102,8 @@ export default function UsersPage() {
 		try {
 			await updateRoleMutation.mutateAsync({ id, role: newRole });
 			toast.success(`Role updated to ${ROLE_LABELS[newRole]}.`);
-		} catch (err: any) {
-			toast.error(err.message || 'Failed to update role.');
+		} catch (err: unknown) {
+			toast.error(errorMessage(err) || 'Failed to update role.');
 		}
 	}
 
@@ -112,8 +111,8 @@ export default function UsersPage() {
 		try {
 			await approveMutation.mutateAsync(id);
 			toast.success('User access approved.');
-		} catch (err: any) {
-			toast.error(err.message || 'Approval failed.');
+		} catch (err: unknown) {
+			toast.error(errorMessage(err) || 'Approval failed.');
 		}
 	}
 
@@ -121,8 +120,8 @@ export default function UsersPage() {
 		try {
 			await rejectMutation.mutateAsync(id);
 			toast.success('User access rejected.');
-		} catch (err: any) {
-			toast.error(err.message || 'Rejection failed.');
+		} catch (err: unknown) {
+			toast.error(errorMessage(err) || 'Rejection failed.');
 		}
 	}
 
@@ -132,8 +131,8 @@ export default function UsersPage() {
 			await revokeMutation.mutateAsync(revokeTarget.id);
 			toast.success(`Access revoked for ${revokeTarget.email}.`);
 			setRevokeTarget(null);
-		} catch (err: any) {
-			toast.error(err.message || 'Failed to revoke access.');
+		} catch (err: unknown) {
+			toast.error(errorMessage(err) || 'Failed to revoke access.');
 		}
 	}
 
@@ -143,8 +142,8 @@ export default function UsersPage() {
 			await deleteMutation.mutateAsync(deleteTarget.id);
 			toast.success(`${deleteTarget.email} permanently deleted.`);
 			setDeleteTarget(null);
-		} catch (err: any) {
-			toast.error(err.message || 'Failed to delete user.');
+		} catch (err: unknown) {
+			toast.error(errorMessage(err) || 'Failed to delete user.');
 		}
 	}
 
@@ -154,8 +153,8 @@ export default function UsersPage() {
 			await removeInviteMutation.mutateAsync(removeInviteTarget.id);
 			toast.success(`Invitation for ${removeInviteTarget.email} removed.`);
 			setRemoveInviteTarget(null);
-		} catch (err: any) {
-			toast.error(err.message || 'Failed to remove invitation.');
+		} catch (err: unknown) {
+			toast.error(errorMessage(err) || 'Failed to remove invitation.');
 		}
 	}
 
@@ -174,8 +173,8 @@ export default function UsersPage() {
 			setInviteEmail('');
 			setInviteRole('tch_member');
 			setInviteOpen(false);
-		} catch (err: any) {
-			toast.error(err.message || 'Failed to send invite.');
+		} catch (err: unknown) {
+			toast.error(errorMessage(err) || 'Failed to send invite.');
 		}
 	}
 

@@ -93,6 +93,26 @@ export DATABASE_URL=postgresql://...   # same pooler URI
 
 ## Local development
 
+### Isolated Docker setup (recommended)
+
+The Docker development stack uses its own local PostgreSQL database and media
+volumes and deliberately does not load production or Supabase credentials:
+
+```bash
+npm run docker:dev
+```
+
+Open http://localhost:5050. See [DOCKER_DEV.md](DOCKER_DEV.md) for the safety
+boundary, lifecycle commands, reset behavior, and troubleshooting checks.
+Phase 2 financial validation, database guards, and the production rollout
+safety gates are documented in [PHASE_2_DATA_INTEGRITY.md](PHASE_2_DATA_INTEGRITY.md).
+Staging rehearsal, verified backups, go/no-go gates, and rollback are documented
+in [PHASE_3_4_READINESS.md](PHASE_3_4_READINESS.md).
+System hierarchy, roles and data flows are in [ARCHITECTURE.md](ARCHITECTURE.md);
+health, logging, alerting and incident response are in [OPERATIONS.md](OPERATIONS.md).
+
+### Host Node.js setup
+
 Node ≥ 22.12. From the repo root:
 
 ```bash

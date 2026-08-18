@@ -8,6 +8,7 @@ import { applyMapped, rethrowUnique } from '../common/apply';
 import { campaignDto } from '../common/serializers';
 import { versionedUpdate } from '../common/versioned-update';
 import { Campaign, CommercialDeal } from '../entities';
+import { Roles } from '../auth/roles.decorator';
 
 const FIELDS = {
   name: 'name',
@@ -38,6 +39,7 @@ export async function refreshCampaignStatus(
   }
 }
 
+@Roles('super_admin', 'accounts', 'tch_member')
 @Controller('campaigns')
 export class CampaignsController {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
@@ -82,6 +84,7 @@ export class CampaignsController {
   }
 
   @Post()
+  @Roles('super_admin', 'tch_member')
   @HttpCode(201)
   async create(@Body() body: Record<string, unknown>) {
     const row = this.repo().create();
@@ -95,11 +98,13 @@ export class CampaignsController {
   }
 
   @Put(':id')
+  @Roles('super_admin', 'tch_member')
   replace(@Param('id') id: string, @Body() body: Record<string, unknown>) {
     return this.update(id, body);
   }
 
   @Patch(':id')
+  @Roles('super_admin', 'tch_member')
   update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
     return versionedUpdate(this.dataSource, Campaign, id, body, {
       apply: (row) => applyMapped(row as unknown as Record<string, unknown>, body, FIELDS),
@@ -108,6 +113,7 @@ export class CampaignsController {
   }
 
   @Delete(':id')
+  @Roles('super_admin', 'tch_member')
   @HttpCode(204)
   async remove(@Param('id') id: string) {
     const res = await this.repo().delete({ id });

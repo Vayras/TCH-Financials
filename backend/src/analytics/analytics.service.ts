@@ -2,7 +2,7 @@
 // verbatim from the retired Django aggregation module; payload shapes must
 // match the frontend types in frontend/lib/api.ts.
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { D, Decimal, frac4, money } from '../common/decimal';
@@ -10,7 +10,7 @@ import {
   MONTHS_FY_ORDER, MONTH_NAME, QUARTERS, billingPeriod, creatorSplits,
   fiscalYearOf, fyLabel, monthKey, quarterKey,
 } from '../common/fy';
-import { CommercialDeal } from '../entities';
+import { CommercialDeal, Creator } from '../entities';
 
 type MoneyMap = Map<string, Decimal>;
 
@@ -53,6 +53,97 @@ export class AnalyticsService {
 
   private inFy(periodISO: string, fyStart: number): boolean {
     return fiscalYearOf(periodISO) === fyStart;
+  }
+
+  async creatorDashboard(creatorId: number, fyStart: number): Promise<Record<string, unknown>> {
+    const creator = await this.dataSource.getRepository(Creator).findOneBy({ id: String(creatorId) });
+    if (!creator) throw new NotFoundException({ detail: 'Creator not found.' });
+    const deals = await this.allDeals();
+    const months = this.monthsMeta(fyStart, false).map((month) => ({
+      ...month, billing: new Decimal(0), creatorFee: new Decimal(0), margin: new Decimal(0), campaigns: 0,
+    }));
+    const monthMap = new Map(months.map((month) => [month.key, month]));
+    const payments = new Map<string, { count: number; amount: Decimal }>();
+    const brands = new Map<string, {
+      count: number; billing: Decimal; creatorFee: Decimal; margin: Decimal;
+      paid: Decimal; outstanding: Decimal; lastPeriod: string;
+    }>();
+    const campaigns: Array<Record<string, unknown>> = [];
+    let totalBilling = new Decimal(0);
+    let totalCreatorFee = new Decimal(0);
+    let totalMargin = new Decimal(0);
+    let paid = new Decimal(0);
+    let outstanding = new Decimal(0);
+
+    for (const deal of deals) {
+      const split = creatorSplits(deal).find((item) => item.creatorId === creatorId);
+      if (!split) continue;
+      const period = billingPeriod(deal);
+      if (!period || !this.inFy(period, fyStart)) continue;
+      totalBilling = totalBilling.add(split.fee);
+      totalCreatorFee = totalCreatorFee.add(split.creatorFee);
+      totalMargin = totalMargin.add(split.profit);
+      const month = monthMap.get(monthKey(period));
+      if (month) {
+        month.billing = month.billing.add(split.fee);
+        month.creatorFee = month.creatorFee.add(split.creatorFee);
+        month.margin = month.margin.add(split.profit);
+        month.campaigns += 1;
+      }
+      const status = deal.creatorPaymentStatus || 'Not set';
+      const payment = payments.get(status) ?? { count: 0, amount: new Decimal(0) };
+      payment.count += 1;
+      payment.amount = payment.amount.add(split.creatorFee);
+      payments.set(status, payment);
+      if (status === 'Paid') paid = paid.add(split.creatorFee);
+      else outstanding = outstanding.add(split.creatorFee);
+      const brandName = deal.brand || deal.campaign?.brand || 'Unspecified';
+      const brand = brands.get(brandName) ?? {
+        count: 0, billing: new Decimal(0), creatorFee: new Decimal(0), margin: new Decimal(0),
+        paid: new Decimal(0), outstanding: new Decimal(0), lastPeriod: period,
+      };
+      brand.count += 1;
+      brand.billing = brand.billing.add(split.fee);
+      brand.creatorFee = brand.creatorFee.add(split.creatorFee);
+      brand.margin = brand.margin.add(split.profit);
+      if (status === 'Paid') brand.paid = brand.paid.add(split.creatorFee);
+      else brand.outstanding = brand.outstanding.add(split.creatorFee);
+      if (period > brand.lastPeriod) brand.lastPeriod = period;
+      brands.set(brandName, brand);
+      campaigns.push({
+        deal_id: Number(deal.id), campaign_id: deal.campaignId ? Number(deal.campaignId) : null,
+        campaign: deal.campaign?.name || '(Direct deal)', brand: brandName,
+        status: deal.campaign?.status || (deal.campaignOver === 'Y' ? 'Over' : 'Active'),
+        period, billing: money(split.fee), creator_fee: money(split.creatorFee),
+        margin: money(split.profit), payment_status: status,
+      });
+    }
+    campaigns.sort((a, b) => String(b.period).localeCompare(String(a.period)));
+    return {
+      fy: fyLabel(fyStart), fy_start: fyStart,
+      metrics: {
+        campaign_count: campaigns.length, total_billing: money(totalBilling),
+        creator_fees: money(totalCreatorFee), agency_margin: money(totalMargin),
+        amount_paid: money(paid), outstanding: money(outstanding),
+        average_deal_value: money(campaigns.length ? totalBilling.div(campaigns.length) : 0),
+        active_campaigns: campaigns.filter((campaign) => campaign.status !== 'Over').length,
+      },
+      months: months.map((month) => ({
+        key: month.key, label: month.label, billing: money(month.billing),
+        creator_fee: money(month.creatorFee), margin: money(month.margin), campaigns: month.campaigns,
+      })),
+      payment_statuses: [...payments.entries()].map(([status, value]) => ({
+        status, count: value.count, amount: money(value.amount),
+      })),
+      brands: [...brands.entries()].map(([name, value]) => ({
+        name, count: value.count, billing: money(value.billing),
+        creator_fee: money(value.creatorFee), margin: money(value.margin),
+        paid: money(value.paid), outstanding: money(value.outstanding),
+        billing_share: frac4(totalBilling.isZero() ? 0 : value.billing.div(totalBilling)),
+        last_period: value.lastPeriod,
+      })).sort((a, b) => D(b.billing).cmp(D(a.billing))).slice(0, 8),
+      campaigns,
+    };
   }
 
   async overview(fyStart: number, creatorName = ''): Promise<Record<string, unknown>> {

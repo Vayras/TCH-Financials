@@ -9,10 +9,13 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { env } from '../env';
 import { creatorDocumentDto } from '../common/serializers';
-import { CreatorDocument } from '../entities';
+import { Creator, CreatorDocument } from '../entities';
+import { Roles } from '../auth/roles.decorator';
+import { privateFile, removePrivateFile } from '../common/private-file';
+import { UPLOAD_LIMITS, validateUpload } from '../common/uploads';
 
-// Uploads land under MEDIA_ROOT/creator_docs/<creator_id>/<filename>, the
-// same layout Django used; the API returns them as /media/... URLs.
+// Uploads retain the legacy disk layout but are downloaded only through an
+// authenticated API route.
 function storeUpload(creatorId: string, file: Express.Multer.File): string {
   const safeName =
     path.basename(file.originalname || 'upload').replace(/[^\w.\-()+ ]+/g, '_') || 'upload';
@@ -30,6 +33,7 @@ function storeUpload(creatorId: string, file: Express.Multer.File): string {
   return path.posix.join('creator_docs', creatorId, name);
 }
 
+@Roles('super_admin', 'tch_member')
 @Controller('creator-documents')
 export class DocumentsController {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
@@ -50,14 +54,19 @@ export class DocumentsController {
 
   @Post()
   @HttpCode(201)
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: UPLOAD_LIMITS }))
   async create(
     @Body() body: Record<string, string>,
     @UploadedFile() file?: Express.Multer.File,
   ) {
     const creatorId = body.creator;
-    if (!creatorId) throw new BadRequestException({ creator: ['This field is required.'] });
-    if (!file) throw new BadRequestException({ file: ['No file was submitted.'] });
+    if (!creatorId || !/^\d+$/.test(creatorId)) {
+      throw new BadRequestException({ creator: ['A valid creator is required.'] });
+    }
+    if (!(await this.dataSource.getRepository(Creator).exists({ where: { id: creatorId } }))) {
+      throw new BadRequestException({ creator: ['Creator not found.'] });
+    }
+    validateUpload(file, 'No file was submitted.');
 
     const row = this.repo().create({
       creatorId,
@@ -70,14 +79,19 @@ export class DocumentsController {
     return creatorDocumentDto(saved!);
   }
 
+  @Get(':id/download')
+  async download(@Param('id') id: string) {
+    const row = await this.repo().findOneBy({ id });
+    if (!row) throw new NotFoundException({ detail: 'Not found.' });
+    return privateFile(row.file, row.label || path.basename(row.file));
+  }
+
   @Delete(':id')
   @HttpCode(204)
   async remove(@Param('id') id: string) {
     const row = await this.repo().findOneBy({ id });
     if (!row) throw new NotFoundException({ detail: 'Not found.' });
     await this.repo().delete({ id });
-    if (row.file) {
-      fs.rm(path.join(env.mediaRoot, row.file), { force: true }, () => undefined);
-    }
+    if (row.file) removePrivateFile(row.file);
   }
 }
