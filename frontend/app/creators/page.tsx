@@ -37,8 +37,11 @@ import {
 	useCreateCreatorAccountMutation
 } from './queries';
 import Label from '@/components/ui/Label';
+import { useAuth } from '@/components/AuthGuard';
 
 export default function CreatorsPage() {
+	const { role } = useAuth();
+	const isAccounts = role === 'accounts';
 	const createMutation = useCreateCreatorMutation();
 	const updateMutation = useUpdateCreatorMutation();
 	const deleteMutation = useDeleteCreatorMutation();
@@ -224,7 +227,8 @@ export default function CreatorsPage() {
 	);
 
 	const columns = React.useMemo<ColumnDef<Creator, unknown>[]>(
-		() => [
+		() => {
+			const shared: ColumnDef<Creator, unknown>[] = [
 			{
 				accessorKey: 'name',
 				header: 'Creator Name',
@@ -262,6 +266,7 @@ export default function CreatorsPage() {
 				)
 			},
 			{
+				id: 'portal',
 				accessorKey: 'portalStatus',
 				header: 'Portal Status',
 				cell: ({ row }) => {
@@ -313,7 +318,9 @@ export default function CreatorsPage() {
 				header: 'Talent Manager',
 				meta: { tdStyle: { color: 'var(--n-fg)' } }
 			},
-			{
+			];
+			if (isAccounts) return shared.filter((column) => column.id !== 'portal');
+			return [...shared, {
 				id: 'actions',
 				header: 'Actions',
 				enableSorting: false,
@@ -361,21 +368,21 @@ export default function CreatorsPage() {
 						</Button>
 					</div>
 				)
-			}
-		],
+			}];
+		},
 
-		[]
+		[isAccounts]
 	);
 
 	return (
 		<>
 			<section className="space-y-6">
 				<PageHeader
-					title="Creator Database"
-					description="Manage creator profiles, relationships, status, and ownership."
-					actions={<Button variant="primary" onClick={startAdd}>
+					title={isAccounts ? 'Creators' : 'Creator Database'}
+					description={isAccounts ? 'Review creator metrics, payment context, and assigned campaigns.' : 'Manage creator profiles, relationships, status, and ownership.'}
+					actions={!isAccounts ? <Button variant="primary" onClick={startAdd}>
 						<Icon name="plus" size={14} /> Add Creator
-					</Button>}
+					</Button> : undefined}
 				/>
 
 				<FilterToolbar search={{ value: q, onChange: setQ, placeholder: 'Search name, niche, talent manager…' }} resultCount={total} resultLabel={total === 1 ? 'creator' : 'creators'}>
@@ -415,7 +422,7 @@ export default function CreatorsPage() {
 				)}
 			</section>
 
-			<CreatorFormModal
+			{!isAccounts && <CreatorFormModal
 				open={addOpen}
 				onOpenChange={setAddOpen}
 				title={editing ? 'Edit Creator' : 'Add Creator'}
@@ -425,10 +432,10 @@ export default function CreatorsPage() {
 				error={attachError}
 				requireAttachments={!editing}
 				creatorId={editing?.id ?? null}
-			/>
-			<ConfirmDialog open={confirmEditing !== null} onOpenChange={(value) => { if (!value) setConfirmEditing(null); }} title="Edit this creator?" description={`You are about to update ${confirmEditing?.name ?? 'this creator'}’s master profile.`} confirmLabel="Continue to edit" onConfirm={() => { if (confirmEditing) startEdit(confirmEditing); setConfirmEditing(null); }} />
+			/>}
+			{!isAccounts && <ConfirmDialog open={confirmEditing !== null} onOpenChange={(value) => { if (!value) setConfirmEditing(null); }} title="Edit this creator?" description={`You are about to update ${confirmEditing?.name ?? 'this creator'}’s master profile.`} confirmLabel="Continue to edit" onConfirm={() => { if (confirmEditing) startEdit(confirmEditing); setConfirmEditing(null); }} />}
 
-			<Dialog
+			{!isAccounts && <Dialog
 				open={deletingCreator !== null}
 				onOpenChange={(open) => {
 					if (!open) setDeletingCreator(null);
@@ -454,10 +461,10 @@ export default function CreatorsPage() {
 						This creator will be removed from the master database. This action cannot be undone.
 					</p>
 				</div>
-			</Dialog>
+			</Dialog>}
 
 			{/* Create Portal Account Dialog */}
-			<Dialog
+			{!isAccounts && <Dialog
 				open={accountTarget !== null}
 				onOpenChange={(open) => {
 					if (!open) setAccountTarget(null);
@@ -561,7 +568,7 @@ export default function CreatorsPage() {
 						</div>
 					);
 				})()}
-			</Dialog>
+			</Dialog>}
 		</>
 	);
 }
