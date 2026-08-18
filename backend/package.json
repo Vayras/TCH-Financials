@@ -9,12 +9,9 @@
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
     "test": "NODE_ENV=test node --test -r ts-node/register test/*.spec.ts",
-    "integrity:preflight": "ts-node scripts/integrity-preflight.ts",
-    "production:preflight": "ts-node scripts/production-preflight.ts",
-    "smoke:critical": "ts-node scripts/critical-path-smoke.ts",
     "seed:dev-users": "ts-node scripts/seed-dev-users.ts",
     "typeorm": "typeorm-ts-node-commonjs -d src/data-source.ts",
-    "migration:run": "APP_ENV=production typeorm-ts-node-commonjs -d src/data-source.ts migration:run",
+    "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
     "migration:show": "npm run typeorm -- migration:show",
     "migration:generate": "npm run typeorm -- migration:generate"

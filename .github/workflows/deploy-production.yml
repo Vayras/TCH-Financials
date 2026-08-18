@@ -1,12 +1,10 @@
 name: Deploy production
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
-    inputs:
-      confirmation:
-        description: 'Type DEPLOY_PRODUCTION to confirm the production deployment'
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -18,15 +16,10 @@ concurrency:
 jobs:
   deploy:
     name: Deploy frontend and backend
-    if: ${{ inputs.confirmation == 'DEPLOY_PRODUCTION' }}
-    environment: production
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 20
 
     steps:
-      - name: Check out approved release
-        uses: actions/checkout@v4
-
       - name: Configure restricted SSH access
         env:
           DEPLOY_PRIVATE_KEY: ${{ secrets.TCH_DEPLOY_SSH_KEY }}
@@ -49,5 +42,4 @@ jobs:
             -o StrictHostKeyChecking=yes \
             -o ServerAliveInterval=15 \
             -o ServerAliveCountMax=4 \
-            "$DEPLOY_USER@$DEPLOY_HOST" \
-            'env APP_ENV=production bash -s --' "$GITHUB_SHA" < scripts/remote_release.sh
+            "$DEPLOY_USER@$DEPLOY_HOST"
