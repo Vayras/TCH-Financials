@@ -41,7 +41,24 @@ export class SupabaseAuthGuard implements CanActivate {
         throw new UnauthorizedException({ detail: 'Authentication is not configured.' });
       }
       const req = context.switchToHttp().getRequest<Request>();
-      (req as Request & { user?: unknown }).user = {
+      const selectedEmail = req.header('x-tch-dev-user')?.trim().toLowerCase();
+      const selectedProfile = selectedEmail
+        ? await this.dataSource.getRepository(Profile).findOneBy({
+            email: selectedEmail,
+            status: 'approved',
+          })
+        : null;
+      if (selectedEmail && !selectedProfile) {
+        throw new UnauthorizedException({ detail: 'Unknown development account.' });
+      }
+      (req as Request & { user?: unknown }).user = selectedProfile ? {
+        id: selectedProfile.id,
+        email: selectedProfile.email,
+        role: selectedProfile.role,
+        status: selectedProfile.status,
+        passwordSet: selectedProfile.passwordSet,
+        creatorId: selectedProfile.creatorId,
+      } : {
         id: '00000000-0000-0000-0000-000000000000',
         email: 'dev@theculturehub.co.in',
         role: 'super_admin',
