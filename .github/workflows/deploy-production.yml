@@ -1,10 +1,12 @@
 name: Deploy production
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Type DEPLOY_PRODUCTION to confirm the production deployment'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -16,6 +18,8 @@ concurrency:
 jobs:
   deploy:
     name: Deploy frontend and backend
+    if: ${{ inputs.confirmation == 'DEPLOY_PRODUCTION' }}
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -46,4 +50,4 @@ jobs:
             -o ServerAliveInterval=15 \
             -o ServerAliveCountMax=4 \
             "$DEPLOY_USER@$DEPLOY_HOST" \
-            'bash -s --' "$GITHUB_SHA" < scripts/remote_release.sh
+            'env APP_ENV=production bash -s --' "$GITHUB_SHA" < scripts/remote_release.sh

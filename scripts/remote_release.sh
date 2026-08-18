@@ -3,6 +3,10 @@
 # across the release checkout and delegates all guarded work to the release.
 set -euo pipefail
 
+# The production mode is also supplied by the GitHub workflow. Export it here
+# again so the release remains fail-closed when this script is invoked manually.
+export APP_ENV=production
+
 release_sha="${1:-}"
 app_root="${TCH_APP_ROOT:-/opt/tch/app}"
 release_state="${TCH_RELEASE_STATE:-/var/lib/tch/releases}"
@@ -38,4 +42,3 @@ chmod 600 "$release_state/previous-sha" "$release_state/candidate-sha"
 printf '%s\n' "$release_sha" > "$release_state/current-sha"
 chmod 600 "$release_state/current-sha"
 echo "[release] Production release completed: $release_sha"
-
