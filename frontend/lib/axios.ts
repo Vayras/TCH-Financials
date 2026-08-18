@@ -38,6 +38,9 @@ httpClient.interceptors.request.use(async (config) => {
 		if (cachedToken) {
 			config.headers.Authorization = `Bearer ${cachedToken}`;
 		}
+	} else if (typeof window !== 'undefined') {
+		config.headers['X-TCH-Dev-User'] =
+			window.localStorage.getItem('tch-dev-user') || 'admin.dev@tch.local';
 	}
 	return config;
 });

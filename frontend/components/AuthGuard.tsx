@@ -6,6 +6,7 @@ import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
 import { api } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
 import type { Session } from '@supabase/supabase-js';
+import DevAccountSwitcher from '@/components/DevAccountSwitcher';
 
 // ─── Capture URL hash at module scope ─────────────────────────────────────────
 // The Supabase JS SDK automatically parses and CLEARS the URL hash fragment
@@ -54,7 +55,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 	const router = useRouter();
 	const configured = isSupabaseConfigured();
 
-	const [status, setStatus] = React.useState<AuthStatus>(configured ? 'loading' : 'approved');
+	const [status, setStatus] = React.useState<AuthStatus>('loading');
 	const [profile, setProfile] = React.useState<AuthContextType>({
 		role: configured ? 'tch_member' : 'super_admin',
 		status: configured ? 'unknown' : 'approved',
@@ -89,7 +90,23 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 	}, []);
 
 	React.useEffect(() => {
-		if (!configured) return;
+		if (!configured) {
+			let active = true;
+			api.get<{ role: AppRole; status: string; email: string; displayName?: string; creatorId?: string | null }>('/auth/me')
+				.then((info) => {
+					if (!active) return;
+					setProfile({
+						role: info.role,
+						status: info.status,
+						email: info.email,
+						displayName: info.displayName || '',
+						creatorId: info.creatorId ?? null,
+					});
+					setStatus(info.status as AuthStatus);
+				})
+				.catch(() => setStatus('anon'));
+			return () => { active = false; };
+		}
 		const supabase = getSupabase();
 		let active = true;
 
@@ -161,7 +178,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 				router.replace('/creator-portal');
 			} else if (!isUserCreator && isCreatorRoute) {
 				router.replace('/');
-			} else if (isUserAccounts && (pathname === '/' || pathname === '/commercial' || pathname === '/creators' || pathname === '/users' || pathname === '/employees' || pathname === '/alerts')) {
+			} else if (isUserAccounts && (pathname === '/' || pathname === '/commercial' || pathname === '/users' || pathname === '/employees' || pathname === '/alerts')) {
 				router.replace('/accounts-dashboard');
 			} else if (isPublicRoute || isPendingRoute) {
 				if (isUserCreator) {
@@ -213,6 +230,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 	return (
 		<AuthContext.Provider value={profile}>
 			{pathname.startsWith('/creator-portal') ? children : <Sidebar>{children}</Sidebar>}
+			{!configured && <DevAccountSwitcher currentEmail={profile.email} />}
 		</AuthContext.Provider>
 	);
 }
