@@ -3,9 +3,7 @@
 import * as React from 'react';
 import { type ColumnDef } from '@tanstack/react-table';
 import { type Deal, type DealDocument, type CreatorInvoice } from '@/lib/api';
-import Link from 'next/link';
 import { toast } from 'sonner';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { errorMessage, formatDocDate, inr } from '@/lib/utils';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import { creatorLabel, creatorNamesOf } from '@/lib/deals';
@@ -21,12 +19,7 @@ import {
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
 import Tag from '@/components/ui/Tag';
-import Label from '@/components/ui/Label';
-import Dialog from '@/components/ui/Dialog';
-import MetricCard from '@/components/MetricCard';
-import DataTable from '@/components/DataTable';
 import PageHeader from '@/components/PageHeader';
-import QueryErrorState from '@/components/QueryErrorState';
 import {
 	useDealsQuery,
 	useDealDocumentsQuery,
@@ -45,18 +38,13 @@ import {
 } from './queries';
 import { useCommercialCreatorsQuery } from '../commercial/queries';
 import { downloadAuthenticatedFile } from '@/lib/download';
+import { InvoicesTab } from './components/InvoicesTab';
+import { UtrTab } from './components/UtrTab';
+import { TdsTab } from './components/TdsTab';
+import { PaymentModals } from './components/PaymentModals';
 
 type StatusFilter = 'all' | PaymentStatus;
 type TabState = 'receivables' | 'payables' | 'utr' | 'tds';
-
-const FILTER_OPTIONS: { key: StatusFilter; label: string }[] = [
-	{ key: 'all', label: 'All' },
-	{ key: 'awaiting_invoices', label: 'Awaiting Invoices' },
-	{ key: 'due_soon', label: 'Due Soon' },
-	{ key: 'overdue', label: 'Overdue' },
-	{ key: 'upcoming', label: 'Upcoming' },
-	{ key: 'cleared', label: 'Cleared' }
-];
 
 function InvoiceTag({
 	label,
@@ -194,10 +182,10 @@ export default function PaymentsPage() {
 		let clearedCount = 0;
 		for (const r of scoped) {
 			const status = statusOf(r);
-			const amount = activeTab === 'receivables' 
+			const amount = activeTab === 'receivables'
 				? Number(r.client_invoice_amount || r.total_fee) || 0
 				: Number(r.creator_invoice_amount || r.creator_fee) || 0;
-				
+
 			if (status === 'due_soon') {
 				dueCount += 1;
 				dueTotal += amount;
@@ -374,13 +362,13 @@ export default function PaymentsPage() {
 				header: 'Brand',
 				meta: { tdClassName: 'font-medium' },
 				accessorFn: (r: Deal) => r.brand,
-				cell: ({ row }: { row: { original: Deal }}) => row.original.brand || '—'
+				cell: ({ row }: { row: { original: Deal } }) => row.original.brand || '—'
 			} : {
 				id: 'creator',
 				header: 'Creator',
 				meta: { tdClassName: 'font-medium' },
 				accessorFn: (r: Deal) => creatorLabel(creatorNamesOf(r)),
-				cell: ({ row }: { row: { original: Deal }}) => creatorLabel(creatorNamesOf(row.original)) || '—'
+				cell: ({ row }: { row: { original: Deal } }) => creatorLabel(creatorNamesOf(row.original)) || '—'
 			};
 
 			return [
@@ -403,7 +391,7 @@ export default function PaymentsPage() {
 					id: 'amount',
 					header: 'Amount',
 					meta: { thClassName: 'text-right', tdClassName: 'text-right tabular-nums' },
-					accessorFn: (r: Deal) => activeTab === 'receivables' 
+					accessorFn: (r: Deal) => activeTab === 'receivables'
 						? Number(r.client_invoice_amount || r.total_fee) || 0
 						: Number(r.creator_invoice_amount || r.creator_fee) || 0,
 					cell: ({ row }) => {
@@ -425,7 +413,7 @@ export default function PaymentsPage() {
 						const creatorCount = creatorInvoicesByDeal.get(deal.id)?.length ?? 0;
 						const requiredCount = deal.creator_shares?.length || (deal.creator ? 1 : 0);
 						const received = deal.invoice_received === 'Y';
-						
+
 						if (activeTab === 'receivables') {
 							return <InvoiceTag label="Client" doc={clientDoc} fallbackYes={received} />;
 						} else {
@@ -613,17 +601,6 @@ export default function PaymentsPage() {
 	);
 
 	const existingDocs = uploadDeal ? (docsByDeal.get(uploadDeal.id) ?? []) : [];
-	
-	const getConfirmModalTitle = () => activeTab === 'receivables' ? 'Confirm Payment Received?' : 'Confirm Payout?';
-	const getConfirmModalDescription = () => {
-		if (!confirmPaidDeal) return '';
-		if (activeTab === 'receivables') {
-			return `Are you sure you want to mark the payment of ₹${inr(Number(confirmPaidDeal.client_invoice_amount || confirmPaidDeal.total_fee)) || '0'} from ${confirmPaidDeal.brand || 'Client'} as received? This action will finalize the transaction and cannot be undone.`;
-		} else {
-			return `Are you sure you want to mark the payment of ₹${inr(Number(confirmPaidDeal.creator_invoice_amount || confirmPaidDeal.creator_fee)) || '0'} to ${creatorLabel(creatorNamesOf(confirmPaidDeal))} as paid? This action will finalize the transaction and cannot be undone.`;
-		}
-	};
-	const getConfirmModalLabel = () => activeTab === 'receivables' ? 'Yes, mark received' : 'Yes, mark paid';
 
 	return (
 		<>
@@ -631,27 +608,39 @@ export default function PaymentsPage() {
 				<div className="flex flex-wrap items-center justify-between gap-4">
 					<PageHeader title="Payments" description="Manage accounts receivable, creator payouts, TDS deductions, and UTR logs." />
 					<div className="flex bg-[var(--n-bg-soft)] p-1 rounded-lg border border-[var(--n-border)] mb-4">
-						<button 
-							onClick={() => setActiveTab('receivables')} 
-							className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors duration-100 ${activeTab === 'receivables' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+						<button
+							onClick={() => setActiveTab('receivables')}
+							style={{
+								fontSize: 12
+							}}
+							className={`px-4 py-1.5 font-medium rounded-md transition-colors duration-100 ${activeTab === 'receivables' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
 						>
 							Receivables (Clients)
 						</button>
-						<button 
-							onClick={() => setActiveTab('payables')} 
-							className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors duration-100 ${activeTab === 'payables' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+						<button
+							onClick={() => setActiveTab('payables')}
+							style={{
+								fontSize: 12
+							}}
+							className={`px-4 py-1.5 font-medium rounded-md transition-colors duration-100 ${activeTab === 'payables' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
 						>
 							Payables (Creators)
 						</button>
-						<button 
-							onClick={() => setActiveTab('utr')} 
-							className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors duration-100 ${activeTab === 'utr' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+						<button
+							onClick={() => setActiveTab('utr')}
+							style={{
+								fontSize: 12
+							}}
+							className={`px-4 py-1.5 font-medium rounded-md transition-colors duration-100 ${activeTab === 'utr' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
 						>
 							UTR Details
 						</button>
-						<button 
-							onClick={() => setActiveTab('tds')} 
-							className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors duration-100 ${activeTab === 'tds' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+						<button
+							onClick={() => setActiveTab('tds')}
+							style={{
+								fontSize: 12
+							}}
+							className={`px-4 py-1.5 font-medium rounded-md transition-colors duration-100 ${activeTab === 'tds' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
 						>
 							TDS Dues
 						</button>
@@ -659,516 +648,95 @@ export default function PaymentsPage() {
 				</div>
 
 				{activeTab !== 'utr' && activeTab !== 'tds' ? (
-					<>
-						<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 anim-fade-up">
-							<MetricCard
-								label="Due Soon"
-								value={`${metrics.dueCount} · ₹${inr(metrics.dueTotal) || '0'}`}
-							/>
-							<div className="rounded-xl p-4 border" style={{ background: metrics.overdueCount > 0 ? 'var(--color-danger-bg)' : 'var(--n-bg)', borderColor: metrics.overdueCount > 0 ? 'var(--color-danger-border)' : 'var(--n-border)' }}>
-								<p className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: metrics.overdueCount > 0 ? 'var(--color-danger)' : 'var(--n-fg-subtle)' }}>Overdue</p>
-								<p className="text-[24px] font-bold tracking-tight tabular-nums" style={{ color: metrics.overdueCount > 0 ? 'var(--color-danger-muted)' : 'var(--n-fg)' }}>
-									{metrics.overdueCount} · ₹{inr(metrics.overdueTotal) || '0'}
-								</p>
-							</div>
-							<MetricCard label="Awaiting Invoices" value={metrics.awaitingCount} />
-							<MetricCard label="Cleared" value={metrics.clearedCount} />
-						</div>
-
-						<div className="flex items-center gap-2 border-b mb-4" style={{ borderColor: 'var(--n-border)' }}>
-							<div className="flex-1 flex items-center gap-2">
-								{FILTER_OPTIONS.map((f) => {
-									const isActive = statusFilter === f.key;
-									return (
-										<button
-											key={f.key}
-											onClick={() => setStatusFilter(f.key)}
-											className={`px-4 py-2.5 text-[12px] font-medium transition-colors relative`}
-											style={{
-												color: isActive ? 'var(--n-fg)' : 'var(--n-fg-subtle)',
-											}}
-										>
-											{f.label}
-											{isActive && (
-												<div className="absolute bottom-0 left-0 right-0 h-[2px] bg-current rounded-t-sm" />
-											)}
-										</button>
-									);
-								})}
-							</div>
-							<div className="text-[12px] pr-2" style={{ color: 'var(--n-fg-muted)' }}>
-								{filtered.length} {filtered.length === 1 ? 'payment' : 'payments'}
-							</div>
-						</div>
-
-						{error ? (
-							<QueryErrorState description="Payment information is temporarily unavailable." onRetry={() => refetchDeals()} />
-						) : (
-							<DataTable
-								data={filtered}
-								columns={columns}
-								loading={loading}
-								emptyMessage="No completed campaigns match."
-							/>
-						)}
-					</>
+					<InvoicesTab
+						activeTab={activeTab}
+						statusFilter={statusFilter}
+						setStatusFilter={setStatusFilter}
+						filtered={filtered}
+						columns={columns}
+						loading={loading}
+						error={error}
+						refetchDeals={refetchDeals}
+						metrics={metrics}
+					/>
 				) : activeTab === 'utr' ? (
-					// UTR Ledger View
-					<div className="space-y-4 anim-fade-up">
-						<div className="flex flex-wrap items-center justify-between gap-3">
-							<div className="relative flex-1 max-w-md">
-								<span className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-									<Icon name="search" size={13} />
-								</span>
-								<input
-									value={utrSearch}
-									onChange={(e) => { setUtrSearch(e.target.value); setUtrPage(1); }}
-									placeholder="Search by vendor, UTR, or notes…"
-									className="h-9 w-full rounded-lg pl-9 pr-3 text-[12px] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)]"
-									style={{ background: 'var(--n-bg)', color: 'var(--n-fg)' }}
-								/>
-							</div>
-
-							<div className="flex items-center gap-2">
-								<Button variant="outline" onClick={() => setImportOpen(true)}>
-									<Icon name="upload" size={14} /> Import Excel
-								</Button>
-								<Button variant="primary" onClick={() => setManualOpen(true)}>
-									<Icon name="plus" size={14} /> Add Transaction
-								</Button>
-							</div>
-						</div>
-
-						<div className="grid grid-cols-2 gap-3 mb-2">
-							<MetricCard label="Total Outflows (Debits)" value={`₹${inr(Number(utrData?.summary.total_debit || 0))}`} />
-							<MetricCard label="Total Inflows (Credits)" value={`₹${inr(Number(utrData?.summary.total_credit || 0))}`} />
-						</div>
-
-						<DataTable
-							data={utrData?.items ?? []}
-							columns={utrColumns}
-							loading={loading}
-							emptyMessage="No payment transactions logged yet."
-						/>
-
-						{utrData && utrData.total_pages > 1 && (
-							<div className="flex items-center justify-end gap-2 pt-4">
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={utrPage === 1}
-									onClick={() => setUtrPage((p) => p - 1)}
-								>
-									Previous
-								</Button>
-								<span className="text-[12px] text-gray-500">
-									Page {utrPage} of {utrData.total_pages}
-								</span>
-								<Button
-									variant="outline"
-									size="sm"
-									disabled={utrPage === utrData.total_pages}
-									onClick={() => setUtrPage((p) => p + 1)}
-								>
-									Next
-								</Button>
-							</div>
-						)}
-					</div>
+					<UtrTab
+						utrSearch={utrSearch}
+						setUtrSearch={setUtrSearch}
+						setUtrPage={setUtrPage}
+						setImportOpen={setImportOpen}
+						setManualOpen={setManualOpen}
+						utrData={utrData}
+						utrColumns={utrColumns}
+						loading={loading}
+						utrPage={utrPage}
+					/>
 				) : (
-					// TDS Dues View
-					<div className="space-y-4 anim-fade-up">
-						<div className="flex flex-wrap items-center justify-between gap-3">
-							<div className="flex bg-[var(--n-bg-soft)] p-1 rounded-lg border border-[var(--n-border)]">
-								{(['All', 'Pending', 'Remitted'] as const).map((statusOption) => (
-									<button
-										key={statusOption}
-										onClick={() => setTdsStatusFilter(statusOption)}
-										className={`px-3 py-1 text-[12px] font-medium rounded-md transition-colors duration-100 ${tdsStatusFilter === statusOption ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-									>
-										{statusOption}
-									</button>
-								))}
-							</div>
-
-							<Button variant="primary" onClick={() => setTdsOpen(true)}>
-								<Icon name="plus" size={14} /> Add TDS Entry
-							</Button>
-						</div>
-
-						<DataTable
-							data={tdsData}
-							columns={tdsColumns}
-							loading={loading}
-							emptyMessage="No TDS records recorded."
-						/>
-					</div>
+					<TdsTab
+						tdsStatusFilter={tdsStatusFilter}
+						setTdsStatusFilter={setTdsStatusFilter}
+						setTdsOpen={setTdsOpen}
+						tdsData={tdsData}
+						tdsColumns={tdsColumns}
+						loading={loading}
+					/>
 				)}
 			</section>
 
-			{/* Client Invoice Upload Dialog */}
-			<Dialog
-				open={uploadOpen}
-				onOpenChange={(o) => {
-					if (!o) closeUpload();
-				}}
-				title={uploadDeal ? `Upload Invoices — ${uploadDeal.brand}` : 'Upload Invoices'}
-				description={
-					uploadDeal
-						? `${creatorLabel(creatorNamesOf(uploadDeal))}${uploadDeal.campaign ? ` · ${uploadDeal.campaign}` : ''}`
-						: undefined
-				}
-				footer={
-					<>
-						<Button variant="ghost" onClick={closeUpload}>
-							Cancel
-						</Button>
-						<Button
-							variant="primary"
-							disabled={saving || !clientFile}
-							onClick={saveUpload}
-						>
-							{saving ? 'Uploading…' : 'Upload'}
-						</Button>
-					</>
-				}
-			>
-				{uploadDeal && (
-					<div className="space-y-4">
-						<div className="space-y-3">
-							<div>
-								<Label>Client invoice (TCH → Client)</Label>
-								<input
-									type="file"
-									accept="image/*,application/pdf"
-									onChange={(e) => setClientFile(e.target.files?.[0] ?? null)}
-									className="block w-full text-[12px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[12px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
-								/>
-							</div>
-							<p className="text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>
-								Creator invoices are uploaded individually on the <Link className="inline-link" href={`/commercial/${uploadDeal.id}`}>campaign page</Link>.
-							</p>
-						</div>
+			<PaymentModals
+				uploadOpen={uploadOpen}
+				setUploadOpen={setUploadOpen}
+				closeUpload={closeUpload}
+				uploadDeal={uploadDeal}
+				clientFile={clientFile}
+				setClientFile={setClientFile}
+				saving={saving}
+				saveUpload={saveUpload}
+				existingDocs={existingDocs}
 
-						{existingDocs.length > 0 && (
-							<div>
-								<div
-									className="text-[12px] font-semibold uppercase mb-1.5"
-									style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
-								>
-									Already uploaded
-								</div>
-								<ul className="divide-y" style={{ borderColor: 'var(--n-border)' }}>
-									{existingDocs.map((d) => (
-										<li key={d.id} className="flex items-center gap-2 py-1.5">
-											<Tag tone="neutral">{d.doc_type === 'ClientInvoice' ? 'Client' : 'Creator'}</Tag>
-											{d.file ? (
-												<button
-													type="button"
-													className="inline-link text-[12px]"
-													onClick={() => void downloadAuthenticatedFile(d.file, d.label || 'deal-document')}
-												>
-													{d.label || d.file.split('/').pop()} ↗
-												</button>
-											) : (
-												<span className="text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>
-													{d.label || '(no file)'}
-												</span>
-											)}
-										</li>
-									))}
-								</ul>
-							</div>
-						)}
-					</div>
-				)}
-			</Dialog>
+				importOpen={importOpen}
+				setImportOpen={setImportOpen}
+				excelFile={excelFile}
+				setExcelFile={setExcelFile}
+				importing={importing}
+				submitImport={submitImport}
 
-			{/* Excel Import Dialog */}
-			<Dialog
-				open={importOpen}
-				onOpenChange={setImportOpen}
-				title="Import UTR Payments from Excel"
-				description="Upload bank statement or ledger in Excel format. Columns should match: Transaction Date | Vendor Name | Cheque/UTR or Ref No | Debit Amount | Credit Amount."
-				footer={
-					<>
-						<Button variant="ghost" onClick={() => setImportOpen(false)}>
-							Cancel
-						</Button>
-						<Button
-							variant="primary"
-							disabled={importing || !excelFile}
-							onClick={submitImport}
-						>
-							{importing ? 'Importing…' : 'Import'}
-						</Button>
-					</>
-				}
-			>
-				<form onSubmit={submitImport} className="space-y-4">
-					<div>
-						<Label>Select Excel File (.xlsx)</Label>
-						<input
-							type="file"
-							required
-							accept=".xlsx"
-							onChange={(e) => setExcelFile(e.target.files?.[0] ?? null)}
-							className="block w-full text-[12px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[12px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
-						/>
-					</div>
-				</form>
-			</Dialog>
+				manualOpen={manualOpen}
+				setManualOpen={setManualOpen}
+				isAddingTransaction={addTransactionMutation.isPending}
+				submitManualTransaction={submitManualTransaction}
+				txDate={txDate} setTxDate={setTxDate}
+				txType={txType} setTxType={setTxType}
+				txVendor={txVendor} setTxVendor={setTxVendor}
+				txUtr={txUtr} setTxUtr={setTxUtr}
+				txAmount={txAmount} setTxAmount={setTxAmount}
+				txNotes={txNotes} setTxNotes={setTxNotes}
 
-			{/* Manual Add Transaction Dialog */}
-			<Dialog
-				open={manualOpen}
-				onOpenChange={setManualOpen}
-				title="Add Payment Transaction"
-				description="Manually record a UTR debit or credit transaction entry."
-				footer={
-					<>
-						<Button variant="ghost" onClick={() => setManualOpen(false)}>
-							Cancel
-						</Button>
-						<Button
-							variant="primary"
-							disabled={addTransactionMutation.isPending}
-							onClick={submitManualTransaction}
-						>
-							{addTransactionMutation.isPending ? 'Saving…' : 'Add Transaction'}
-						</Button>
-					</>
-				}
-			>
-				<form onSubmit={submitManualTransaction} className="space-y-4">
-					<div className="grid grid-cols-2 gap-3">
-						<div>
-							<Label>Transaction Date</Label>
-							<input
-								type="date"
-								required
-								value={txDate}
-								onChange={(e) => setTxDate(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
-							/>
-						</div>
-						<div>
-							<Label>Transaction Type</Label>
-							<select
-								value={txType}
-								onChange={(e) => setTxType(e.target.value as 'debit' | 'credit')}
-								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
-							>
-								<option value="debit">Debit (Paid Out)</option>
-								<option value="credit">Credit (Received)</option>
-							</select>
-						</div>
-					</div>
+				tdsOpen={tdsOpen}
+				setTdsOpen={setTdsOpen}
+				isAddingTds={addTdsEntryMutation.isPending}
+				submitTdsEntry={submitTdsEntry}
+				creators={creators}
+				tdsCreatorId={tdsCreatorId} setTdsCreatorId={setTdsCreatorId}
+				tdsQuarter={tdsQuarter} setTdsQuarter={setTdsQuarter}
+				tdsRate={tdsRate} setTdsRate={setTdsRate}
+				tdsGross={tdsGross} setTdsGross={setTdsGross}
+				tdsNotes={tdsNotes} setTdsNotes={setTdsNotes}
 
-					<div>
-						<Label>Vendor / Partner Name</Label>
-						<input
-							type="text"
-							required
-							value={txVendor}
-							onChange={(e) => setTxVendor(e.target.value)}
-							className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
-							placeholder="e.g. Creator ABC or Brand XYZ"
-						/>
-					</div>
+				tdsRemitOpen={tdsRemitOpen}
+				setTdsRemitOpen={setTdsRemitOpen}
+				tdsRemitItem={tdsRemitItem}
+				isUpdatingRemittance={updateTdsRemittanceMutation.isPending}
+				submitTdsRemit={submitTdsRemit}
+				tdsRemitDate={tdsRemitDate} setTdsRemitDate={setTdsRemitDate}
+				tdsChallan={tdsChallan} setTdsChallan={setTdsChallan}
 
-					<div className="grid grid-cols-2 gap-3">
-						<div>
-							<Label>Cheque / UTR Ref No</Label>
-							<input
-								type="text"
-								required
-								value={txUtr}
-								onChange={(e) => setTxUtr(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
-								placeholder="NEFT/IDFC/..."
-							/>
-						</div>
-						<div>
-							<Label>Amount (INR)</Label>
-							<input
-								type="number"
-								required
-								value={txAmount}
-								onChange={(e) => setTxAmount(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
-								placeholder="0.00"
-							/>
-						</div>
-					</div>
-
-					<div>
-						<Label>Notes / Comments</Label>
-						<textarea
-							value={txNotes}
-							onChange={(e) => setTxNotes(e.target.value)}
-							className="w-full h-16 rounded p-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
-							placeholder="Optional details..."
-						/>
-					</div>
-				</form>
-			</Dialog>
-
-			{/* Manual Add TDS Entry Dialog */}
-			<Dialog
-				open={tdsOpen}
-				onOpenChange={setTdsOpen}
-				title="Add TDS Record"
-				description="Manually record statutory TDS deducted from creator payments."
-				footer={
-					<>
-						<Button variant="ghost" onClick={() => setTdsOpen(false)}>
-							Cancel
-						</Button>
-						<Button
-							variant="primary"
-							disabled={addTdsEntryMutation.isPending}
-							onClick={submitTdsEntry}
-						>
-							{addTdsEntryMutation.isPending ? 'Saving…' : 'Record TDS'}
-						</Button>
-					</>
-				}
-			>
-				<form onSubmit={submitTdsEntry} className="space-y-4">
-					<div className="grid grid-cols-2 gap-3">
-						<div>
-							<Label>Creator</Label>
-							<select
-								value={tdsCreatorId}
-								onChange={(e) => setTdsCreatorId(e.target.value)}
-								required
-								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
-							>
-								<option value="">Select Creator</option>
-								{creators.map((c) => (
-									<option key={c.id} value={c.id}>
-										{c.name}
-									</option>
-								))}
-							</select>
-						</div>
-						<div>
-							<Label>Financial Quarter</Label>
-							<select
-								value={tdsQuarter}
-								onChange={(e) => setTdsQuarter(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
-							>
-								<option value="Q1">Q1 (Apr - Jun)</option>
-								<option value="Q2">Q2 (Jul - Sep)</option>
-								<option value="Q3">Q3 (Oct - Dec)</option>
-								<option value="Q4">Q4 (Jan - Mar)</option>
-							</select>
-						</div>
-					</div>
-
-					<div className="grid grid-cols-2 gap-3">
-						<div>
-							<Label>TDS Rate</Label>
-							<select
-								value={tdsRate}
-								onChange={(e) => setTdsRate(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
-							>
-								<option value="0.01">1% (Individual Section 194C)</option>
-								<option value="0.02">2% (Company Section 194C)</option>
-								<option value="0.075">7.5% (TDS on E-Commerce)</option>
-								<option value="0.10">10% (Section 194J Professionals)</option>
-							</select>
-						</div>
-						<div>
-							<Label>Gross Billing Amount (INR)</Label>
-							<input
-								type="number"
-								required
-								value={tdsGross}
-								onChange={(e) => setTdsGross(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
-								placeholder="0.00"
-							/>
-						</div>
-					</div>
-
-					<div>
-						<Label>Notes / Comments</Label>
-						<textarea
-							value={tdsNotes}
-							onChange={(e) => setTdsNotes(e.target.value)}
-							className="w-full h-16 rounded p-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
-							placeholder="Optional details..."
-						/>
-					</div>
-				</form>
-			</Dialog>
-
-			{/* Record TDS Remittance / Challan Dialog */}
-			<Dialog
-				open={tdsRemitOpen}
-				onOpenChange={setTdsRemitOpen}
-				title="Record TDS Remittance"
-				description={
-					tdsRemitItem
-						? `Record tax Challan details for ${tdsRemitItem.creator?.name || 'Creator'} (${tdsRemitItem.quarter}). TDS Amount to remit: ₹${inr(Number(tdsRemitItem.tdsAmount))}.`
-						: undefined
-				}
-				footer={
-					<>
-						<Button variant="ghost" onClick={() => setTdsRemitOpen(false)}>
-							Cancel
-						</Button>
-						<Button
-							variant="primary"
-							disabled={updateTdsRemittanceMutation.isPending}
-							onClick={submitTdsRemit}
-						>
-							{updateTdsRemittanceMutation.isPending ? 'Saving…' : 'Record Remittance'}
-						</Button>
-					</>
-				}
-			>
-				{tdsRemitItem && (
-					<form onSubmit={submitTdsRemit} className="space-y-4">
-						<div className="grid grid-cols-2 gap-3">
-							<div>
-								<Label>Remittance Date</Label>
-								<input
-									type="date"
-									required
-									value={tdsRemitDate}
-									onChange={(e) => setTdsRemitDate(e.target.value)}
-									className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
-								/>
-							</div>
-							<div>
-								<Label>Challan Number / ITNS 281</Label>
-								<input
-									type="text"
-									required
-									value={tdsChallan}
-									onChange={(e) => setTdsChallan(e.target.value)}
-									className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
-									placeholder="BSR Code + Challan No"
-								/>
-							</div>
-						</div>
-					</form>
-				)}
-			</Dialog>
-
-			<ConfirmDialog 
-				open={confirmPaidDeal !== null} 
-				onOpenChange={(value) => { if (!value) setConfirmPaidDeal(null); }} 
-				title={getConfirmModalTitle()} 
-				description={getConfirmModalDescription()} 
-				confirmLabel={getConfirmModalLabel()} 
-				pending={activeTab === 'receivables' ? markClientPaidMutation.isPending : markCreatorPaidMutation.isPending} 
-				onConfirm={() => { if (confirmPaidDeal) return markPaid(confirmPaidDeal); }} 
+				confirmPaidDeal={confirmPaidDeal}
+				setConfirmPaidDeal={setConfirmPaidDeal}
+				activeTab={activeTab}
+				markClientPaidPending={markClientPaidMutation.isPending}
+				markCreatorPaidPending={markCreatorPaidMutation.isPending}
+				markPaid={markPaid}
 			/>
 		</>
 	);
