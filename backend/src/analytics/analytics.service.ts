@@ -114,6 +114,7 @@ export class AnalyticsService {
         deal_id: Number(deal.id), campaign_id: deal.campaignId ? Number(deal.campaignId) : null,
         campaign: deal.campaign?.name || '(Direct deal)', brand: brandName,
         status: deal.campaign?.status || (deal.campaignOver === 'Y' ? 'Over' : 'Active'),
+        direction: deal.direction,
         period, billing: money(split.fee), creator_fee: money(split.creatorFee),
         margin: money(split.profit), payment_status: status,
       });

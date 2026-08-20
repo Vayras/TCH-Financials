@@ -398,7 +398,7 @@ export type CreatorDashboard = {
 	months: { key: string; label: string; billing: string; creator_fee: string; margin: string; campaigns: number }[];
 	payment_statuses: { status: string; count: number; amount: string }[];
 	brands: { name: string; count: number; billing: string; creator_fee: string; margin: string; paid: string; outstanding: string; billing_share: string; last_period: string }[];
-	campaigns: { deal_id: number; campaign_id: number | null; campaign: string; brand: string; status: string; period: string; billing: string; creator_fee: string; margin: string; payment_status: string }[];
+	campaigns: { deal_id: number; campaign_id: number | null; campaign: string; brand: string; status: string; direction: string; period: string; billing: string; creator_fee: string; margin: string; payment_status: string }[];
 };
 
 export type AlertSeverity = 'high' | 'med' | 'low';
