@@ -87,7 +87,7 @@ export default function CreatorPaymentsPage() {
 							<div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3 text-gray-400">
 								<Icon name="credit-card" size={18} />
 							</div>
-							<h4 className="text-[13px] font-bold text-gray-950">No payout statements</h4>
+							<h4 className="text-[12px] font-bold text-gray-950">No payout statements</h4>
 							<p className="text-[11.5px] text-gray-500 mt-0.5">Your clearances ledger will display here once transactions are recorded.</p>
 						</div>
 					) : (
@@ -141,7 +141,7 @@ export default function CreatorPaymentsPage() {
 							<div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3 text-gray-400">
 								<Icon name="tag" size={18} />
 							</div>
-							<h4 className="text-[13px] font-bold text-gray-950">No TDS entries</h4>
+							<h4 className="text-[12px] font-bold text-gray-950">No TDS entries</h4>
 							<p className="text-[11.5px] text-gray-500 mt-0.5">Quarterly tax withholding and challan details will display here.</p>
 						</div>
 					) : (

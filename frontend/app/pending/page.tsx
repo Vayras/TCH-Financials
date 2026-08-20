@@ -91,12 +91,12 @@ export default function PendingPage() {
 
 				<h1 className="text-[18px] font-semibold mb-2">Access Pending Approval</h1>
 				
-				<p className="text-[13.5px] leading-relaxed mb-6" style={{ color: 'var(--n-fg-subtle)' }}>
+				<p className="text-[12px] leading-relaxed mb-6" style={{ color: 'var(--n-fg-subtle)' }}>
 					Your account <span className="font-semibold">{email}</span> has been registered and is pending approval by an admin.
 				</p>
 
 				<div className="rounded p-4 mb-6 text-left border" style={{ borderColor: 'var(--n-border)' }}>
-					<div className="flex items-center justify-between text-[13px]">
+					<div className="flex items-center justify-between text-[12px]">
 						<span style={{ color: 'var(--n-fg-subtle)' }}>Status</span>
 						<span className="font-semibold uppercase tracking-wider text-[11px] px-2 py-0.5 rounded" style={{
 							background: status === 'rejected' ? '#ffebeb' : '#fff8e6',
@@ -108,7 +108,7 @@ export default function PendingPage() {
 				</div>
 
 				{status === 'rejected' ? (
-					<p className="text-[13px] mb-6 text-red-600">
+					<p className="text-[12px] mb-6 text-red-600">
 						Your request has been declined. Please contact the administrator.
 					</p>
 				) : (
@@ -120,7 +120,7 @@ export default function PendingPage() {
 				<button
 					type="button"
 					onClick={handleSignOut}
-					className="w-full h-9 rounded text-[13.5px] font-medium transition-opacity"
+					className="w-full h-9 rounded text-[12px] font-medium transition-opacity"
 					style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
 				>
 					Sign Out

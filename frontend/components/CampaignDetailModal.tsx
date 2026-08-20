@@ -59,7 +59,7 @@ export function CampaignDetailModal({ deal, docs, onClose, onEdit, onDelete }: C
 		// ── Inline delete confirmation ─────────────────────────────────────────
 		<div className="flex items-center gap-3 w-full">
 			<div className="flex-1 min-w-0">
-				<p className="text-[13px] font-medium truncate" style={{ color: 'var(--n-fg)' }}>
+				<p className="text-[12px] font-medium truncate" style={{ color: 'var(--n-fg)' }}>
 					Delete &ldquo;{dealLabel}&rdquo;?
 				</p>
 				<p className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>

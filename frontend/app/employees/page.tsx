@@ -272,7 +272,7 @@ export default function EmployeesPage() {
 										<div className="flex items-start justify-between gap-2">
 											<div>
 												<div className="font-semibold text-[15px]" style={{ color: 'var(--n-fg)' }}>{group.name}</div>
-												<div className="text-[13px] mt-0.5" style={{ color: 'var(--n-fg-muted)' }}>{group.reports.length} report{group.reports.length === 1 ? '' : 's'}</div>
+												<div className="text-[12px] mt-0.5" style={{ color: 'var(--n-fg-muted)' }}>{group.reports.length} report{group.reports.length === 1 ? '' : 's'}</div>
 											</div>
 											<button
 												type="button"
@@ -283,7 +283,7 @@ export default function EmployeesPage() {
 												<Icon name="chevron-right" size={13} className={cn('transition-transform duration-150', expanded && 'rotate-90')} />
 											</button>
 										</div>
-										<div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[13px]">
+										<div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
 											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Revenue</div><div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{inr(group.revenue)}</div></div>
 											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Profit</div><div className="font-semibold tabular-nums" style={{ color: 'var(--color-success)' }}>{inr(group.profit)}</div></div>
 											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Outreach</div><div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{group.outreach}</div></div>
@@ -292,7 +292,7 @@ export default function EmployeesPage() {
 										{expanded && (
 											<div className="space-y-2 pt-2 border-t anim-fade-up" style={{ borderColor: 'var(--n-border)' }}>
 												{group.reports.map((r) => (
-													<div key={r.id} className="text-[13px] space-y-1">
+													<div key={r.id} className="text-[12px] space-y-1">
 														<div className="flex items-center gap-2">
 															<div className="min-w-0 flex-1"><div className="font-medium" style={{ color: 'var(--n-fg)' }}>{r.week_ending || 'No date'}</div><div className="truncate" style={{ color: 'var(--n-fg-muted)' }}>{r.paid_confirmations || r.action_points || '—'}</div></div>
 													<Button variant="primary" onClick={() => setConfirmEditing(r)}>Edit</Button>

@@ -218,7 +218,7 @@ export default function OverviewPage() {
 				</div>
 
 				<div className="flex items-center gap-2 min-w-[150px]">
-					<span className="text-[13px] whitespace-nowrap" style={{ color: 'var(--n-fg-muted)' }}>Month</span>
+					<span className="text-[12px] whitespace-nowrap" style={{ color: 'var(--n-fg-muted)' }}>Month</span>
 					<Select
 						value={monthFilter}
 						onChange={(e) => setMonthFilter(e.target.value)}
@@ -230,12 +230,12 @@ export default function OverviewPage() {
 				</div>
 
 				<div className="flex items-center gap-2 min-w-[200px]">
-					<span className="text-[13px] whitespace-nowrap" style={{ color: 'var(--n-fg-muted)' }}>Creator</span>
+					<span className="text-[12px] whitespace-nowrap" style={{ color: 'var(--n-fg-muted)' }}>Creator</span>
 					<div className="relative flex-1">
 						<input
 							type="text"
 							list="creator-list"
-							className="w-full h-8 px-3 text-[13px] rounded-md border bg-transparent"
+							className="w-full h-8 px-3 text-[12px] rounded-md border bg-transparent"
 							style={{ borderColor: 'var(--n-border)', color: 'var(--n-fg)' }}
 							placeholder="All creators"
 							value={creatorInput}
@@ -394,7 +394,7 @@ export default function OverviewPage() {
 
 					{data.not_invoiced.count > 0 && (
 						<div
-							className="flex items-center gap-3 rounded-lg p-3 text-[13px]"
+							className="flex items-center gap-3 rounded-lg p-3 text-[12px]"
 							style={{
 								background: 'var(--n-bg-soft)',
 								border: '1px solid var(--n-border)',

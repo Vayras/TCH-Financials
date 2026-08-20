@@ -145,7 +145,7 @@ export function ChangePasswordModal({ isOpen, onClose, userEmail }: ChangePasswo
 									autoFocus
 									value={currentPassword}
 									onChange={(e) => setCurrentPassword(e.target.value)}
-									className="w-full h-9 rounded px-3 pr-9 text-[13.5px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+									className="w-full h-9 rounded px-3 pr-9 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 									placeholder="Enter current password"
 								/>
 								<button
@@ -170,7 +170,7 @@ export function ChangePasswordModal({ isOpen, onClose, userEmail }: ChangePasswo
 									required
 									value={newPassword}
 									onChange={(e) => setNewPassword(e.target.value)}
-									className="w-full h-9 rounded px-3 pr-9 text-[13.5px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+									className="w-full h-9 rounded px-3 pr-9 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 									placeholder="Min. 6 characters"
 								/>
 								<button
@@ -195,7 +195,7 @@ export function ChangePasswordModal({ isOpen, onClose, userEmail }: ChangePasswo
 									required
 									value={confirmPassword}
 									onChange={(e) => setConfirmPassword(e.target.value)}
-									className="w-full h-9 rounded px-3 pr-9 text-[13.5px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+									className="w-full h-9 rounded px-3 pr-9 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 									placeholder="Re-enter new password"
 								/>
 								<button
@@ -220,7 +220,7 @@ export function ChangePasswordModal({ isOpen, onClose, userEmail }: ChangePasswo
 							<button
 								type="button"
 								onClick={onClose}
-								className="h-8 px-3 rounded text-[13px] font-medium border border-[var(--n-border)] transition-colors"
+								className="h-8 px-3 rounded text-[12px] font-medium border border-[var(--n-border)] transition-colors"
 								style={{ color: 'var(--n-fg)' }}
 							>
 								Cancel
@@ -228,7 +228,7 @@ export function ChangePasswordModal({ isOpen, onClose, userEmail }: ChangePasswo
 							<button
 								type="submit"
 								disabled={busy}
-								className="h-8 px-4 rounded text-[13px] font-medium transition-opacity disabled:opacity-60"
+								className="h-8 px-4 rounded text-[12px] font-medium transition-opacity disabled:opacity-60"
 								style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
 							>
 								{busy ? 'Updating…' : 'Update Password'}

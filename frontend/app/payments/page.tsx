@@ -633,25 +633,25 @@ export default function PaymentsPage() {
 					<div className="flex bg-[var(--n-bg-soft)] p-1 rounded-lg border border-[var(--n-border)] mb-4">
 						<button 
 							onClick={() => setActiveTab('receivables')} 
-							className={`px-4 py-1.5 text-[13px] font-medium rounded-md transition-colors duration-100 ${activeTab === 'receivables' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+							className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors duration-100 ${activeTab === 'receivables' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
 						>
 							Receivables (Clients)
 						</button>
 						<button 
 							onClick={() => setActiveTab('payables')} 
-							className={`px-4 py-1.5 text-[13px] font-medium rounded-md transition-colors duration-100 ${activeTab === 'payables' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+							className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors duration-100 ${activeTab === 'payables' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
 						>
 							Payables (Creators)
 						</button>
 						<button 
 							onClick={() => setActiveTab('utr')} 
-							className={`px-4 py-1.5 text-[13px] font-medium rounded-md transition-colors duration-100 ${activeTab === 'utr' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+							className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors duration-100 ${activeTab === 'utr' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
 						>
 							UTR Details
 						</button>
 						<button 
 							onClick={() => setActiveTab('tds')} 
-							className={`px-4 py-1.5 text-[13px] font-medium rounded-md transition-colors duration-100 ${activeTab === 'tds' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+							className={`px-4 py-1.5 text-[12px] font-medium rounded-md transition-colors duration-100 ${activeTab === 'tds' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
 						>
 							TDS Dues
 						</button>
@@ -683,7 +683,7 @@ export default function PaymentsPage() {
 										<button
 											key={f.key}
 											onClick={() => setStatusFilter(f.key)}
-											className={`px-4 py-2.5 text-[13px] font-medium transition-colors relative`}
+											className={`px-4 py-2.5 text-[12px] font-medium transition-colors relative`}
 											style={{
 												color: isActive ? 'var(--n-fg)' : 'var(--n-fg-subtle)',
 											}}
@@ -696,7 +696,7 @@ export default function PaymentsPage() {
 									);
 								})}
 							</div>
-							<div className="text-[13px] pr-2" style={{ color: 'var(--n-fg-muted)' }}>
+							<div className="text-[12px] pr-2" style={{ color: 'var(--n-fg-muted)' }}>
 								{filtered.length} {filtered.length === 1 ? 'payment' : 'payments'}
 							</div>
 						</div>
@@ -724,7 +724,7 @@ export default function PaymentsPage() {
 									value={utrSearch}
 									onChange={(e) => { setUtrSearch(e.target.value); setUtrPage(1); }}
 									placeholder="Search by vendor, UTR, or notes…"
-									className="h-9 w-full rounded-lg pl-9 pr-3 text-[13.5px] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)]"
+									className="h-9 w-full rounded-lg pl-9 pr-3 text-[12px] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)]"
 									style={{ background: 'var(--n-bg)', color: 'var(--n-fg)' }}
 								/>
 							</div>
@@ -761,7 +761,7 @@ export default function PaymentsPage() {
 								>
 									Previous
 								</Button>
-								<span className="text-[13px] text-gray-500">
+								<span className="text-[12px] text-gray-500">
 									Page {utrPage} of {utrData.total_pages}
 								</span>
 								<Button
@@ -842,7 +842,7 @@ export default function PaymentsPage() {
 									type="file"
 									accept="image/*,application/pdf"
 									onChange={(e) => setClientFile(e.target.files?.[0] ?? null)}
-									className="block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
+									className="block w-full text-[12px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[12px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
 								/>
 							</div>
 							<p className="text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>
@@ -865,13 +865,13 @@ export default function PaymentsPage() {
 											{d.file ? (
 												<button
 													type="button"
-													className="inline-link text-[13px]"
+													className="inline-link text-[12px]"
 													onClick={() => void downloadAuthenticatedFile(d.file, d.label || 'deal-document')}
 												>
 													{d.label || d.file.split('/').pop()} ↗
 												</button>
 											) : (
-												<span className="text-[13px]" style={{ color: 'var(--n-fg-muted)' }}>
+												<span className="text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>
 													{d.label || '(no file)'}
 												</span>
 											)}
@@ -913,7 +913,7 @@ export default function PaymentsPage() {
 							required
 							accept=".xlsx"
 							onChange={(e) => setExcelFile(e.target.files?.[0] ?? null)}
-							className="block w-full text-[13px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[13px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
+							className="block w-full text-[12px] file:mr-3 file:rounded file:border file:border-[var(--n-border)] file:bg-[var(--n-bg)] file:px-3 file:py-1 file:text-[12px] file:text-[var(--n-fg)] hover:file:border-[var(--n-border-strong)]"
 						/>
 					</div>
 				</form>
@@ -949,7 +949,7 @@ export default function PaymentsPage() {
 								required
 								value={txDate}
 								onChange={(e) => setTxDate(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[13px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
+								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
 							/>
 						</div>
 						<div>
@@ -957,7 +957,7 @@ export default function PaymentsPage() {
 							<select
 								value={txType}
 								onChange={(e) => setTxType(e.target.value as 'debit' | 'credit')}
-								className="w-full h-9 rounded px-3 text-[13px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
+								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
 							>
 								<option value="debit">Debit (Paid Out)</option>
 								<option value="credit">Credit (Received)</option>
@@ -972,7 +972,7 @@ export default function PaymentsPage() {
 							required
 							value={txVendor}
 							onChange={(e) => setTxVendor(e.target.value)}
-							className="w-full h-9 rounded px-3 text-[13px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
+							className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
 							placeholder="e.g. Creator ABC or Brand XYZ"
 						/>
 					</div>
@@ -985,7 +985,7 @@ export default function PaymentsPage() {
 								required
 								value={txUtr}
 								onChange={(e) => setTxUtr(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[13px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
+								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
 								placeholder="NEFT/IDFC/..."
 							/>
 						</div>
@@ -996,7 +996,7 @@ export default function PaymentsPage() {
 								required
 								value={txAmount}
 								onChange={(e) => setTxAmount(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[13px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
+								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
 								placeholder="0.00"
 							/>
 						</div>
@@ -1007,7 +1007,7 @@ export default function PaymentsPage() {
 						<textarea
 							value={txNotes}
 							onChange={(e) => setTxNotes(e.target.value)}
-							className="w-full h-16 rounded p-3 text-[13px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
+							className="w-full h-16 rounded p-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
 							placeholder="Optional details..."
 						/>
 					</div>
@@ -1043,7 +1043,7 @@ export default function PaymentsPage() {
 								value={tdsCreatorId}
 								onChange={(e) => setTdsCreatorId(e.target.value)}
 								required
-								className="w-full h-9 rounded px-3 text-[13px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
+								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
 							>
 								<option value="">Select Creator</option>
 								{creators.map((c) => (
@@ -1058,7 +1058,7 @@ export default function PaymentsPage() {
 							<select
 								value={tdsQuarter}
 								onChange={(e) => setTdsQuarter(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[13px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
+								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
 							>
 								<option value="Q1">Q1 (Apr - Jun)</option>
 								<option value="Q2">Q2 (Jul - Sep)</option>
@@ -1074,7 +1074,7 @@ export default function PaymentsPage() {
 							<select
 								value={tdsRate}
 								onChange={(e) => setTdsRate(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[13px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
+								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
 							>
 								<option value="0.01">1% (Individual Section 194C)</option>
 								<option value="0.02">2% (Company Section 194C)</option>
@@ -1089,7 +1089,7 @@ export default function PaymentsPage() {
 								required
 								value={tdsGross}
 								onChange={(e) => setTdsGross(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[13px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
+								className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
 								placeholder="0.00"
 							/>
 						</div>
@@ -1100,7 +1100,7 @@ export default function PaymentsPage() {
 						<textarea
 							value={tdsNotes}
 							onChange={(e) => setTdsNotes(e.target.value)}
-							className="w-full h-16 rounded p-3 text-[13px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
+							className="w-full h-16 rounded p-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
 							placeholder="Optional details..."
 						/>
 					</div>
@@ -1142,7 +1142,7 @@ export default function PaymentsPage() {
 									required
 									value={tdsRemitDate}
 									onChange={(e) => setTdsRemitDate(e.target.value)}
-									className="w-full h-9 rounded px-3 text-[13px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
+									className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
 								/>
 							</div>
 							<div>
@@ -1152,7 +1152,7 @@ export default function PaymentsPage() {
 									required
 									value={tdsChallan}
 									onChange={(e) => setTdsChallan(e.target.value)}
-									className="w-full h-9 rounded px-3 text-[13px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
+									className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none"
 									placeholder="BSR Code + Challan No"
 								/>
 							</div>

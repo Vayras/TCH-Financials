@@ -217,7 +217,7 @@ export default function EntitySummaryPage() {
 											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>{profitPct(row.total_billing, row.total_profit)}</td>
 											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>{row.campaign_count}</td>
 											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>{row.creator_count}</td>
-											<td className="text-[13px]" style={{ color: 'var(--n-fg-muted)' }}>{row.top_brands.join(', ')}</td>
+											<td className="text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>{row.top_brands.join(', ')}</td>
 										</tr>
 										{expandedEntity === row.entity && (
 											<ExpandedRow row={row} />
@@ -307,7 +307,7 @@ function TagGroup({
 				{items.length > 0 ? (
 					items.map((c) => <Tag key={c} tone={tone}>{c}</Tag>)
 				) : (
-					<span className="text-[13px]" style={{ color: 'var(--n-fg-subtle)' }}>
+					<span className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
 						No linked {tone === 'accent' ? 'campaigns' : 'creators'}
 					</span>
 				)}

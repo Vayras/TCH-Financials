@@ -101,7 +101,7 @@ export default function SetPasswordPage() {
 									autoComplete="new-password"
 									value={password}
 									onChange={(e) => setPassword(e.target.value)}
-									className="w-full h-9 rounded px-3 pr-9 text-[13.5px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+									className="w-full h-9 rounded px-3 pr-9 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 									placeholder="Min. 6 characters"
 								/>
 								<button
@@ -127,7 +127,7 @@ export default function SetPasswordPage() {
 									autoComplete="new-password"
 									value={confirm}
 									onChange={(e) => setConfirm(e.target.value)}
-									className="w-full h-9 rounded px-3 pr-9 text-[13.5px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+									className="w-full h-9 rounded px-3 pr-9 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 									placeholder="Re-enter password"
 								/>
 								<button
@@ -151,7 +151,7 @@ export default function SetPasswordPage() {
 						<button
 							type="submit"
 							disabled={busy}
-							className="w-full h-9 rounded text-[13.5px] font-medium transition-transform duration-100 active:scale-[0.985] disabled:opacity-60 cursor-pointer"
+							className="w-full h-9 rounded text-[12px] font-medium transition-transform duration-100 active:scale-[0.985] disabled:opacity-60 cursor-pointer"
 							style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
 						>
 							{busy ? 'Setting password…' : 'Set Password & Continue'}

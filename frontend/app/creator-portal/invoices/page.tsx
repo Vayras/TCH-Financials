@@ -86,7 +86,7 @@ export default function CreatorInvoicesPage() {
 			<div className="flex flex-wrap items-center justify-between gap-4">
 				<PageHeader title="My Invoices" description="Submit and track your campaign billing invoices." />
 				<Button variant="primary" onClick={() => setOpen(true)} disabled={pendingDeals.length === 0}>
-					<span className="text-[13px]">Submit New Invoice</span>
+					<span className="text-[12px]">Submit New Invoice</span>
 				</Button>
 			</div>
 
@@ -96,7 +96,7 @@ export default function CreatorInvoicesPage() {
 						<Icon name="file-text" size={20} />
 					</div>
 					<h3 className="text-[15px] font-bold text-gray-950 mb-1">No invoices yet</h3>
-					<p className="text-[13px] text-gray-500 max-w-[280px] mx-auto">
+					<p className="text-[12px] text-gray-500 max-w-[280px] mx-auto">
 						Your submitted invoices will appear here once you upload them.
 					</p>
 					<p className="text-[11.5px] text-gray-400 mt-3 max-w-[240px] mx-auto">
@@ -105,7 +105,7 @@ export default function CreatorInvoicesPage() {
 				</div>
 			) : (
 				<div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
-					<table className="w-full border-collapse text-[13px]">
+					<table className="w-full border-collapse text-[12px]">
 						<thead>
 							<tr className="border-b text-gray-400 bg-gray-50/50">
 								<th className="px-4 py-3 text-left font-semibold">Invoice No</th>
@@ -171,7 +171,7 @@ export default function CreatorInvoicesPage() {
 								}
 							}}
 							required
-							className="w-full h-9 rounded px-3 text-[13px] bg-white border border-gray-300 focus:outline-none focus:ring-1" style={{ '--tw-ring-color': 'var(--n-accent)' } as React.CSSProperties}
+							className="w-full h-9 rounded px-3 text-[12px] bg-white border border-gray-300 focus:outline-none focus:ring-1" style={{ '--tw-ring-color': 'var(--n-accent)' } as React.CSSProperties}
 						>
 							<option value="">Choose Campaign</option>
 							{pendingDeals.map((d) => (
@@ -190,7 +190,7 @@ export default function CreatorInvoicesPage() {
 								required
 								value={invNo}
 								onChange={(e) => setInvNo(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[13px] bg-white border border-gray-300 focus:outline-none focus:ring-1" style={{ '--tw-ring-color': 'var(--n-accent)' } as React.CSSProperties}
+								className="w-full h-9 rounded px-3 text-[12px] bg-white border border-gray-300 focus:outline-none focus:ring-1" style={{ '--tw-ring-color': 'var(--n-accent)' } as React.CSSProperties}
 								placeholder="INV-001"
 							/>
 						</div>
@@ -201,7 +201,7 @@ export default function CreatorInvoicesPage() {
 								required
 								value={invDate}
 								onChange={(e) => setInvDate(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[13px] bg-white border border-gray-300 focus:outline-none focus:ring-1" style={{ '--tw-ring-color': 'var(--n-accent)' } as React.CSSProperties}
+								className="w-full h-9 rounded px-3 text-[12px] bg-white border border-gray-300 focus:outline-none focus:ring-1" style={{ '--tw-ring-color': 'var(--n-accent)' } as React.CSSProperties}
 							/>
 						</div>
 					</div>
@@ -214,7 +214,7 @@ export default function CreatorInvoicesPage() {
 								required
 								value={invAmt}
 								onChange={(e) => setInvAmt(e.target.value)}
-								className="w-full h-9 rounded px-3 text-[13px] bg-white border border-gray-300 focus:outline-none focus:ring-1" style={{ '--tw-ring-color': 'var(--n-accent)' } as React.CSSProperties}
+								className="w-full h-9 rounded px-3 text-[12px] bg-white border border-gray-300 focus:outline-none focus:ring-1" style={{ '--tw-ring-color': 'var(--n-accent)' } as React.CSSProperties}
 								placeholder="0.00"
 							/>
 						</div>
@@ -225,7 +225,7 @@ export default function CreatorInvoicesPage() {
 								required
 								accept="application/pdf,image/*"
 								onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-								className="block w-full text-[13px] file:mr-3 file:rounded file:border file:border-gray-200 file:bg-gray-50 file:px-3 file:py-1 file:text-[13px] file:text-gray-700 hover:file:border-gray-300"
+								className="block w-full text-[12px] file:mr-3 file:rounded file:border file:border-gray-200 file:bg-gray-50 file:px-3 file:py-1 file:text-[12px] file:text-gray-700 hover:file:border-gray-300"
 							/>
 						</div>
 					</div>

@@ -12,7 +12,7 @@ export function CreatorFinancialTrend({ months }: { months: CreatorDashboard['mo
 	const max = Math.max(1, ...months.flatMap((month) => [Number(month.billing), Number(month.creator_fee)]));
 	const barHeight = (value: string) => Number(value) > 0 ? `${Math.max(3, Number(value) / max * 100)}%` : '0%';
 	return <section className="rounded-xl border p-5" style={{ borderColor: 'var(--n-border)' }} aria-labelledby="creator-financial-performance">
-		<div className="mb-5"><h2 id="creator-financial-performance" className="text-[19px] font-semibold leading-tight">Financial performance</h2><p className="mt-1.5 text-[13px] leading-relaxed text-[var(--n-fg-muted)]">Monthly billing, creator cost, and agency margin.</p></div>
+		<div className="mb-5"><h2 id="creator-financial-performance" className="text-[19px] font-semibold leading-tight">Financial performance</h2><p className="mt-1.5 text-[12px] leading-relaxed text-[var(--n-fg-muted)]">Monthly billing, creator cost, and agency margin.</p></div>
 		<div className="mb-3 flex flex-wrap gap-x-4 gap-y-2 text-[12px] font-medium text-[var(--n-fg-muted)]"><span>● Billing</span><span className="text-amber-700">● Creator fee</span><span className="text-emerald-700">● Margin</span></div>
 		<div className="overflow-x-auto pb-1"><div className="flex h-56 min-w-[680px] items-end gap-2 border-b" style={{ borderColor: 'var(--n-border)' }}>
 			{months.map((month) => <div key={month.key} className="flex min-w-0 flex-1 flex-col items-center justify-end gap-1 h-full" title={`${month.label}: Billing ₹${inr(month.billing) || '0'}, Creator fee ₹${inr(month.creator_fee) || '0'}, Margin ₹${inr(month.margin) || '0'}`}>
@@ -31,15 +31,15 @@ export function CreatorPaymentChart({ rows }: { rows: CreatorDashboard['payment_
 	let cursor = 0;
 	const gradient = rows.map((row) => { const start = cursor; cursor += total ? row.count / total * 100 : 0; return `${COLORS[row.status] || COLORS['Not set']} ${start}% ${cursor}%`; }).join(', ');
 	return <section className="rounded-xl border p-5" style={{ borderColor: 'var(--n-border)' }} aria-labelledby="creator-payment-health">
-		<h2 id="creator-payment-health" className="text-[19px] font-semibold leading-tight">Payment health</h2><p className="mt-1.5 text-[13px] leading-relaxed text-[var(--n-fg-muted)]">Creator payment status by campaign.</p>
+		<h2 id="creator-payment-health" className="text-[19px] font-semibold leading-tight">Payment health</h2><p className="mt-1.5 text-[12px] leading-relaxed text-[var(--n-fg-muted)]">Creator payment status by campaign.</p>
 		<div className="my-5 flex justify-center"><div className="grid h-36 w-36 place-items-center rounded-full" style={{ background: total ? `conic-gradient(${gradient})` : 'var(--n-border)' }}><div className="grid h-24 w-24 place-items-center rounded-full bg-white text-center"><div><div className="text-2xl font-semibold">{total}</div><div className="text-[10px] text-[var(--n-fg-subtle)]">campaigns</div></div></div></div></div>
-		<div className="space-y-2.5">{rows.map((row) => <div key={row.status} className="flex items-center text-[13px]"><span className="mr-2 h-2.5 w-2.5 rounded-full" style={{ background: COLORS[row.status] || COLORS['Not set'] }} /><span>{paymentLabel(row.status)}</span><span className="ml-auto tabular-nums">{row.count} · ₹{inr(row.amount) || '0'}</span></div>)}</div>
+		<div className="space-y-2.5">{rows.map((row) => <div key={row.status} className="flex items-center text-[12px]"><span className="mr-2 h-2.5 w-2.5 rounded-full" style={{ background: COLORS[row.status] || COLORS['Not set'] }} /><span>{paymentLabel(row.status)}</span><span className="ml-auto tabular-nums">{row.count} · ₹{inr(row.amount) || '0'}</span></div>)}</div>
 	</section>;
 }
 
 export function CreatorBrandChart({ rows }: { rows: CreatorDashboard['brands'] }) {
 	return <section className="flex h-[910px] flex-col rounded-xl border p-5" style={{ borderColor: 'var(--n-border)' }} aria-labelledby="creator-brand-portfolio">
-		<div className="shrink-0"><h2 id="creator-brand-portfolio" className="text-[19px] font-semibold leading-tight">Brand portfolio</h2><p className="mt-1.5 text-[13px] leading-relaxed text-[var(--n-fg-muted)]">Brand contribution, campaign activity, and creator payment health.</p></div>
+		<div className="shrink-0"><h2 id="creator-brand-portfolio" className="text-[19px] font-semibold leading-tight">Brand portfolio</h2><p className="mt-1.5 text-[12px] leading-relaxed text-[var(--n-fg-muted)]">Brand contribution, campaign activity, and creator payment health.</p></div>
 		{rows.length ? <div className="mt-5 flex-1 overflow-y-auto pr-2 flex flex-col gap-3">{rows.map((row) => {
 			const share = Number(row.billing_share) * 100;
 			const billing = Number(row.billing);
@@ -61,9 +61,9 @@ export function CreatorBrandChart({ rows }: { rows: CreatorDashboard['brands'] }
 						<div className="grid h-[82px] w-[82px] place-items-center rounded-full bg-white text-center"><div><div className="text-[15px] font-bold tabular-nums">₹{inr(row.billing) || '0'}</div><div className="text-[9px] font-medium uppercase tracking-wider text-[var(--n-fg-muted)]">Total billing</div></div></div>
 					</div>
 					<div className="w-full min-w-0 space-y-3 text-[12px]">
-						<div className="flex items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-sm bg-amber-500" /><span className="truncate text-[var(--n-fg-muted)]">Creator payout</span><span className="ml-auto shrink-0 font-semibold tabular-nums text-[13px]">₹{inr(row.creator_fee) || '0'}</span></div>
-						<div className="flex items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-sm bg-emerald-700" /><span className="truncate text-[var(--n-fg-muted)]">Agency margin</span><span className="ml-auto shrink-0 font-semibold tabular-nums text-[13px]">₹{inr(row.margin) || '0'}</span></div>
-						{otherPct > 0.5 && <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-sm bg-gray-300" /><span className="truncate text-[var(--n-fg-muted)]">Other allocation</span><span className="ml-auto shrink-0 font-semibold tabular-nums text-[13px]">{otherPct.toFixed(0)}%</span></div>}
+						<div className="flex items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-sm bg-amber-500" /><span className="truncate text-[var(--n-fg-muted)]">Creator payout</span><span className="ml-auto shrink-0 font-semibold tabular-nums text-[12px]">₹{inr(row.creator_fee) || '0'}</span></div>
+						<div className="flex items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-sm bg-emerald-700" /><span className="truncate text-[var(--n-fg-muted)]">Agency margin</span><span className="ml-auto shrink-0 font-semibold tabular-nums text-[12px]">₹{inr(row.margin) || '0'}</span></div>
+						{otherPct > 0.5 && <div className="flex items-center gap-2"><span className="h-2.5 w-2.5 shrink-0 rounded-sm bg-gray-300" /><span className="truncate text-[var(--n-fg-muted)]">Other allocation</span><span className="ml-auto shrink-0 font-semibold tabular-nums text-[12px]">{otherPct.toFixed(0)}%</span></div>}
 					</div>
 				</div>
 				<div className="mt-6 border-t pt-4" style={{ borderColor: 'var(--n-border)' }}>
@@ -72,6 +72,6 @@ export function CreatorBrandChart({ rows }: { rows: CreatorDashboard['brands'] }
 					<div className="mt-2 flex justify-between text-[12px]"><span className="text-[var(--n-fg-muted)]">Paid ₹{inr(row.paid) || '0'}</span><span className="font-bold text-amber-700">Outstanding ₹{inr(row.outstanding) || '0'}</span></div>
 				</div>
 			</article>;
-		})}</div> : <div className="mt-5 rounded border border-dashed p-6 text-center text-[13px] text-[var(--n-fg-muted)]">No brand activity in this fiscal year.</div>}
+		})}</div> : <div className="mt-5 rounded border border-dashed p-6 text-center text-[12px] text-[var(--n-fg-muted)]">No brand activity in this fiscal year.</div>}
 	</section>;
 }

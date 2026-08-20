@@ -15,7 +15,7 @@ export default function QueryErrorState({
 			<div className="query-error-icon"><Icon name="alert-circle" size={18} /></div>
 			<div className="min-w-0 flex-1">
 				<div className="text-[14px] font-semibold">{title}</div>
-				<div className="text-[13px] mt-0.5">{description}</div>
+				<div className="text-[12px] mt-0.5">{description}</div>
 			</div>
 			{onRetry && <Button variant="outline" onClick={onRetry}><Icon name="refresh" size={13} /> Retry</Button>}
 		</div>

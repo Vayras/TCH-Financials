@@ -55,7 +55,7 @@ export function Dialog({
 							</DialogPrimitive.Title>
 							{description && (
 								<DialogPrimitive.Description
-									className="text-[13.5px] mt-1"
+									className="text-[12px] mt-1"
 									style={{ color: 'var(--n-fg-muted)' }}
 								>
 									{description}

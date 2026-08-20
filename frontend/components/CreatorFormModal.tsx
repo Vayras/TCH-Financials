@@ -318,12 +318,12 @@ export function CreatorFormModal({
 							Documents on file
 						</div>
 						{docsLoading ? (
-							<div className="text-[13px] py-3 text-center" style={{ color: 'var(--n-fg-subtle)' }}>
+							<div className="text-[12px] py-3 text-center" style={{ color: 'var(--n-fg-subtle)' }}>
 								Loading…
 							</div>
 						) : existingDocs.length === 0 ? (
 							<div
-								className="text-[13px] rounded p-3 text-center"
+								className="text-[12px] rounded p-3 text-center"
 								style={{ border: '1px dashed var(--n-border)', color: 'var(--n-fg-subtle)' }}
 							>
 								No documents uploaded yet — add them below.
@@ -339,7 +339,7 @@ export function CreatorFormModal({
 										<div className="min-w-0 flex-1">
 											<button
 												type="button"
-												className="inline-link text-[13px] font-medium"
+												className="inline-link text-[12px] font-medium"
 												onClick={() => void downloadAuthenticatedFile(d.file, d.label || 'creator-document')}
 											>
 												{d.label || d.file.split('/').pop()} ↗

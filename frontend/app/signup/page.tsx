@@ -61,7 +61,7 @@ export default function SignupPage() {
 	if (!isSupabaseConfigured()) {
 		return (
 			<div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--n-bg)' }}>
-				<p className="text-[13px]" style={{ color: 'var(--n-fg-subtle)' }}>
+				<p className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
 					Auth is not configured (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY missing).
 				</p>
 			</div>
@@ -82,12 +82,12 @@ export default function SignupPage() {
 						✓
 					</div>
 					<h3 className="text-[16px] font-semibold mb-2">Request Submitted</h3>
-					<p className="text-[13px] leading-relaxed mb-6" style={{ color: 'var(--n-fg-subtle)' }}>
+					<p className="text-[12px] leading-relaxed mb-6" style={{ color: 'var(--n-fg-subtle)' }}>
 						Your account registration request for **{role === 'creator' ? 'Creator' : 'TCH Member'}** access is pending admin approval. You will be able to log in once approved.
 					</p>
 					<Link
 						href="/login"
-						className="inline-flex items-center justify-center w-full h-9 rounded text-[13.5px] font-medium"
+						className="inline-flex items-center justify-center w-full h-9 rounded text-[12px] font-medium"
 						style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
 					>
 						Return to Sign In
@@ -128,7 +128,7 @@ export default function SignupPage() {
 						autoFocus
 						value={name}
 						onChange={(e) => setName(e.target.value)}
-						className="w-full h-9 rounded px-3 text-[13.5px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+						className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 						placeholder="e.g. Riya Kapoor"
 					/>
 				</label>
@@ -142,7 +142,7 @@ export default function SignupPage() {
 						required
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
-						className="w-full h-9 rounded px-3 text-[13.5px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+						className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 						placeholder="e.g. riya@example.com"
 					/>
 				</label>
@@ -156,7 +156,7 @@ export default function SignupPage() {
 						required
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
-						className="w-full h-9 rounded px-3 text-[13.5px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+						className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 						placeholder="At least 6 characters"
 					/>
 				</label>
@@ -208,7 +208,7 @@ export default function SignupPage() {
 				<button
 					type="submit"
 					disabled={busy}
-					className="w-full h-9 rounded text-[13.5px] font-medium transition-transform duration-100 active:scale-[0.985] disabled:opacity-60 cursor-pointer mb-4"
+					className="w-full h-9 rounded text-[12px] font-medium transition-transform duration-100 active:scale-[0.985] disabled:opacity-60 cursor-pointer mb-4"
 					style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
 				>
 					{busy ? 'Creating request…' : 'Submit Registration Request'}

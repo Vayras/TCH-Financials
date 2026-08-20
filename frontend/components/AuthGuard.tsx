@@ -210,7 +210,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 	if (status === 'loading') {
 		return (
 			<div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--n-bg)' }}>
-				<span className="text-[13px]" style={{ color: 'var(--n-fg-subtle)' }}>
+				<span className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
 					Checking session…
 				</span>
 			</div>
@@ -220,7 +220,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 	if (status !== 'approved') {
 		return (
 			<div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--n-bg)' }}>
-				<span className="text-[13px]" style={{ color: 'var(--n-fg-subtle)' }}>
+				<span className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
 					Redirecting to sign-in…
 				</span>
 			</div>

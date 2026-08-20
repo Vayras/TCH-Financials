@@ -217,7 +217,7 @@ export default function UsersPage() {
 			) : (
 				<div className="bg-white border border-[var(--n-border)] rounded-xl overflow-hidden shadow-sm anim-fade-up">
 					{activeTab === 'users' ? (
-						<table className="w-full text-left border-collapse text-[13px]">
+						<table className="w-full text-left border-collapse text-[12px]">
 							<thead>
 								<tr className="border-b border-[var(--n-border)]" style={{ background: 'var(--n-bg-sidebar)' }}>
 									<th className="p-3 font-medium">Email</th>
@@ -230,7 +230,7 @@ export default function UsersPage() {
 							<tbody>
 								{profiles.length === 0 ? (
 									<tr>
-										<td colSpan={5} className="p-8 text-center text-[13px]" style={{ color: 'var(--n-fg-subtle)' }}>
+										<td colSpan={5} className="p-8 text-center text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
 											No users found.
 										</td>
 									</tr>
@@ -370,7 +370,7 @@ export default function UsersPage() {
 						</table>
 					) : (
 						/* ─── Invitations tab ───────────────────────────────────────── */
-						<table className="w-full text-left border-collapse text-[13px]">
+						<table className="w-full text-left border-collapse text-[12px]">
 							<thead>
 								<tr className="border-b border-[var(--n-border)]" style={{ background: 'var(--n-bg-sidebar)' }}>
 									<th className="p-3 font-medium">Invited Email</th>
@@ -383,7 +383,7 @@ export default function UsersPage() {
 							<tbody>
 								{invitations.length === 0 ? (
 									<tr>
-										<td colSpan={5} className="p-8 text-center text-[13px]" style={{ color: 'var(--n-fg-subtle)' }}>
+										<td colSpan={5} className="p-8 text-center text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
 											No invitations sent yet.
 										</td>
 									</tr>
@@ -442,7 +442,7 @@ export default function UsersPage() {
 							required
 							value={inviteEmail}
 							onChange={(e) => setInviteEmail(e.target.value)}
-							className="w-full h-9 rounded px-3 text-[13.5px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+							className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 							placeholder="e.g. user@theculturehub.co.in"
 						/>
 					</label>
@@ -453,7 +453,7 @@ export default function UsersPage() {
 						<select
 							value={inviteRole}
 							onChange={(e) => setInviteRole(e.target.value as AppRole)}
-							className="w-full h-9 rounded px-3 text-[13.5px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+							className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 						>
 							<option value="tch_member">TCH Member — Campaign ops &amp; deal management</option>
 							<option value="accounts">Accounts — Full payment &amp; finance access</option>
@@ -472,7 +472,7 @@ export default function UsersPage() {
 			{/* ─── Revoke Access Confirmation ──────────────────────────────── */}
 			<Dialog open={!!revokeTarget} onOpenChange={(o) => { if (!o) setRevokeTarget(null); }} title="Revoke Access?" description="">
 				<div className="flex flex-col gap-5">
-					<div className="rounded-lg p-4 text-[13px] leading-relaxed border"
+					<div className="rounded-lg p-4 text-[12px] leading-relaxed border"
 						style={{ background: 'var(--n-bg)', borderColor: '#f59e0b44' }}>
 						<p className="font-medium mb-1" style={{ color: '#b45309' }}>⚠ This will block their access immediately.</p>
 						<p style={{ color: 'var(--n-fg-subtle)' }}>
@@ -483,7 +483,7 @@ export default function UsersPage() {
 					<div className="flex justify-end gap-2 pt-2 border-t border-[var(--n-border)]">
 						<Button variant="outline" onClick={() => setRevokeTarget(null)} disabled={revokeMutation.isPending}>Cancel</Button>
 						<button type="button" disabled={revokeMutation.isPending} onClick={confirmRevoke}
-							className="h-9 px-4 rounded text-[13.5px] font-medium transition-opacity disabled:opacity-60"
+							className="h-9 px-4 rounded text-[12px] font-medium transition-opacity disabled:opacity-60"
 							style={{ background: '#d97706', color: '#fff' }}>
 							{revokeMutation.isPending ? 'Revoking…' : 'Revoke Access'}
 						</button>
@@ -494,7 +494,7 @@ export default function UsersPage() {
 			{/* ─── Delete User Confirmation ─────────────────────────────────── */}
 			<Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }} title="Delete User?" description="">
 				<div className="flex flex-col gap-5">
-					<div className="rounded-lg p-4 text-[13px] leading-relaxed border"
+					<div className="rounded-lg p-4 text-[12px] leading-relaxed border"
 						style={{ background: 'var(--n-bg)', borderColor: '#ef444444' }}>
 						<p className="font-medium mb-1" style={{ color: '#dc2626' }}>🗑 This action cannot be undone.</p>
 						<p style={{ color: 'var(--n-fg-subtle)' }}>
@@ -505,7 +505,7 @@ export default function UsersPage() {
 					<div className="flex justify-end gap-2 pt-2 border-t border-[var(--n-border)]">
 						<Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>Cancel</Button>
 						<button type="button" disabled={deleteMutation.isPending} onClick={confirmDelete}
-							className="h-9 px-4 rounded text-[13.5px] font-medium transition-opacity disabled:opacity-60"
+							className="h-9 px-4 rounded text-[12px] font-medium transition-opacity disabled:opacity-60"
 							style={{ background: '#dc2626', color: '#fff' }}>
 							{deleteMutation.isPending ? 'Deleting…' : 'Delete Permanently'}
 						</button>
@@ -516,7 +516,7 @@ export default function UsersPage() {
 			{/* ─── Remove Invitation Confirmation ──────────────────────────── */}
 			<Dialog open={!!removeInviteTarget} onOpenChange={(o) => { if (!o) setRemoveInviteTarget(null); }} title="Remove Invitation?" description="">
 				<div className="flex flex-col gap-5">
-					<div className="rounded-lg p-4 text-[13px] leading-relaxed border"
+					<div className="rounded-lg p-4 text-[12px] leading-relaxed border"
 						style={{ background: 'var(--n-bg)', borderColor: '#ef444433' }}>
 						<p className="font-medium mb-1" style={{ color: '#dc2626' }}>This will remove the invitation record.</p>
 						<p style={{ color: 'var(--n-fg-subtle)' }}>
@@ -527,7 +527,7 @@ export default function UsersPage() {
 					<div className="flex justify-end gap-2 pt-2 border-t border-[var(--n-border)]">
 						<Button variant="outline" onClick={() => setRemoveInviteTarget(null)} disabled={removeInviteMutation.isPending}>Cancel</Button>
 						<button type="button" disabled={removeInviteMutation.isPending} onClick={confirmRemoveInvite}
-							className="h-9 px-4 rounded text-[13.5px] font-medium transition-opacity disabled:opacity-60"
+							className="h-9 px-4 rounded text-[12px] font-medium transition-opacity disabled:opacity-60"
 							style={{ background: '#dc2626', color: '#fff' }}>
 							{removeInviteMutation.isPending ? 'Removing…' : 'Remove Invitation'}
 						</button>

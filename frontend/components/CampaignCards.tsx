@@ -31,7 +31,7 @@ export function CampaignGroupCard({ group, onView }: { group: CampaignGroup; onV
 						{group.name}
 					</div>
 					{group.brand && group.brand !== group.name && (
-						<div className="text-[13px] mt-0.5 truncate" style={{ color: 'var(--n-fg-muted)' }}>
+						<div className="text-[12px] mt-0.5 truncate" style={{ color: 'var(--n-fg-muted)' }}>
 							{group.brand}
 						</div>
 					)}
@@ -103,7 +103,7 @@ export function CreatorGroupCard({ group, onView }: { group: CreatorGroup; onVie
 					>
 						{group.name}
 					</div>
-					<div className="text-[13px] mt-0.5" style={{ color: 'var(--n-fg-muted)' }}>
+					<div className="text-[12px] mt-0.5" style={{ color: 'var(--n-fg-muted)' }}>
 						{group.dealCount ?? group.deals.length} deal{(group.dealCount ?? group.deals.length) === 1 ? '' : 's'}
 					</div>
 				</div>

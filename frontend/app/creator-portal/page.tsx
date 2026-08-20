@@ -37,7 +37,7 @@ export default function CreatorDealsPage() {
 						<Icon name="briefcase" size={20} className="text-gray-400" />
 					</div>
 					<h3 className="text-[15px] font-bold text-gray-900 mb-1">No Active Campaigns Yet</h3>
-					<p className="text-[13px] text-gray-500 max-w-[320px] mx-auto leading-relaxed">
+					<p className="text-[12px] text-gray-500 max-w-[320px] mx-auto leading-relaxed">
 						Your campaign details and payment terms will appear here as soon as a project is assigned.
 					</p>
 					<p className="text-[11.5px] text-gray-400 mt-3 max-w-[280px] mx-auto">

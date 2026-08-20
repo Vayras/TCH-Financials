@@ -89,7 +89,7 @@ export default function BillingBarChart({
 	if (dataMax === 0) {
 		return (
 			<div
-				className="rounded p-8 text-center text-[13.5px]"
+				className="rounded p-8 text-center text-[12px]"
 				style={{ border: '1px dashed var(--n-border)', color: 'var(--n-fg-subtle)' }}
 			>
 				No invoiced billing in this period yet — add deals with an E-Invoice No and the chart
