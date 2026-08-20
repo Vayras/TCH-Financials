@@ -314,7 +314,7 @@ export default function CommercialPage() {
 					<Icon name={iconName} size={24} style={{ color: 'var(--n-fg-subtle)' }} />
 				</div>
 				<h3 className="text-[15px] font-bold mb-1.5" style={{ color: 'var(--n-fg)' }}>{title}</h3>
-				<p className="text-[13.5px] max-w-[280px] mb-5" style={{ color: 'var(--n-fg-subtle)' }}>{desc}</p>
+				<p className="text-[12px] max-w-[280px] mb-5" style={{ color: 'var(--n-fg-subtle)' }}>{desc}</p>
 				{filtersActive && (
 					<Button variant="outline" size="sm" onClick={resetFilters}>
 						Clear All Filters
@@ -423,8 +423,9 @@ export default function CommercialPage() {
 								<button
 									key={status}
 									onClick={() => setStatusFilter(status)}
-									className={`px-4 py-2.5 text-[13px] font-medium transition-colors relative`}
+									className={`px-4 py-2.5 font-medium transition-colors relative`}
 									style={{
+										fontSize: '12px',
 										color: isActive ? 'var(--n-fg)' : 'var(--n-fg-subtle)',
 									}}
 								>
@@ -448,8 +449,8 @@ export default function CommercialPage() {
 								value={q}
 								onChange={(e) => setQ(e.target.value)}
 								placeholder="Search creator, brand, campaign…"
-								className="h-9 w-full rounded-lg pl-9 pr-3 text-[13.5px] transition-colors focus:outline-none focus:ring-1 focus:ring-black/5"
-								style={{ background: 'var(--n-bg)', color: 'var(--n-fg)', border: '1px solid var(--n-border)' }}
+								className="h-9 w-full rounded-lg pl-9 pr-3 transition-colors focus:outline-none focus:ring-1 focus:ring-black/5"
+								style={{ fontSize: '12px', background: 'var(--n-bg)', color: 'var(--n-fg)', border: '1px solid var(--n-border)' }}
 							/>
 						</div>
 
@@ -459,8 +460,9 @@ export default function CommercialPage() {
 								<div className="flex items-center p-1 rounded-lg border" style={{ background: 'var(--n-bg-soft)', borderColor: 'var(--n-border)' }}>
 									<button
 										onClick={() => setGroupBy('campaign')}
-										className={`px-3 py-1 text-[12px] font-medium rounded-md transition-all ${groupBy === 'campaign' ? 'shadow-sm' : ''}`}
+										className={`px-3 py-1 font-medium rounded-md transition-all ${groupBy === 'campaign' ? 'shadow-sm' : ''}`}
 										style={{
+											fontSize: '12px',
 											background: groupBy === 'campaign' ? 'var(--n-bg)' : 'transparent',
 											color: groupBy === 'campaign' ? 'var(--n-fg)' : 'var(--n-fg-subtle)'
 										}}
@@ -469,8 +471,9 @@ export default function CommercialPage() {
 									</button>
 									<button
 										onClick={() => setGroupBy('creator')}
-										className={`px-3 py-1 text-[12px] font-medium rounded-md transition-all ${groupBy === 'creator' ? 'shadow-sm' : ''}`}
+										className={`px-3 py-1 font-medium rounded-md transition-all ${groupBy === 'creator' ? 'shadow-sm' : ''}`}
 										style={{
+											fontSize: '12px',
 											background: groupBy === 'creator' ? 'var(--n-bg)' : 'transparent',
 											color: groupBy === 'creator' ? 'var(--n-fg)' : 'var(--n-fg-subtle)'
 										}}
@@ -483,8 +486,8 @@ export default function CommercialPage() {
 							<div className="relative" ref={popoverRef}>
 								<button
 									onClick={() => setShowFilters(!showFilters)}
-									className="h-9 px-3 rounded-lg text-[13px] font-medium flex items-center gap-2 transition-colors border hover:opacity-80"
-									style={{ background: showFilters ? 'var(--n-bg-hover)' : 'var(--n-bg)', color: 'var(--n-fg)', borderColor: 'var(--n-border)' }}
+									className="h-9 px-3 rounded-lg font-medium flex items-center gap-2 transition-colors border hover:opacity-80"
+									style={{ fontSize: '12px', background: showFilters ? 'var(--n-bg-hover)' : 'var(--n-bg)', color: 'var(--n-fg)', borderColor: 'var(--n-border)' }}
 								>
 									<Icon name="filter" size={14} />
 									Filters
@@ -497,26 +500,26 @@ export default function CommercialPage() {
 										) : null;
 									})()}
 								</button>
-								
+
 								{showFilters && (
 									<div className="filter-popover absolute right-0 top-[calc(100%+8px)] w-[260px] rounded-xl z-50 p-4 anim-fade-up">
 										<div className="flex flex-col gap-4">
 											<div className="flex items-center justify-between">
-												<h4 className="text-[13px] font-bold" style={{ color: 'var(--n-fg)' }}>Filters</h4>
+												<h4 className="text-[12px] font-bold" style={{ color: 'var(--n-fg)' }}>Filters</h4>
 												{filtersActive && (
-													<button onClick={resetFilters} className="text-[11px] font-medium transition-opacity hover:opacity-70 flex items-center gap-1" style={{ color: 'var(--color-danger)' }}>
+													<button onClick={resetFilters} className="text-[12px] font-medium transition-opacity hover:opacity-70 flex items-center gap-1" style={{ color: 'var(--color-danger)' }}>
 														<Icon name="x" size={12} />
 														Clear All
 													</button>
 												)}
 											</div>
-											
+
 											<div className="flex flex-col gap-1.5">
-												<label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Direction</label>
+												<label className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Direction</label>
 												<select
 													value={dirFilter}
 													onChange={(e) => setDirFilter(e.target.value as DirFilter)}
-													className="h-8 rounded-md px-2 text-[13px] focus:outline-none border w-full"
+													className="h-8 rounded-md px-2 text-[12px] focus:outline-none border w-full"
 													style={{ background: 'var(--n-bg-soft)', color: 'var(--n-fg)', borderColor: 'var(--n-border)' }}
 												>
 													{(['All', 'Inbound', 'Outbound'] as DirFilter[]).map((d) => <option key={d} value={d}>{d === 'All' ? 'All Types' : d}</option>)}
@@ -524,11 +527,11 @@ export default function CommercialPage() {
 											</div>
 
 											<div className="flex flex-col gap-1.5">
-												<label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Creator</label>
+												<label className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Creator</label>
 												<select
 													value={creatorFilter}
 													onChange={(e) => setCreatorFilter(e.target.value)}
-													className="h-8 rounded-md px-2 text-[13px] focus:outline-none border w-full"
+													className="h-8 rounded-md px-2 text-[12px] focus:outline-none border w-full"
 													style={{ background: 'var(--n-bg-soft)', color: 'var(--n-fg)', borderColor: 'var(--n-border)' }}
 												>
 													<option value="All">All Creators</option>
@@ -537,11 +540,11 @@ export default function CommercialPage() {
 											</div>
 
 											<div className="flex flex-col gap-1.5">
-												<label className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Month</label>
+												<label className="text-[12px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Month</label>
 												<select
 													value={months[0] ?? ''}
 													onChange={(e) => setMonths(e.target.value ? [e.target.value] : [])}
-													className="h-8 rounded-md px-2 text-[13px] focus:outline-none border w-full"
+													className="h-8 rounded-md px-2 text-[12px] focus:outline-none border w-full"
 													style={{ background: 'var(--n-bg-soft)', color: 'var(--n-fg)', borderColor: 'var(--n-border)' }}
 												>
 													<option value="">All Months</option>
@@ -594,15 +597,15 @@ export default function CommercialPage() {
 											onClick={() => startEdit(deal)}
 										>
 											<td className="px-4 py-3.5 max-w-[280px]">
-												<span className="text-[13px] font-semibold leading-tight block truncate" style={{ color: 'var(--n-fg)' }} title={label}>{label}</span>
+												<span className="text-[12px] font-semibold leading-tight block truncate" style={{ color: 'var(--n-fg)' }} title={label}>{label}</span>
 											</td>
 											<td className="px-4 py-3.5">
-												<span className="text-[13px]" style={{ color: 'var(--n-fg-subtle)' }} title={cNames}>
+												<span className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }} title={cNames}>
 													{cNames.length > 30 ? cNames.slice(0, 30) + '…' : cNames}
 												</span>
 											</td>
 											<td className="px-4 py-3.5 text-right whitespace-nowrap">
-												<span className="text-[13px] font-bold tabular-nums" style={{ color: 'var(--n-fg)' }}>₹{inr(deal.total_fee)}</span>
+												<span className="text-[12px] font-bold tabular-nums" style={{ color: 'var(--n-fg)' }}>₹{inr(deal.total_fee)}</span>
 											</td>
 											<td className="px-4 py-3.5 whitespace-nowrap">
 												<span className="text-[12.5px] tabular-nums" style={{ color: 'var(--n-fg-subtle)' }}>
