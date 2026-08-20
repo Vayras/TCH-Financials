@@ -299,7 +299,7 @@ export default function CreatorsPage() {
 				cell: ({ row }) =>
 					parseCreatorLinks(row.original.profile_url)[0] && (
 						<a
-							className="inline-link text-[13px]"
+							className="inline-link text-[12px]"
 							href={parseCreatorLinks(row.original.profile_url)[0]}
 							target="_blank"
 							rel="noopener"
@@ -502,7 +502,7 @@ export default function CreatorsPage() {
 					const emailMissing = !accountTarget?.email || accountTarget.email.toLowerCase() === 'na';
 					if (createdCreds) {
 						return (
-							<div className="space-y-4 text-[13px]">
+							<div className="space-y-4 text-[12px]">
 								<div className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-800 space-y-2">
 									<p className="font-bold text-[14px]">✓ Portal Account Active</p>
 									<p>Provide the following credentials to the creator so they can log in:</p>
@@ -510,11 +510,11 @@ export default function CreatorsPage() {
 								<div className="p-4 rounded-lg bg-gray-50 border space-y-2.5 font-mono">
 									<div>
 										<span className="text-[11px] text-gray-400 block font-sans font-medium">EMAIL</span>
-										<span className="text-gray-800 text-[13px] font-semibold select-all">{createdCreds.email}</span>
+										<span className="text-gray-800 text-[12px] font-semibold select-all">{createdCreds.email}</span>
 									</div>
 									<div>
 										<span className="text-[11px] text-gray-400 block font-sans font-medium">TEMPORARY PASSWORD</span>
-										<span className="text-gray-800 text-[13px] font-semibold select-all">{createdCreds.pass}</span>
+										<span className="text-gray-800 text-[12px] font-semibold select-all">{createdCreds.pass}</span>
 									</div>
 								</div>
 								<p className="text-[12px] text-gray-400">
@@ -526,7 +526,7 @@ export default function CreatorsPage() {
 
 					if (emailMissing) {
 						return (
-							<div className="space-y-4 text-[13px]">
+							<div className="space-y-4 text-[12px]">
 								<div className="p-3.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 text-[12.5px] leading-relaxed">
 									<strong>Email Required</strong>: This creator does not have a registered email address. Please enter an email address to activate their login portal.
 								</div>
@@ -538,7 +538,7 @@ export default function CreatorsPage() {
 											value={inputEmail}
 											onChange={(e) => setInputEmail(e.target.value)}
 											required
-											className="w-full h-9 rounded px-3 text-[13.5px] bg-white border border-gray-300 focus:outline-none focus:border-[#7e22ce] mt-1"
+											className="w-full h-9 rounded px-3 text-[12px] bg-white border border-gray-300 focus:outline-none focus:border-[#7e22ce] mt-1"
 											placeholder="e.g. creator@example.com"
 										/>
 									</div>
@@ -548,7 +548,7 @@ export default function CreatorsPage() {
 					}
 
 					return (
-						<div className="space-y-4 text-[13px]">
+						<div className="space-y-4 text-[12px]">
 							<p style={{ color: 'var(--n-fg-subtle)' }}>
 								You are creating a login profile for <strong>{accountTarget?.name}</strong> using their email <strong>{accountTarget?.email}</strong>.
 							</p>
@@ -560,7 +560,7 @@ export default function CreatorsPage() {
 										value={tempPassword}
 										onChange={(e) => setTempPassword(e.target.value)}
 										required
-										className="w-full h-9 rounded px-3 text-[13.5px] bg-white border border-gray-300 focus:outline-none focus:border-[#7e22ce] mt-1"
+										className="w-full h-9 rounded px-3 text-[12px] bg-white border border-gray-300 focus:outline-none focus:border-[#7e22ce] mt-1"
 										placeholder="Minimum 6 characters"
 									/>
 								</div>

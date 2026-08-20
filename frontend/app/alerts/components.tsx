@@ -210,7 +210,7 @@ export function AlertSectionCard({
 
 			{items.length === 0 ? (
 				<div
-					className="px-4 py-6 text-center text-[13px]"
+					className="px-4 py-6 text-center text-[12px]"
 					style={{ color: 'var(--n-fg-subtle)' }}
 				>
 					None.
@@ -240,7 +240,7 @@ export function AlertSectionCard({
 								<div className="min-w-0 flex-1">
 									<div className="flex items-start gap-2 flex-wrap">
 										<div
-											className="text-[13.5px] font-medium leading-snug"
+											className="text-[12px] font-medium leading-snug"
 											style={{ color: 'var(--n-fg)' }}
 										>
 											{it.title}

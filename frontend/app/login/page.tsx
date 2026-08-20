@@ -31,7 +31,7 @@ export default function LoginPage() {
 	if (!isSupabaseConfigured()) {
 		return (
 			<div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--n-bg)' }}>
-				<p className="text-[13px]" style={{ color: 'var(--n-fg-subtle)' }}>
+				<p className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
 					Auth is not configured (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY missing).
 				</p>
 			</div>
@@ -70,7 +70,7 @@ export default function LoginPage() {
 						autoComplete="email"
 						value={email}
 						onChange={(e) => setEmail(e.target.value)}
-						className="w-full h-9 rounded px-3 text-[13.5px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+						className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 					/>
 				</label>
 
@@ -84,7 +84,7 @@ export default function LoginPage() {
 						autoComplete="current-password"
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
-						className="w-full h-9 rounded px-3 text-[13.5px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+						className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 					/>
 				</label>
 
@@ -97,7 +97,7 @@ export default function LoginPage() {
 				<button
 					type="submit"
 					disabled={busy}
-					className="w-full h-9 rounded text-[13.5px] font-medium transition-transform duration-100 active:scale-[0.985] disabled:opacity-60 cursor-pointer mb-4"
+					className="w-full h-9 rounded text-[12px] font-medium transition-transform duration-100 active:scale-[0.985] disabled:opacity-60 cursor-pointer mb-4"
 					style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
 				>
 					{busy ? 'Signing in…' : 'Sign in'}

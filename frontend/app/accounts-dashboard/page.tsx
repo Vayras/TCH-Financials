@@ -168,7 +168,7 @@ export default function AccountsDashboardPage() {
 						<div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3 text-gray-400">
 							<Icon name="layers" size={18} />
 						</div>
-						<h4 className="text-[13px] font-bold text-gray-950">No campaigns recorded</h4>
+						<h4 className="text-[12px] font-bold text-gray-950">No campaigns recorded</h4>
 						<p className="text-[11.5px] text-gray-500 mt-0.5 max-w-[280px] mx-auto">
 							Aggregated costs will display here when deals are added for this fiscal year.
 						</p>

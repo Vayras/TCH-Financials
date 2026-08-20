@@ -301,7 +301,7 @@ export default function CampaignDetailPage() {
 				}
 			`}} />
 			{/* Breadcrumbs */}
-			<div className="flex items-center gap-2 text-[13px]" style={{ color: 'var(--n-fg-subtle)' }}>
+			<div className="flex items-center gap-2 text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
 				<Link href="/commercial" className="hover:underline">Campaign Tracking</Link>
 				<Icon name="chevron-right" size={12} />
 				<span className="font-medium text-[var(--n-fg)]">{campaignTitle}</span>
@@ -312,7 +312,7 @@ export default function CampaignDetailPage() {
 					<h1 className="text-[26px] font-bold tracking-tight text-[var(--n-fg)]">
 						{campaignTitle}
 					</h1>
-					<p className="text-[13px]" style={{ color: 'var(--n-fg-subtle)' }}>
+					<p className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
 						Workspace for tracking creator payouts and billing details.
 					</p>
 				</div>
@@ -336,7 +336,7 @@ export default function CampaignDetailPage() {
 
 			{summaryError && (
 				<div
-					className="text-[13px] rounded-md p-3 flex gap-2 items-start"
+					className="text-[12px] rounded-md p-3 flex gap-2 items-start"
 					style={{ background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca' }}
 				>
 					<Icon name="alert-circle" size={14} className="mt-0.5 shrink-0" />
@@ -362,7 +362,7 @@ export default function CampaignDetailPage() {
 								)}
 							</div>
 
-							<div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-[13px]">
+							<div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-[12px]">
 								<div>
 									<span className="block text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Brand</span>
 									<span className="font-semibold text-[14px] mt-0.5 block" style={{ color: 'var(--n-fg)' }}>{watchBrand || '—'}</span>
@@ -381,7 +381,7 @@ export default function CampaignDetailPage() {
 								</div>
 							</div>
 
-							<div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-3 border-t text-[13px]" style={{ borderColor: 'var(--n-border)' }}>
+							<div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-3 border-t text-[12px]" style={{ borderColor: 'var(--n-border)' }}>
 								<div>
 									<span className="block text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>TCH POC</span>
 									<span className="font-medium mt-0.5 block" style={{ color: 'var(--n-fg)' }}>{watch('tch_poc') || '—'}</span>
@@ -497,7 +497,7 @@ export default function CampaignDetailPage() {
 									<div className="border-t pt-4 space-y-3" style={{ borderColor: 'var(--n-border)' }}>
 										<div>
 											<Label>Client Invoice Upload</Label>
-											<input type="file" {...register('client_invoice_file')} className="text-[13px] w-full" />
+											<input type="file" {...register('client_invoice_file')} className="text-[12px] w-full" />
 										</div>
 									</div>
 								</div>
@@ -528,7 +528,7 @@ export default function CampaignDetailPage() {
 
 						{hasDuplicateCreator && isEditing && (
 							<div
-								className="text-[13px] rounded-md p-3 flex gap-2 items-center"
+								className="text-[12px] rounded-md p-3 flex gap-2 items-center"
 								style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}
 							>
 								<Icon name="alert-triangle" size={14} className="shrink-0" />
@@ -556,23 +556,23 @@ export default function CampaignDetailPage() {
 									<div className="grid grid-cols-4 gap-2 pt-2 border-t text-[12px]" style={{ borderColor: 'var(--n-border)' }}>
 										<div>
 											<span className="block text-[10.5px] uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Their Fee</span>
-											<span className="font-semibold tabular-nums text-[13px]" style={{ color: 'var(--n-fg)' }}>₹{inr(watchTotalFee)}</span>
+											<span className="font-semibold tabular-nums text-[12px]" style={{ color: 'var(--n-fg)' }}>₹{inr(watchTotalFee)}</span>
 										</div>
 										<div>
 											<span className="block text-[10.5px] uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Agency %</span>
-											<span className="font-medium tabular-nums text-[13px]" style={{ color: 'var(--n-fg-muted)' }}>
+											<span className="font-medium tabular-nums text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>
 												{Number(watch('agency_fee_pct')) < 1 ? (Number(watch('agency_fee_pct')) * 100).toFixed(1) : Number(watch('agency_fee_pct'))}%
 											</span>
 										</div>
 										<div>
 											<span className="block text-[10.5px] uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Net Payout</span>
-											<span className="font-bold tabular-nums text-[13px]" style={{ color: 'var(--n-accent)' }}>
+											<span className="font-bold tabular-nums text-[12px]" style={{ color: 'var(--n-accent)' }}>
 												₹{inr(watch('creator_fee'))}
 											</span>
 										</div>
 										<div>
 											<span className="block text-[10.5px] uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>RO Number</span>
-											<span className="font-medium text-[13px]" style={{ color: 'var(--n-fg)' }}>{watch('ro_number') || '—'}</span>
+											<span className="font-medium text-[12px]" style={{ color: 'var(--n-fg)' }}>{watch('ro_number') || '—'}</span>
 										</div>
 									</div>
 									{deal && <CreatorInvoiceControls dealId={deal.id} creatorId={deal.creator_shares?.[0]?.creator ?? deal.creator} />}
@@ -665,23 +665,23 @@ export default function CampaignDetailPage() {
 											<div className="grid grid-cols-4 gap-2 pt-2 border-t text-[12px]" style={{ borderColor: 'var(--n-border)' }}>
 												<div>
 													<span className="block text-[10.5px] uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Their Fee</span>
-													<span className="font-semibold tabular-nums text-[13px]" style={{ color: 'var(--n-fg)' }}>₹{inr(creatorShareFee)}</span>
+													<span className="font-semibold tabular-nums text-[12px]" style={{ color: 'var(--n-fg)' }}>₹{inr(creatorShareFee)}</span>
 												</div>
 												<div>
 													<span className="block text-[10.5px] uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Agency %</span>
-													<span className="font-medium tabular-nums text-[13px]" style={{ color: 'var(--n-fg-muted)' }}>
+													<span className="font-medium tabular-nums text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>
 														{(pctVal * 100).toFixed(1)}%
 													</span>
 												</div>
 												<div>
 													<span className="block text-[10.5px] uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Net Payout</span>
-													<span className="font-bold tabular-nums text-[13px]" style={{ color: 'var(--n-accent)' }}>
+													<span className="font-bold tabular-nums text-[12px]" style={{ color: 'var(--n-accent)' }}>
 														₹{inr(displayNetPayout)}
 													</span>
 												</div>
 												<div>
 													<span className="block text-[10.5px] uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>RO Number</span>
-													<span className="font-medium text-[13px]" style={{ color: 'var(--n-fg)' }}>
+													<span className="font-medium text-[12px]" style={{ color: 'var(--n-fg)' }}>
 														{watchShares?.[i]?.ro_number || '—'}
 													</span>
 												</div>

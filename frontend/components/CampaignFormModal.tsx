@@ -155,7 +155,7 @@ export function CampaignFormModal({
 
 			{summaryError && (
 				<div
-					className="mb-5 text-[13px] rounded-xl p-3.5 flex gap-2.5 items-start field-error-shake"
+					className="mb-5 text-[12px] rounded-xl p-3.5 flex gap-2.5 items-start field-error-shake"
 					style={{ background: 'var(--color-danger-bg)', color: 'var(--color-danger)', border: '1px solid var(--color-danger-border)' }}
 				>
 					<Icon name="alert-circle" size={15} className="mt-0.5 shrink-0" />

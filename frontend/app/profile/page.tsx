@@ -44,11 +44,11 @@ export default function ProfilePage() {
 				<div className="grid grid-cols-2 gap-4 pb-6 border-b border-gray-100">
 					<div>
 						<span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Email Address</span>
-						<span className="text-[13.5px] font-semibold text-gray-800 block mt-0.5">{email || '—'}</span>
+						<span className="text-[12px] font-semibold text-gray-800 block mt-0.5">{email || '—'}</span>
 					</div>
 					<div>
 						<span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Assigned Role</span>
-						<span className="text-[13px] font-semibold text-gray-800 block mt-0.5">
+						<span className="text-[12px] font-semibold text-gray-800 block mt-0.5">
 							{ROLE_LABELS[role] ?? role}
 						</span>
 					</div>
@@ -62,7 +62,7 @@ export default function ProfilePage() {
 							required
 							value={name}
 							onChange={(e) => setName(e.target.value)}
-							className="w-full h-9 rounded px-3 text-[13.5px] bg-white border border-gray-300 focus:outline-none focus:border-[#7e22ce] mt-1"
+							className="w-full h-9 rounded px-3 text-[12px] bg-white border border-gray-300 focus:outline-none focus:border-[#7e22ce] mt-1"
 							placeholder="e.g. Riya Kapoor"
 						/>
 						<p className="text-[11.5px] text-gray-400 mt-1">

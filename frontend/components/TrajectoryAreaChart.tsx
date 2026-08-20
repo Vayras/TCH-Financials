@@ -35,7 +35,7 @@ export function TrajectoryAreaChart({ cols, totals }: { cols: {key: string, labe
 		<div className="rounded-2xl p-5 h-full flex flex-col" style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}>
 			<div className="flex justify-between items-center mb-6 min-h-[40px]">
 				<div>
-					<h3 className="text-[13px] font-semibold text-gray-800 tracking-wide mb-1">Total Revenue (YTD)</h3>
+					<h3 className="text-[12px] font-semibold text-gray-800 tracking-wide mb-1">Total Revenue (YTD)</h3>
 					<p className="text-[11px] text-gray-500">Cumulative revenue growth</p>
 				</div>
 				<div className="text-right">

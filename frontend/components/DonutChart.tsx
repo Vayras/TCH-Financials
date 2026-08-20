@@ -18,7 +18,7 @@ export function DonutChart({ emw, external }: { emw: number, external: number })
 	
 	return (
 		<div className="rounded-2xl p-5 h-full flex flex-col items-center justify-center gap-4" style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}>
-			<h3 className="text-[13px] font-semibold text-gray-800 self-start w-full tracking-wide">Revenue Split</h3>
+			<h3 className="text-[12px] font-semibold text-gray-800 self-start w-full tracking-wide">Revenue Split</h3>
 			<div className="relative w-[160px] h-[160px] flex-shrink-0 flex items-center justify-center">
 				<svg viewBox="0 0 100 100" className="absolute inset-0 transform -rotate-90 w-full h-full">
 					<circle 
@@ -36,13 +36,13 @@ export function DonutChart({ emw, external }: { emw: number, external: number })
 					{hovered === 'emw' ? (
 						<>
 							<span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">EMW</span>
-							<span className="text-[13px] font-bold text-[#1a63a3] tabular-nums">{formatAmount(emw)}</span>
+							<span className="text-[12px] font-bold text-[#1a63a3] tabular-nums">{formatAmount(emw)}</span>
 							<span className="text-[10px] text-gray-400">{emwPct.toFixed(1)}%</span>
 						</>
 					) : hovered === 'ext' ? (
 						<>
 							<span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">External</span>
-							<span className="text-[13px] font-bold text-gray-700 tabular-nums">{formatAmount(external)}</span>
+							<span className="text-[12px] font-bold text-gray-700 tabular-nums">{formatAmount(external)}</span>
 							<span className="text-[10px] text-gray-400">{extPct.toFixed(1)}%</span>
 						</>
 					) : (

@@ -51,7 +51,7 @@ export default function CreatorPortalLayout({ children }: { children: React.Reac
 					>
 						C
 					</div>
-					<span className="text-[13.5px] font-bold text-gray-800">Creator Portal</span>
+					<span className="text-[12px] font-bold text-gray-800">Creator Portal</span>
 				</div>
 
 				<nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
@@ -62,7 +62,7 @@ export default function CreatorPortalLayout({ children }: { children: React.Reac
 								key={item.href}
 								href={item.href}
 								className={cn(
-									'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-colors duration-100',
+									'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[12px] font-medium transition-colors duration-100',
 									active
 										? 'bg-[var(--n-accent-soft)] text-[var(--n-accent)] font-semibold'
 										: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -114,7 +114,7 @@ export default function CreatorPortalLayout({ children }: { children: React.Reac
 						borderBottom: '1px solid rgba(0,0,0,0.06)'
 					}}
 				>
-					<span className="text-[13px] font-medium text-gray-500">
+					<span className="text-[12px] font-medium text-gray-500">
 						Welcome back, <span className="text-[var(--n-accent)] font-semibold">{displayName || 'Creator'}</span>
 					</span>
 				</header>

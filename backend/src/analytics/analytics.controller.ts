@@ -41,9 +41,9 @@ export class AnalyticsController {
 
   @Get('creators/:id/dashboard')
   @Roles('super_admin', 'accounts', 'tch_member')
-  creatorDashboard(@Param('id') id: string, @Query('fy') fy?: string) {
+  creatorDashboard(@Param('id') id: string, @Query('fy') fy?: string, @Query('month') month?: string) {
     if (!/^\d+$/.test(id)) throw new BadRequestException({ detail: 'Invalid creator id.' });
-    return this.analytics.creatorDashboard(Number(id), fyStartOf(fy));
+    return this.analytics.creatorDashboard(Number(id), fyStartOf(fy), month);
   }
 
   @Get('exclusives/quarterly')

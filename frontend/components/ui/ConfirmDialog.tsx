@@ -38,7 +38,7 @@ export default function ConfirmDialog({
 				</>
 			}
 		>
-			<p className="text-[13px]" style={{ color: 'var(--n-fg-muted)' }}>This confirmation helps prevent accidental changes.</p>
+			<p className="text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>This confirmation helps prevent accidental changes.</p>
 		</Dialog>
 	);
 }
