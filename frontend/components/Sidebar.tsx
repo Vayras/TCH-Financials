@@ -203,30 +203,34 @@ function GlobalFySelect() {
 		return (
 			<label className="ml-auto flex items-center gap-1.5">
 				<span
-					className="text-[11.5px] font-medium uppercase"
-					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
+					className=" font-medium uppercase"
+
+					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em', fontSize: 12 }}
 				>
 					Fiscal Year
 				</span>
-				<select disabled className="h-7 rounded px-2 pr-7 text-[12px] opacity-40 bg-[var(--n-bg-soft)] border border-[var(--n-border)]" />
+				<select
+					style={{ fontSize: 12 }}
+					disabled className="h-7 rounded px-2 pr-7 opacity-40 bg-[var(--n-bg-soft)] border border-[var(--n-border)]" />
 			</label>
 		);
 	}
 	return (
 		<label className="ml-auto flex items-center gap-1.5">
 			<span
-				className="text-[11.5px] font-medium uppercase"
-				style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
+				className=" font-medium uppercase"
+				style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em', fontSize: 12 }}
 			>
 				Fiscal Year
 			</span>
 			<select
-				className="h-7 rounded px-2 pr-7 text-[12px] appearance-none bg-no-repeat bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+				className="h-7 rounded px-2 pr-7 appearance-none bg-no-repeat bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 				style={{
 					backgroundImage:
 						"url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2337352f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\")",
 					backgroundPosition: 'right 6px center',
-					backgroundSize: '12px 12px'
+					backgroundSize: '12px 12px',
+					fontSize: 12
 				}}
 				value={fyStart}
 				onChange={(e) => setFyStart(Number(e.target.value))}

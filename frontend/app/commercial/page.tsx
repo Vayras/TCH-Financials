@@ -64,7 +64,7 @@ export default function CommercialPage() {
 	const selectedCreatorId = creatorFilter === 'All'
 		? undefined
 		: creators.find((creator) => creator.name === creatorFilter)?.id;
-	
+
 	const queryParams = {
 		fyStart,
 		page,
@@ -268,7 +268,7 @@ export default function CommercialPage() {
 		}
 		setPage(1);
 	}, [urlHydrated, debouncedSearch, dirFilter, statusFilter, creatorFilter, months, groupBy, viewMode, fyStart]);
-	
+
 	React.useEffect(() => {
 		const lastPage = Math.max(1, Math.ceil(resultTotal / pageSize));
 		if (page > lastPage) setPage(lastPage);
@@ -289,9 +289,9 @@ export default function CommercialPage() {
 									? { background: 'var(--n-accent)', color: '#fff' }
 									: { background: 'transparent', color: 'var(--n-accent)', opacity: 0.45 }
 								}
-								className="h-8 w-9 flex items-center justify-center transition-colors duration-100"
+								className="h-7 w-7 flex items-center justify-center transition-colors duration-100"
 							>
-								<Icon name="grid" size={14} />
+								<Icon name="grid" size={12} />
 							</button>
 							<button
 								type="button"
@@ -301,14 +301,18 @@ export default function CommercialPage() {
 									? { background: 'var(--n-accent)', color: '#fff' }
 									: { background: 'transparent', color: 'var(--n-accent)', opacity: 0.45 }
 								}
-								className="h-8 w-9 flex items-center justify-center transition-colors duration-100"
+								className="h-7 w-7 flex items-center justify-center transition-colors duration-100"
 							>
-								<Icon name="list" size={14} />
+								<Icon name="list" size={12} />
 							</button>
 						</div>
 
-						<Button variant="primary" size="md" onClick={startAdd}>
-							<Icon name="plus" size={14} />
+						<Button variant="primary" size="sm" onClick={startAdd}
+							style={{
+								fontSize: 11
+							}}
+						>
+							<Icon name="plus" size={12} />
 							Add Campaign
 						</Button>
 					</div>
