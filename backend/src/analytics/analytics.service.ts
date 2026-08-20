@@ -55,7 +55,7 @@ export class AnalyticsService {
     return fiscalYearOf(periodISO) === fyStart;
   }
 
-  async creatorDashboard(creatorId: number, fyStart: number): Promise<Record<string, unknown>> {
+  async creatorDashboard(creatorId: number, fyStart: number, monthFilter?: string): Promise<Record<string, unknown>> {
     const creator = await this.dataSource.getRepository(Creator).findOneBy({ id: String(creatorId) });
     if (!creator) throw new NotFoundException({ detail: 'Creator not found.' });
     const deals = await this.allDeals();
@@ -80,16 +80,21 @@ export class AnalyticsService {
       if (!split) continue;
       const period = billingPeriod(deal);
       if (!period || !this.inFy(period, fyStart)) continue;
-      totalBilling = totalBilling.add(split.fee);
-      totalCreatorFee = totalCreatorFee.add(split.creatorFee);
-      totalMargin = totalMargin.add(split.profit);
-      const month = monthMap.get(monthKey(period));
+      
+      const mKey = monthKey(period);
+      const month = monthMap.get(mKey);
       if (month) {
         month.billing = month.billing.add(split.fee);
         month.creatorFee = month.creatorFee.add(split.creatorFee);
         month.margin = month.margin.add(split.profit);
         month.campaigns += 1;
       }
+      
+      if (monthFilter && mKey !== monthFilter) continue;
+
+      totalBilling = totalBilling.add(split.fee);
+      totalCreatorFee = totalCreatorFee.add(split.creatorFee);
+      totalMargin = totalMargin.add(split.profit);
       const status = deal.creatorPaymentStatus || 'Not set';
       const payment = payments.get(status) ?? { count: 0, amount: new Decimal(0) };
       payment.count += 1;
