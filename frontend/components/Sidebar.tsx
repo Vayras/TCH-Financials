@@ -79,7 +79,7 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
 					<div className="flex items-center gap-2.5 min-w-0">
 						{/* Avatar */}
 						<div
-							className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 select-none"
+							className="h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 select-none"
 							style={{ background: roleStyle.bg, color: roleStyle.color }}
 						>
 							{initials}
@@ -87,11 +87,11 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
 
 						{!collapsed && (
 							<div className="flex flex-col gap-0 min-w-0">
-								<div className="text-[12px] font-medium truncate" style={{ color: 'var(--n-fg)' }}>
+								<div className="text-[10px] font-medium truncate" style={{ color: 'var(--n-fg)' }}>
 									{label}
 								</div>
 								<div
-									className="text-[8px] font-semibold 
+									className="text-[10px] font-semibold 
 									inline-block"
 									style={{ color: roleStyle.bg }}
 								>
@@ -109,29 +109,28 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
 				{/* Popover menu — anchored above the footer */}
 				{menuOpen && (
 					<div
-						className="absolute bottom-full left-2 right-2 mb-1 rounded-lg shadow-lg border py-1 text-[13px] z-50"
+						className="absolute bottom-full left-2 right-2 mb-1 rounded-lg shadow-lg border py-1 text-[10px] z-50"
 						style={{
 							background: 'var(--n-bg-soft)',
 							borderColor: 'var(--n-border)',
-							boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
 						}}
 					>
 						{/* Profile header inside menu */}
 						<div className="px-3 py-2.5 border-b" style={{ borderColor: 'var(--n-border)' }}>
 							<div className="flex items-center gap-2.5">
 								<div
-									className="h-9 w-9 rounded-full flex items-center justify-center text-[13px] font-bold shrink-0"
+									className="h-9 w-9 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
 									style={{ background: roleStyle.bg, color: roleStyle.color }}
 								>
 									{initials}
 								</div>
 								<div className="min-w-0">
 									{displayName && (
-										<div className="text-[13px] font-semibold truncate" style={{ color: 'var(--n-fg)' }}>
+										<div className="text-[10px] font-semibold truncate" style={{ color: 'var(--n-fg)' }}>
 											{displayName}
 										</div>
 									)}
-									<div className="text-[11.5px] truncate" style={{ color: 'var(--n-fg-subtle)' }}>
+									<div className="text-[10px] truncate" style={{ color: 'var(--n-fg-subtle)' }}>
 										{email}
 									</div>
 									<span
@@ -209,7 +208,7 @@ function GlobalFySelect() {
 				>
 					Fiscal Year
 				</span>
-				<select disabled className="h-7 rounded px-2 pr-7 text-[13px] opacity-40 bg-[var(--n-bg-soft)] border border-[var(--n-border)]" />
+				<select disabled className="h-7 rounded px-2 pr-7 text-[12px] opacity-40 bg-[var(--n-bg-soft)] border border-[var(--n-border)]" />
 			</label>
 		);
 	}
@@ -222,7 +221,7 @@ function GlobalFySelect() {
 				Fiscal Year
 			</span>
 			<select
-				className="h-7 rounded px-2 pr-7 text-[13px] appearance-none bg-no-repeat bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+				className="h-7 rounded px-2 pr-7 text-[12px] appearance-none bg-no-repeat bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
 				style={{
 					backgroundImage:
 						"url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2337352f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\")",
@@ -307,7 +306,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 									T
 								</div>
 								<div className="flex flex-col min-w-0 leading-none">
-									<span className="text-[13.5px] font-bold truncate" style={{ color: 'var(--n-fg)' }}>
+									<span className="text-[12px] font-bold truncate" style={{ color: 'var(--n-fg)' }}>
 										{role === 'super_admin' ? 'TCH MIS' : role === 'accounts' ? 'TCH Financials' : 'TCH Commercial'}
 									</span>
 									<span className="text-[9px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--n-fg-subtle)' }}>
@@ -385,10 +384,10 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 						<span className="inline-flex items-center" style={{ color: 'var(--n-fg-subtle)' }}>
 							<Icon name="home" size={14} />
 						</span>
-						<span className="text-[13px]" style={{ color: 'var(--n-fg-subtle)' }}>
+						<span className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
 							/
 						</span>
-						<span className="text-[13px] font-medium" style={{ color: 'var(--n-fg)' }}>
+						<span className="text-[12px] font-medium" style={{ color: 'var(--n-fg)' }}>
 							{currentLabel}
 						</span>
 						<GlobalFySelect />
