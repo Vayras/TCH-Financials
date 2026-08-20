@@ -32,10 +32,11 @@ export default function CreatorDetailPage() {
 	const updateMutation = useUpdateCreatorMutation();
 	const [editConfirmOpen, setEditConfirmOpen] = React.useState(false);
 	const [editOpen, setEditOpen] = React.useState(false);
+	const [selectedMonth, setSelectedMonth] = React.useState<string>('');
 
 	const invoicesQuery = useQuery<CreatorInvoice[]>({ queryKey: ['creator-invoices', { creator: id }], queryFn: () => api.get(`/creator-invoices/?creator=${id}`), enabled: id !== null });
 	const documentsQuery = useQuery<CreatorDocument[]>({ queryKey: ['creator-documents', { creator: id }], queryFn: () => api.get(`/creator-documents/?creator=${id}`), enabled: id !== null && !isAccounts });
-	const dashboardQuery = useQuery<CreatorDashboard>({ queryKey: ['creator-dashboard', id, fyStart], queryFn: () => api.get(`/creators/${id}/dashboard?fy=${fyStart}`), enabled: id !== null && fyStart !== null });
+	const dashboardQuery = useQuery<CreatorDashboard>({ queryKey: ['creator-dashboard', id, fyStart, selectedMonth], queryFn: () => api.get(`/creators/${id}/dashboard?fy=${fyStart}${selectedMonth ? `&month=${selectedMonth}` : ''}`), enabled: id !== null && fyStart !== null });
 
 	const initial = React.useMemo<CreatorForm>(() => creator ? {
 		name: creator.name, niche: creator.category, relation: creator.relationship,
@@ -61,7 +62,7 @@ export default function CreatorDetailPage() {
 		} catch (error) { toast.error('Creator could not be updated.', { description: (error as Error).message }); }
 	}
 
-	if (creatorQuery.isLoading) return <div className="py-20 text-center text-[13px] text-[var(--n-fg-muted)]">Loading creator workspace…</div>;
+	if (creatorQuery.isLoading) return <div className="py-20 text-center text-[12px] text-[var(--n-fg-muted)]">Loading creator workspace…</div>;
 	if (creatorQuery.error || !creator) return <QueryErrorState description="This creator workspace is temporarily unavailable." onRetry={() => creatorQuery.refetch()} />;
 
 	const invoices = invoicesQuery.data ?? [];
@@ -71,12 +72,25 @@ export default function CreatorDetailPage() {
 	const campaigns = dashboard?.campaigns ?? [];
 	return (
 		<section className="space-y-6">
-			<div className="text-[13px] text-[var(--n-fg-muted)]"><Link className="hover:underline" href="/creators">Creators</Link> <span className="mx-2">/</span> {creator.name}</div>
+			<div className="text-[12px] text-[var(--n-fg-muted)]"><Link className="hover:underline" href="/creators">Creators</Link> <span className="mx-2">/</span> {creator.name}</div>
 			<div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
 				<div className="xl:col-span-2 min-w-0 space-y-6">
 					<header className="flex flex-wrap items-center justify-between gap-4">
 						<div><h1 className="text-[26px] font-bold">{creator.name}</h1><div className="mt-2 flex gap-2"><Tag tone={relTone(creator.relationship)}>{creator.relationship}</Tag><Tag tone={statusTone(creator.status)}>{creator.status}</Tag></div></div>
-						{!isAccounts && <Button variant="primary" onClick={() => setEditConfirmOpen(true)}><Icon name="edit" size={14} className="mr-1" />Edit creator</Button>}
+						<div className="flex items-center gap-3">
+							<select
+								className="form-select h-8 text-[12px] rounded-md py-1 px-3 border outline-none cursor-pointer focus:border-[var(--n-accent)] focus:ring-1 focus:ring-[var(--n-accent)]"
+								style={{ borderColor: 'var(--n-border)', background: 'var(--n-bg)', color: 'var(--n-fg)' }}
+								value={selectedMonth}
+								onChange={(e) => setSelectedMonth(e.target.value)}
+							>
+								<option value="">All months</option>
+								{dashboard?.months?.map((m) => (
+									<option key={m.key} value={m.key}>{m.label}</option>
+								))}
+							</select>
+							{!isAccounts && <Button variant="primary" onClick={() => setEditConfirmOpen(true)}><Icon name="edit" size={14} className="mr-1" />Edit creator</Button>}
+						</div>
 					</header>
 					{dashboardQuery.isLoading && <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" aria-label="Loading creator metrics">{Array.from({ length: 8 }, (_, index) => <div key={index} className="h-[74px] animate-pulse rounded border bg-gray-50" style={{ borderColor: 'var(--n-border)' }} />)}</div>}
 					{dashboardQuery.error && <QueryErrorState description="Creator financial metrics are temporarily unavailable." onRetry={() => dashboardQuery.refetch()} />}
@@ -94,7 +108,7 @@ export default function CreatorDetailPage() {
 						{[['Niche', creator.category || '—'], ['Talent manager', creator.ops_manager || '—'], ['Location', creator.location || '—'], ['Joined', formatDoj(creator.doj)]].map(([label, value]) => <div key={label} className="rounded-xl border p-4" style={{ borderColor: 'var(--n-border)' }}><div className="text-[12px] font-medium uppercase tracking-wide text-[var(--n-fg-muted)]">{label}</div><div className="mt-1.5 text-[14px] font-medium">{value}</div></div>)}
 					</div>
 					<div className="rounded-xl border p-5 space-y-3" style={{ borderColor: 'var(--n-border)' }}>
-						<div className="flex items-center justify-between"><div><h2 className="text-[19px] font-semibold">Links</h2><p className="mt-1.5 text-[13px] text-[var(--n-fg-muted)]">Creator profiles, portfolios, and social channels.</p></div><Tag tone="neutral">{links.length}</Tag></div>
+						<div className="flex items-center justify-between"><div><h2 className="text-[19px] font-semibold">Links</h2><p className="mt-1.5 text-[12px] text-[var(--n-fg-muted)]">Creator profiles, portfolios, and social channels.</p></div><Tag tone="neutral">{links.length}</Tag></div>
 						{links.length ? <div className="flex flex-wrap gap-2">{links.map((link, index) => {
 							let label = `Link ${index + 1}`;
 							try { label = new URL(link).hostname.replace(/^www\./, '') || label; } catch { /* retain the safe fallback */ }
@@ -107,10 +121,10 @@ export default function CreatorDetailPage() {
 				</div>
 			</div>
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-				<div className="rounded-xl border p-5 space-y-3" style={{ borderColor: 'var(--n-border)' }}><div className="flex justify-between"><div><h2 className="text-[19px] font-semibold">Campaigns</h2><p className="mt-1.5 text-[12px] font-medium text-[var(--n-fg-muted)]">{dashboard?.fy ?? 'Selected fiscal year'}</p></div><Tag tone="neutral">{campaigns.length}</Tag></div>{dashboardQuery.isLoading ? <p className="text-[13px]">Loading campaigns…</p> : campaigns.length ? campaigns.map(campaign => isAccounts ? <div key={campaign.deal_id} className="block rounded-lg border p-3" style={{ borderColor: 'var(--n-border)' }}><div className="flex items-center justify-between gap-2"><div className="flex items-center gap-2"><div className="text-[14px] font-medium">{campaign.campaign}</div>{campaign.direction && <Tag tone={campaign.direction === 'Outbound' ? 'outbound' : 'inbound'}>{campaign.direction}</Tag>}</div><Tag tone={campaign.payment_status === 'Paid' ? 'yes' : campaign.payment_status === 'Overdue' ? 'no' : 'markup'}>{campaign.payment_status === 'Not set' ? 'Awaiting update' : campaign.payment_status}</Tag></div><div className="mt-1.5 text-[12px] leading-relaxed text-[var(--n-fg-muted)]">{campaign.brand} · ₹{inr(campaign.billing)} · Creator fee ₹{inr(campaign.creator_fee)} · Margin ₹{inr(campaign.margin)}</div></div> : <Link key={campaign.deal_id} href={`/commercial/${campaign.deal_id}`} className="block rounded-lg border p-3 hover:bg-[var(--n-bg-hover)]" style={{ borderColor: 'var(--n-border)' }}><div className="flex items-center gap-2"><div className="text-[14px] font-medium">{campaign.campaign}</div>{campaign.direction && <Tag tone={campaign.direction === 'Outbound' ? 'outbound' : 'inbound'}>{campaign.direction}</Tag>}</div><div className="mt-1.5 text-[12px] leading-relaxed text-[var(--n-fg-muted)]">{campaign.brand} · ₹{inr(campaign.billing)} · Margin ₹{inr(campaign.margin)}</div></Link>) : <p className="text-[13px] text-[var(--n-fg-muted)]">No campaigns assigned in this fiscal year.</p>}</div>
+				<div className="rounded-xl border p-5 space-y-3" style={{ borderColor: 'var(--n-border)' }}><div className="flex justify-between"><div><h2 className="text-[19px] font-semibold">Campaigns</h2><p className="mt-1.5 text-[12px] font-medium text-[var(--n-fg-muted)]">{dashboard?.fy ?? 'Selected fiscal year'}</p></div><Tag tone="neutral">{campaigns.length}</Tag></div>{dashboardQuery.isLoading ? <p className="text-[12px]">Loading campaigns…</p> : campaigns.length ? campaigns.map(campaign => isAccounts ? <div key={campaign.deal_id} className="block rounded-lg border p-3" style={{ borderColor: 'var(--n-border)' }}><div className="flex items-center justify-between gap-2"><div className="flex items-center gap-2"><div className="text-[14px] font-medium">{campaign.campaign}</div>{campaign.direction && <Tag tone={campaign.direction === 'Outbound' ? 'outbound' : 'inbound'}>{campaign.direction}</Tag>}</div><Tag tone={campaign.payment_status === 'Paid' ? 'yes' : campaign.payment_status === 'Overdue' ? 'no' : 'markup'}>{campaign.payment_status === 'Not set' ? 'Awaiting update' : campaign.payment_status}</Tag></div><div className="mt-1.5 text-[12px] leading-relaxed text-[var(--n-fg-muted)]">{campaign.brand} · ₹{inr(campaign.billing)} · Creator fee ₹{inr(campaign.creator_fee)} · Margin ₹{inr(campaign.margin)}</div></div> : <Link key={campaign.deal_id} href={`/commercial/${campaign.deal_id}`} className="block rounded-lg border p-3 hover:bg-[var(--n-bg-hover)]" style={{ borderColor: 'var(--n-border)' }}><div className="flex items-center gap-2"><div className="text-[14px] font-medium">{campaign.campaign}</div>{campaign.direction && <Tag tone={campaign.direction === 'Outbound' ? 'outbound' : 'inbound'}>{campaign.direction}</Tag>}</div><div className="mt-1.5 text-[12px] leading-relaxed text-[var(--n-fg-muted)]">{campaign.brand} · ₹{inr(campaign.billing)} · Margin ₹{inr(campaign.margin)}</div></Link>) : <p className="text-[12px] text-[var(--n-fg-muted)]">No campaigns assigned in this fiscal year.</p>}</div>
 				<div className="space-y-5">
-					<div className="rounded-xl border p-5 space-y-3" style={{ borderColor: 'var(--n-border)' }}><div className="flex justify-between"><h2 className="text-[19px] font-semibold">Creator invoices</h2><Tag tone="neutral">{invoices.length}</Tag></div>{invoices.length ? invoices.map(invoice => <button type="button" key={invoice.id} onClick={() => void downloadAuthenticatedFile(invoice.file, invoice.label || 'creator-invoice')} className="block text-[13px] inline-link">{invoice.campaign_name || invoice.brand} · {formatDocDate(invoice.uploaded_at)} ↗</button>) : <p className="text-[13px] text-[var(--n-fg-muted)]">No invoices uploaded yet.</p>}</div>
-					{!isAccounts && <div className="rounded-xl border p-5 space-y-3" style={{ borderColor: 'var(--n-border)' }}><div className="flex justify-between"><h2 className="text-[19px] font-semibold">Documents</h2><Tag tone="neutral">{documents.length}</Tag></div>{documents.length ? documents.map(document => <button type="button" key={document.id} onClick={() => void downloadAuthenticatedFile(document.file, document.label || 'creator-document')} className="block text-[13px] inline-link">{document.doc_type} · {formatDocDate(document.uploaded_at)} ↗</button>) : <p className="text-[13px] text-[var(--n-fg-muted)]">No documents on file.</p>}</div>}
+					<div className="rounded-xl border p-5 space-y-3" style={{ borderColor: 'var(--n-border)' }}><div className="flex justify-between"><h2 className="text-[19px] font-semibold">Creator invoices</h2><Tag tone="neutral">{invoices.length}</Tag></div>{invoices.length ? invoices.map(invoice => <button type="button" key={invoice.id} onClick={() => void downloadAuthenticatedFile(invoice.file, invoice.label || 'creator-invoice')} className="block text-[12px] inline-link">{invoice.campaign_name || invoice.brand} · {formatDocDate(invoice.uploaded_at)} ↗</button>) : <p className="text-[12px] text-[var(--n-fg-muted)]">No invoices uploaded yet.</p>}</div>
+					{!isAccounts && <div className="rounded-xl border p-5 space-y-3" style={{ borderColor: 'var(--n-border)' }}><div className="flex justify-between"><h2 className="text-[19px] font-semibold">Documents</h2><Tag tone="neutral">{documents.length}</Tag></div>{documents.length ? documents.map(document => <button type="button" key={document.id} onClick={() => void downloadAuthenticatedFile(document.file, document.label || 'creator-document')} className="block text-[12px] inline-link">{document.doc_type} · {formatDocDate(document.uploaded_at)} ↗</button>) : <p className="text-[12px] text-[var(--n-fg-muted)]">No documents on file.</p>}</div>}
 				</div>
 			</div>
 			{!isAccounts && <ConfirmDialog open={editConfirmOpen} onOpenChange={setEditConfirmOpen} title="Edit this creator?" description="You are about to update this creator’s master profile and documents." confirmLabel="Continue to edit" onConfirm={() => { setEditConfirmOpen(false); setEditOpen(true); }} />}
