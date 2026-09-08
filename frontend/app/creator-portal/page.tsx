@@ -1,96 +1,44 @@
 'use client';
 
-import * as React from 'react';
-import { useCreatorPortalDealsQuery } from './queries';
-import { inr } from '@/lib/utils';
-import Tag from '@/components/ui/Tag';
+import Link from 'next/link';
+import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
-import PageHeader from '@/components/PageHeader';
-import QueryErrorState from '@/components/QueryErrorState';
+import { CreatorPageHeader, PortalCard, PortalStat } from './components';
+import { useCreatorWorkspace } from './workspace';
+import { useCreatorPortalDealsQuery } from './queries';
 
-export default function CreatorDealsPage() {
-	const { data: deals = [], isLoading, error, refetch } = useCreatorPortalDealsQuery();
-
-	if (isLoading) {
-		return (
-			<div className="flex items-center justify-center gap-3 py-16 text-gray-500">
-				<svg className="animate-spin h-5 w-5" style={{ willChange: 'transform' }} viewBox="0 0 24 24" fill="none">
-					<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-					<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-				</svg>
-				<span className="text-[14px]">Loading your deals…</span>
-			</div>
-		);
-	}
-
-	if (error) {
-		return <QueryErrorState description="Unable to load your deals." onRetry={refetch} />;
-	}
+export default function CreatorOverviewPage() {
+	const { workspace } = useCreatorWorkspace();
+	const { data: deals = [] } = useCreatorPortalDealsQuery();
+	const completed = [workspace.profile.headline, workspace.profile.bio, workspace.profile.category, workspace.profile.location, workspace.profile.languages, workspace.socials.length > 0, workspace.portfolio.length > 0].filter(Boolean).length;
+	const completion = Math.round((completed / 7) * 100);
+	const nextSteps = [
+		!workspace.profile.bio && { label: 'Write your creator biography', href: '/creator-portal/profile', section: 'Profile' },
+		workspace.socials.length === 0 && { label: 'Add your first social account', href: '/creator-portal/socials', section: 'Socials' },
+		workspace.portfolio.length === 0 && { label: 'Feature your best brand work', href: '/creator-portal/portfolio', section: 'Portfolio' },
+		workspace.mediaKit.status === 'Draft' && { label: 'Preview and publish your media kit', href: '/creator-portal/media-kit', section: 'Media Kit' },
+	].filter(Boolean) as { label: string; href: string; section: string }[];
 
 	return (
 		<div className="space-y-6">
-			<PageHeader title="My Deals" description="Track your campaign deliverables, payment schedules, and verified invoices." />
-
-			{deals.length === 0 ? (
-				<div className="text-center py-20 rounded-xl border bg-white border-gray-200">
-					<div className="h-12 w-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4">
-						<Icon name="briefcase" size={20} className="text-gray-400" />
-					</div>
-					<h3 className="text-[15px] font-bold text-gray-900 mb-1">No Active Campaigns Yet</h3>
-					<p className="text-[12px] text-gray-500 max-w-[320px] mx-auto leading-relaxed">
-						Your campaign details and payment terms will appear here as soon as a project is assigned.
-					</p>
-					<p className="text-[11.5px] text-gray-400 mt-3 max-w-[280px] mx-auto">
-						If you&apos;re expecting a campaign to show up, please reach out to your Talent Manager.
-					</p>
-				</div>
-			) : (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-					{deals.map((deal) => {
-						return (
-							<div
-								key={deal.id}
-							className="creator-deal-card rounded-xl p-5 hover:shadow-md hover:border-[var(--n-accent)] group flex flex-col justify-between gap-4 cursor-pointer"
-								style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-							>
-								<div>
-									<div className="flex items-start justify-between gap-2 mb-2">
-										<span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--n-accent)] bg-[var(--n-accent-soft)] px-2 py-0.5 rounded border border-[var(--n-border)]">
-											{deal.brand || 'Brand'}
-										</span>
-										<Tag tone={deal.campaign_status === 'Over' ? 'yes' : 'neutral'}>
-											{deal.campaign_status === 'Over' ? 'Completed' : 'Active'}
-										</Tag>
-									</div>
-
-									<h3 className="text-[15px] font-semibold leading-tight mb-1 truncate transition-colors duration-100 tracking-[-0.01em] group-hover:text-[var(--n-accent)]" title={deal.campaign || 'Campaign'} style={{ color: 'var(--n-fg)' }}>
-										{deal.campaign || 'Untitled Campaign'}
-									</h3>
-
-									<p className="text-[12.5px] line-clamp-2 mt-2 leading-relaxed" title={deal.deliverables} style={{ color: 'var(--n-fg-muted)' }}>
-										<strong style={{ color: 'var(--n-fg-subtle)' }}>Deliverables:</strong> {deal.deliverables || '—'}
-									</p>
-								</div>
-
-								<div className="pt-3 border-t grid grid-cols-2 gap-2 text-[12px]" style={{ borderColor: 'var(--n-border)' }}>
-									<div>
-										<span className="block font-medium" style={{ color: 'var(--n-fg-subtle)' }}>Payout Date</span>
-										<span className="font-semibold mt-0.5 block tabular-nums" style={{ color: 'var(--n-fg)' }}>
-											{deal.creator_payment_date || '—'}
-										</span>
-									</div>
-									<div className="text-right">
-										<span className="block font-medium" style={{ color: 'var(--n-fg-subtle)' }}>My Fee</span>
-										<span className="text-[14px] font-bold mt-0.5 block tabular-nums" style={{ color: 'var(--n-fg)' }}>
-											₹{inr(Number(deal.creator_fee))}
-										</span>
-									</div>
-								</div>
-							</div>
-						);
-					})}
-				</div>
-			)}
+			<CreatorPageHeader title="Overview" description="Your creator profile, business and financial activity at a glance." actions={<Button variant="primary" onClick={() => window.location.assign('/creator-portal/profile')}>Complete profile</Button>} />
+			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+				<PortalStat label="Profile completion" value={`${completion}%`} detail={completion === 100 ? 'Your profile is complete' : 'Complete your public profile'} icon="user" />
+				<PortalStat label="Media kit" value={workspace.mediaKit.status} detail={workspace.mediaKit.status === 'Published' ? `/k/${workspace.mediaKit.slug}` : 'Not visible to brands yet'} icon="layout" />
+				<PortalStat label="Brand enquiries" value={workspace.enquiries.length} detail="Received through your media kit" icon="inbox" />
+				<PortalStat label="Active deals" value={deals.filter((deal) => deal.campaign_status !== 'Over').length} detail="Campaigns assigned by TCH" icon="briefcase" />
+			</div>
+			<div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,.65fr)]">
+				<PortalCard className="overflow-hidden">
+					<div className="flex items-center justify-between border-b border-[var(--n-border)] px-4 py-3"><div><h2 className="text-[12px] font-semibold">Next steps</h2><p className="mt-0.5 text-[10px] text-[var(--n-fg-subtle)]">Finish these to make your profile brand-ready.</p></div><span className="text-[10px] text-[var(--n-fg-subtle)]">{nextSteps.length} remaining</span></div>
+					<div className="divide-y divide-[var(--n-border)]">{nextSteps.length === 0 ? <div className="px-4 py-8 text-center text-[11px] text-[var(--n-fg-muted)]">Everything is ready. Your profile looks great.</div> : nextSteps.map((step) => <Link key={step.href} href={step.href} className="group flex items-center justify-between gap-4 px-4 py-3 hover:bg-[var(--n-bg-soft)]"><div className="flex items-center gap-3"><span className="grid h-6 w-6 place-items-center rounded-full border border-[var(--n-border-strong)] text-[var(--n-fg-subtle)]"><Icon name="check" size={12} /></span><span className="text-[11px] font-medium">{step.label}</span></div><div className="flex items-center gap-2 text-[10px] text-[var(--n-fg-subtle)]"><span>{step.section}</span><Icon name="chevron-right" size={13} /></div></Link>)}</div>
+				</PortalCard>
+				<PortalCard className="p-4">
+					<div className="flex items-start justify-between"><div><h2 className="text-[12px] font-semibold">Public media kit</h2><p className="mt-1 text-[10px] text-[var(--n-fg-subtle)]">Control the profile brands can view.</p></div><span className="rounded-full bg-[var(--n-accent-soft)] px-2 py-1 text-[9px] font-semibold text-[var(--n-accent)]">{workspace.mediaKit.status}</span></div>
+					<div className="mt-5 rounded-lg bg-[var(--n-bg-soft)] p-3"><p className="text-[9px] uppercase tracking-[0.08em] text-[var(--n-fg-subtle)]">Public URL</p><p className="mt-1 truncate text-[11px] font-medium">tch.co/k/{workspace.mediaKit.slug}</p></div>
+					<Link href="/creator-portal/media-kit" className="mt-4 flex items-center justify-between text-[10px] font-medium text-[var(--n-accent)]">Open media-kit builder <Icon name="arrow-right" size={13} /></Link>
+				</PortalCard>
+			</div>
 		</div>
 	);
 }
