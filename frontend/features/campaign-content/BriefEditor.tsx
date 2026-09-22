@@ -1,0 +1,55 @@
+'use client';
+import {useEffect,useState} from 'react';
+import {useForm,useFieldArray} from 'react-hook-form';
+import {useQueryClient} from '@tanstack/react-query';
+import {api} from '@/lib/api';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Textarea from '@/components/ui/Textarea';
+import Dialog from '@/components/ui/Dialog';
+import BriefView from './BriefView';
+import AssignmentDialog from './AssignmentDialog';
+import {briefPath,useBriefQuery} from './queries';
+import type {AgencyBrief,BriefContent} from './types';
+
+export default function BriefEditor({id,initial}:{id:string;initial:AgencyBrief}) {
+ const {register,control,handleSubmit,reset,watch,setValue,formState:{isDirty}}=useForm<BriefContent>({defaultValues:initial.draft});
+ const deliverables=useFieldArray({control,name:'deliverables',keyName:'formKey'}),references=useFieldArray({control,name:'references',keyName:'formKey'});
+ const [current,setCurrent]=useState(initial),[busy,setBusy]=useState(false),[error,setError]=useState(''),[status,setStatus]=useState(''),[preview,setPreview]=useState(false),[access,setAccess]=useState(false),[confirm,setConfirm]=useState(false),[history,setHistory]=useState(false),[briefTab,setBriefTab]=useState<'overview'|'guardrails'|'deliverables'|'references'>('overview');
+ const client=useQueryClient(),content=watch();
+ useEffect(()=>{if(!isDirty){setCurrent(initial);reset(initial.draft);}},[initial,isDirty,reset]);
+ useEffect(()=>{
+  if(!isDirty)return;
+  const unload=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue='';};
+  const click=(e:MouseEvent)=>{const link=(e.target as Element)?.closest('a[href]');if(link&&!window.confirm('Discard your unsaved brief changes?')){e.preventDefault();e.stopPropagation();}};
+  window.addEventListener('beforeunload',unload);document.addEventListener('click',click,true);
+  return()=>{window.removeEventListener('beforeunload',unload);document.removeEventListener('click',click,true);};
+ },[isDirty]);
+ async function save(data:BriefContent){setBusy(true);setError('');setStatus('');try{const result=await api.put<AgencyBrief>(briefPath(id),{version:current.version,content:data});setCurrent(result);client.setQueriesData<AgencyBrief>({predicate:q=>q.queryKey[0]==='campaign-content'&&q.queryKey.at(-1)===briefPath(id)},result);reset(result.draft);setStatus('Draft saved.');}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
+ async function share(){setBusy(true);setError('');try{await api.post(`${briefPath(id)}/share`,{version:current.version});await client.invalidateQueries({queryKey:['campaign-content']});setStatus('Brief shared with assigned creators.');setConfirm(false);}catch(e){setError((e as Error).message);setConfirm(false);}finally{setBusy(false);}}
+ async function reload(){if(isDirty&&!window.confirm('Discard your unsaved changes and load the saved brief?'))return;setBusy(true);try{const result=await api.get<AgencyBrief>(briefPath(id));setCurrent(result);reset(result.draft);client.setQueriesData<AgencyBrief>({predicate:q=>q.queryKey[0]==='campaign-content'&&q.queryKey.at(-1)===briefPath(id)},result);setError('');}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
+ const textFields:[keyof Pick<BriefContent,'objective'|'product_context'|'audience'|'creative_direction'|'call_to_action'|'disclosure'>,string,number][]=[['objective','Campaign objective',4000],['product_context','About the product or service',4000],['audience','Audience',2000],['creative_direction','Creative direction',4000],['call_to_action','Call to action',2000],['disclosure','Disclosure instructions',2000]];
+ return <div className="space-y-5"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm">{current.shared_version===null?'Draft':`Shared version ${current.shared_version}`}{current.shared_version!==null&&current.version!==current.shared_version?' · Unshared changes':''}{isDirty?' · Unsaved changes':''}</p><p className="mt-1 text-xs text-[var(--n-fg-muted)]">{current.recipient_count} assigned creator{current.recipient_count===1?'':'s'}</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={()=>setPreview(v=>!v)}>{preview?'Edit draft':'Preview draft'}</Button><Button variant="outline" onClick={()=>setHistory(true)}>Shared history</Button>{current.capabilities.can_manage_assignments&&<Button variant="outline" onClick={()=>setAccess(true)}>Manage access</Button>}</div></div>
+ {error&&<div role="alert" className="rounded-xl border p-4 text-sm"><p>{error}</p><button className="mt-2 underline" type="button" onClick={()=>void reload()}>Reload saved brief</button></div>}
+ <p aria-live="polite" className="text-sm">{status}</p>
+ {preview?<BriefView content={content}/>:<form id="brief-editor" onSubmit={handleSubmit(save)} className="space-y-6 rounded-2xl border border-[var(--n-border)] p-5">
+  <div className="flex flex-wrap gap-1 rounded-full border border-[var(--n-border)] bg-[var(--n-bg)] p-1" role="tablist" aria-label="Brief sections">
+   {([['overview','Overview'],['guardrails','Guardrails'],['deliverables','Deliverables'],['references','References']] as const).map(([value,label])=><button key={value} type="button" role="tab" aria-selected={briefTab===value} className={`rounded-full px-3 py-2 text-sm ${briefTab===value?'bg-white shadow-sm':''}`} onClick={()=>setBriefTab(value)}>{label}</button>)}
+  </div>
+  {briefTab==='overview'&&textFields.slice(0,5).map(([key,label,max])=><label key={key} className="block text-sm font-medium">{label}<Textarea className="mt-2 font-normal" rows={3} maxLength={max} {...register(key)}/></label>)}
+  {briefTab==='guardrails'&&<><label className="block text-sm font-medium">Disclosure instructions<Textarea className="mt-2 font-normal" rows={3} maxLength={2000} {...register('disclosure')}/></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" {...register('no_mandatory_messages')}/>No mandatory messages</label>{(['mandatory_messages','prohibited_claims','tags','languages'] as const).map(key=><label key={key} className="block text-sm font-medium">{{mandatory_messages:'Mandatory messages',prohibited_claims:'Claims or content to avoid',tags:'Required tags',languages:'Languages'}[key]}<span className="ml-2 font-normal text-[var(--n-fg-muted)]">one per line</span><Textarea className="mt-2 font-normal" disabled={key==='mandatory_messages'&&content.no_mandatory_messages} value={content[key].join('\n')} onChange={e=>setValue(key,e.target.value.split('\n'),{shouldDirty:true})}/></label>)}</>}
+  {briefTab==='deliverables'&&<section className="space-y-4"><h2 className="font-medium">Deliverables</h2>{deliverables.fields.map((d,i)=><div key={d.formKey} className="space-y-3 rounded-xl border border-[var(--n-border)] p-4"><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm">Platform<select className="mt-1 block w-full rounded border bg-[var(--n-bg)] p-2" {...register(`deliverables.${i}.platform`)}>{['instagram','youtube','linkedin','other'].map(p=><option key={p}>{p}</option>)}</select></label><label className="text-sm">Format<Input placeholder="Reel, story, video…" maxLength={100} {...register(`deliverables.${i}.format`)}/></label><label className="text-sm">Quantity<Input type="number" min={1} max={100} {...register(`deliverables.${i}.quantity`,{valueAsNumber:true})}/></label><label className="text-sm">Due date<Input type="date" {...register(`deliverables.${i}.due_date`)}/></label></div><label className="block text-sm">Specifications<Textarea maxLength={2000} {...register(`deliverables.${i}.specifications`)}/></label><Button type="button" variant="outline" onClick={()=>deliverables.remove(i)}>Remove deliverable</Button></div>)}<Button type="button" variant="outline" disabled={deliverables.fields.length>=20} onClick={()=>deliverables.append({id:crypto.randomUUID(),platform:'instagram',format:'',quantity:1,specifications:'',due_date:''})}>Add deliverable</Button></section>}
+  {briefTab==='references'&&<section className="space-y-3"><h2 className="font-medium">Reference links</h2>{references.fields.map((r,i)=><div key={r.formKey} className="space-y-2 rounded-xl border p-3"><label className="block text-sm">Label<Input maxLength={150} {...register(`references.${i}.label`)}/></label><label className="block text-sm">HTTPS URL<Input type="url" placeholder="https://" maxLength={2048} {...register(`references.${i}.url`)}/></label><Button type="button" variant="outline" onClick={()=>references.remove(i)}>Remove reference</Button></div>)}<Button type="button" variant="outline" disabled={references.fields.length>=10} onClick={()=>references.append({label:'',url:''})}>Add reference</Button></section>}
+ </form>}
+ <div className="flex flex-wrap gap-3"><Button disabled={busy||!isDirty} onClick={()=>void handleSubmit(save)()}>{busy?'Working…':'Save draft'}</Button>{current.capabilities.can_share&&<Button variant="outline" disabled={busy||isDirty||!current.recipient_count||current.shared_version===current.version} onClick={()=>setConfirm(true)}>Share with creators</Button>}</div><p className="text-xs text-[var(--n-fg-muted)]">Save your draft before sharing. Creators see only the shared version.</p>
+ {access&&<AssignmentDialog id={id} onClose={()=>setAccess(false)}/>}
+ <Dialog open={confirm} onOpenChange={setConfirm} title="Share this brief?" description={`Share saved version ${current.version} of ${current.campaign.name} with ${current.recipient_count} assigned creators.`} footer={<><Button variant="outline" disabled={busy} onClick={()=>setConfirm(false)}>Cancel</Button><Button disabled={busy} onClick={()=>void share()}>Share saved version</Button></>}><p className="text-sm">This becomes their current campaign brief. Further edits stay private until shared again.</p></Dialog>
+ {history&&<History id={id} onClose={()=>setHistory(false)}/>}
+ </div>;
+}
+function History({id,onClose}:{id:string;onClose:()=>void}) {
+ const [page,setPage]=useState(1),[selected,setSelected]=useState('');
+ const list=useBriefQuery<{items:{id:string;draft_version:number;shared_at:string}[]}>(`${briefPath(id)}/versions?page=${page}`);
+ const revision=useBriefQuery<{content:BriefContent}>(`${briefPath(id)}/versions/${selected}`,Boolean(selected));
+ return <Dialog open onOpenChange={open=>{if(!open)onClose();}} title="Shared history"><div className="space-y-3">{list.isError?<p role="alert">History could not be loaded.</p>:list.data?.items.map(r=><button className="block text-sm underline" key={r.id} onClick={()=>setSelected(r.id)}>Version {r.draft_version} · {r.shared_at.slice(0,10)}</button>)}{list.data?.items.length===0&&<p>No shared versions yet.</p>}<div className="flex gap-2"><Button variant="outline" disabled={page===1} onClick={()=>setPage(p=>p-1)}>Previous</Button><Button variant="outline" disabled={!list.data||list.data.items.length<20} onClick={()=>setPage(p=>p+1)}>Next</Button></div>{revision.isError?<p role="alert">This version is unavailable.</p>:revision.data&&<BriefView content={revision.data.content}/>}</div></Dialog>;
+}
