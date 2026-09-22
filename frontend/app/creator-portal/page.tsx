@@ -1,44 +1,24 @@
 'use client';
-
 import Link from 'next/link';
-import Button from '@/components/ui/Button';
-import Icon from '@/components/ui/Icon';
-import { CreatorPageHeader, PortalCard, PortalStat } from './components';
-import { useCreatorWorkspace } from './workspace';
-import { useCreatorPortalDealsQuery } from './queries';
-
-export default function CreatorOverviewPage() {
-	const { workspace } = useCreatorWorkspace();
-	const { data: deals = [] } = useCreatorPortalDealsQuery();
-	const completed = [workspace.profile.headline, workspace.profile.bio, workspace.profile.category, workspace.profile.location, workspace.profile.languages, workspace.socials.length > 0, workspace.portfolio.length > 0].filter(Boolean).length;
-	const completion = Math.round((completed / 7) * 100);
-	const nextSteps = [
-		!workspace.profile.bio && { label: 'Write your creator biography', href: '/creator-portal/profile', section: 'Profile' },
-		workspace.socials.length === 0 && { label: 'Add your first social account', href: '/creator-portal/socials', section: 'Socials' },
-		workspace.portfolio.length === 0 && { label: 'Feature your best brand work', href: '/creator-portal/portfolio', section: 'Portfolio' },
-		workspace.mediaKit.status === 'Draft' && { label: 'Preview and publish your media kit', href: '/creator-portal/media-kit', section: 'Media Kit' },
-	].filter(Boolean) as { label: string; href: string; section: string }[];
-
-	return (
-		<div className="space-y-6">
-			<CreatorPageHeader title="Overview" description="Your creator profile, business and financial activity at a glance." actions={<Button variant="primary" onClick={() => window.location.assign('/creator-portal/profile')}>Complete profile</Button>} />
-			<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-				<PortalStat label="Profile completion" value={`${completion}%`} detail={completion === 100 ? 'Your profile is complete' : 'Complete your public profile'} icon="user" />
-				<PortalStat label="Media kit" value={workspace.mediaKit.status} detail={workspace.mediaKit.status === 'Published' ? `/k/${workspace.mediaKit.slug}` : 'Not visible to brands yet'} icon="layout" />
-				<PortalStat label="Brand enquiries" value={workspace.enquiries.length} detail="Received through your media kit" icon="inbox" />
-				<PortalStat label="Active deals" value={deals.filter((deal) => deal.campaign_status !== 'Over').length} detail="Campaigns assigned by TCH" icon="briefcase" />
-			</div>
-			<div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(260px,.65fr)]">
-				<PortalCard className="overflow-hidden">
-					<div className="flex items-center justify-between border-b border-[var(--n-border)] px-4 py-3"><div><h2 className="text-[12px] font-semibold">Next steps</h2><p className="mt-0.5 text-[10px] text-[var(--n-fg-subtle)]">Finish these to make your profile brand-ready.</p></div><span className="text-[10px] text-[var(--n-fg-subtle)]">{nextSteps.length} remaining</span></div>
-					<div className="divide-y divide-[var(--n-border)]">{nextSteps.length === 0 ? <div className="px-4 py-8 text-center text-[11px] text-[var(--n-fg-muted)]">Everything is ready. Your profile looks great.</div> : nextSteps.map((step) => <Link key={step.href} href={step.href} className="group flex items-center justify-between gap-4 px-4 py-3 hover:bg-[var(--n-bg-soft)]"><div className="flex items-center gap-3"><span className="grid h-6 w-6 place-items-center rounded-full border border-[var(--n-border-strong)] text-[var(--n-fg-subtle)]"><Icon name="check" size={12} /></span><span className="text-[11px] font-medium">{step.label}</span></div><div className="flex items-center gap-2 text-[10px] text-[var(--n-fg-subtle)]"><span>{step.section}</span><Icon name="chevron-right" size={13} /></div></Link>)}</div>
-				</PortalCard>
-				<PortalCard className="p-4">
-					<div className="flex items-start justify-between"><div><h2 className="text-[12px] font-semibold">Public media kit</h2><p className="mt-1 text-[10px] text-[var(--n-fg-subtle)]">Control the profile brands can view.</p></div><span className="rounded-full bg-[var(--n-accent-soft)] px-2 py-1 text-[9px] font-semibold text-[var(--n-accent)]">{workspace.mediaKit.status}</span></div>
-					<div className="mt-5 rounded-lg bg-[var(--n-bg-soft)] p-3"><p className="text-[9px] uppercase tracking-[0.08em] text-[var(--n-fg-subtle)]">Public URL</p><p className="mt-1 truncate text-[11px] font-medium">tch.co/k/{workspace.mediaKit.slug}</p></div>
-					<Link href="/creator-portal/media-kit" className="mt-4 flex items-center justify-between text-[10px] font-medium text-[var(--n-accent)]">Open media-kit builder <Icon name="arrow-right" size={13} /></Link>
-				</PortalCard>
-			</div>
-		</div>
-	);
+import { useKit,useSocialAccounts,useSavedSnapshots } from './kit-queries';
+import { starterDraft,metric,importedDate } from '@/lib/creator-kit';
+import { CreatorImage } from '@/components/CreatorKitView';
+import { CreateKitForm,ImportProgress } from './ImportActions';
+export default function CreatorOverviewPage(){
+  const accounts=useSocialAccounts(),kit=useKit(),snapshots=useSavedSnapshots(accounts.data??[]);
+  if(accounts.isLoading||kit.isLoading)return <div className="creator-loading">Making room for your next big idea…</div>;
+  if(accounts.error||kit.error)return <div role="alert">We couldn’t load your workspace. <button className="cf-link" onClick={()=>{accounts.refetch();kit.refetch();}}>Try again</button></div>;
+  const saved=accounts.data?.filter(a=>a.snapshot_id)??[],account=saved[0];
+  const draft=kit.data?starterDraft(kit.data,accounts.data??[]):null;
+  const name=(draft?.profile.display_name||account?.profile?.display_name||'creator').split(/[ |]/)[0];
+  const posts=snapshots.flatMap(s=>s.data?.posts??[]).sort((a,b)=>(b.published_at??'').localeCompare(a.published_at??''));
+  const steps=[{title:'Make it yours',detail:'Add your story and what you love creating.',href:'/creator-portal/profile',done:!!kit.data?.version&&!!draft?.profile.biography},{title:'Pick your standouts',detail:'Choose the work you want brands to see.',href:'/creator-portal/portfolio',done:!!draft?.featured_posts.length},{title:'Put yourself out there',detail:'Publish your kit and share your link.',href:'/creator-portal/media-kit',done:!!kit.data?.published_revision}];
+  return <div className="creator-flow"><div className="cf-top creator-welcome"><div><p className="cf-step">GOOD THINGS START HERE</p><h1>Hi {name},<br/>make room for what’s next<span className="creator-dot">.</span></h1><p className="cf-muted">Your creativity. Your story. Your next collaboration.</p></div>{account&&<Link className="creator-button" href="/creator-portal/media-kit">Preview brand kit ↗</Link>}</div>
+    {!account&&<CreateKitForm/>}{accounts.data?.map(a=><ImportProgress key={a.id} account={a}/>)}
+    {account&&<><div className="creator-home-grid"><section className="creator-person-card"><CreatorImage src={account.profile?.image_url??null} alt={draft?.profile.display_name||account.username} className="creator-person-photo"/><div className="creator-person-copy"><span className="creator-glass-tag">Your creative corner</span><h2>{draft?.profile.display_name||account.username}</h2><p>@{account.username}</p><Link href="/creator-portal/profile">Edit your profile ↗</Link></div></section>
+      <section className="cf-panel creator-audience-card"><div className="cf-top"><h2>Your audience</h2><span className="creator-round-icon" aria-hidden="true">↗</span></div><div className="creator-big-number">{metric(account.profile?.followers)}</div><p className="cf-muted">Instagram followers</p><div className="creator-audience-art" aria-hidden="true"><span/><span/><span/><span/><span/></div><p className="cf-muted">Updated {importedDate(account.collected_at)}</p></section>
+      <section className="cf-panel creator-kit-card"><div className="cf-top"><h2>Your brand kit</h2><span className="creator-round-icon" aria-hidden="true">✳</span></div><div className="creator-kit-mark" aria-hidden="true">✳</div><h3>{kit.data?.published_revision?'Ready for the world.':'Ready when you are.'}</h3><p className="cf-muted">{draft?.featured_posts.length??0} featured posts · {kit.data?.published_revision?'Published':'Private draft'}</p><Link className="creator-button creator-button-light" href="/creator-portal/media-kit">{kit.data?.published_revision?'Manage your kit':'Finish your kit'} ↗</Link></section>
+      <section className="creator-next-card"><div className="cf-top"><h2>A few small steps.<br/>A great first impression.</h2><span className="cf-badge">{steps.filter(s=>s.done).length}/3</span></div>{steps.map((step,i)=><Link key={step.href} className="creator-step-row" href={step.href}><span className={step.done?'creator-step-number complete':'creator-step-number'}>{step.done?'✓':i+1}</span><div><h3>{step.title}</h3><p>{step.detail}</p></div><span aria-hidden="true">↗</span></Link>)}</section></div>
+      <section><div className="cf-top" style={{marginBottom:20}}><div><h2>Fresh from your feed</h2><p className="cf-muted">A little window into what you create.</p></div><Link className="cf-link" href="/creator-portal/portfolio">See all {posts.length} posts ↗</Link></div><div className="creator-recent-grid">{posts.slice(0,4).map(post=><Link href="/creator-portal/portfolio" className="creator-recent-post" key={post.platform_post_id}><CreatorImage src={post.image_url} alt={post.caption?.slice(0,80)||'Your content'} className="cf-thumb"/><div><span>{post.content_type||'Post'}</span><p>{post.caption?.slice(0,95)||'Your next standout piece'}</p></div></Link>)}</div></section></>}
+  </div>;
 }

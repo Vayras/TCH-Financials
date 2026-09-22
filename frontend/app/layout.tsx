@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './creator-portal/creator-flow.css';
 import AuthGuard from '@/components/AuthGuard';
 import QueryProvider from '@/components/QueryProvider';
 import { Toaster } from 'sonner';
@@ -15,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 			<head>
 				<meta name="text-scale" content="scale" />
 			</head>
-			<body>
+			<body suppressHydrationWarning>
 				<QueryProvider>
 					<AuthGuard>{children}</AuthGuard>
 					<Toaster position="top-right" richColors closeButton />
