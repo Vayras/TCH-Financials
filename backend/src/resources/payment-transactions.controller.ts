@@ -69,8 +69,15 @@ export class PaymentTransactionsController {
 
     const total = await qb.getCount();
     
-    // Get sums of debits and credits
-    const sums = await qb.clone()
+    // Get sums of debits and credits without orderBy or leftJoinAndSelect
+    const sumQb = repo.createQueryBuilder('pt');
+    if (search?.trim()) {
+      sumQb.andWhere(
+        '(pt.vendorName ILIKE :search OR pt.utrOrRef ILIKE :search OR pt.notes ILIKE :search)',
+        { search: `%${search.trim()}%` }
+      );
+    }
+    const sums = await sumQb
       .select('SUM(pt.debitAmount)', 'debit')
       .addSelect('SUM(pt.creditAmount)', 'credit')
       .getRawOne<{ debit: string | null; credit: string | null }>();
