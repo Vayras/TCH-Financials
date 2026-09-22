@@ -46,13 +46,13 @@ export default function CreatorPaymentsPage() {
 
 	return (
 		<div className="space-y-8">
-			<PageHeader title="Payments &amp; TDS" description="Track payment clearances and statutory withholdings." />
+			<PageHeader title="Payments &amp; tax" description="Track payouts and tax documents from your campaign work." />
 
 			{/* Metric Cards Row */}
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 				<div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
 					<div className="space-y-1">
-						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-455">Total Received Payouts</span>
+						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-455">Amount received</span>
 						<div className="text-[22px] font-extrabold text-gray-900 tracking-tight tabular-nums">
 							₹{paymentSummary.totalPaid > 0 ? inr(paymentSummary.totalPaid) : '0'}
 						</div>
@@ -64,7 +64,7 @@ export default function CreatorPaymentsPage() {
 
 				<div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
 					<div className="space-y-1">
-						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-455">Pending / Upcoming Payouts</span>
+						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-455">Expected payments</span>
 						<div className="text-[22px] font-extrabold text-gray-900 tracking-tight tabular-nums">
 							₹{paymentSummary.totalPending > 0 ? inr(paymentSummary.totalPending) : '0'}
 						</div>
@@ -80,7 +80,7 @@ export default function CreatorPaymentsPage() {
 				<div>
 					<h3 className="text-[14px] font-bold text-gray-900 mb-3 flex items-center gap-2">
 						<Icon name="list" size={15} className="text-gray-500" />
-						<span>Payout Ledger</span>
+						<span>Payment history</span>
 					</h3>
 					{deals.length === 0 ? (
 						<div className="text-center py-12 bg-white shadow-sm rounded-xl" style={{ border: '1px solid var(--n-border)' }}>

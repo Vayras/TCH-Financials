@@ -7,8 +7,8 @@ export const api = {
 		const res = await httpClient.get<T>(path);
 		return res.data;
 	},
-	post: async <T,>(path: string, body?: unknown): Promise<T> => {
-		const res = await httpClient.post<T>(path, body);
+	post: async <T,>(path: string, body?: unknown, headers?: Record<string, string>): Promise<T> => {
+		const res = await httpClient.post<T>(path, body, headers ? { headers } : undefined);
 		return res.data;
 	},
 	patch: async <T,>(path: string, body?: unknown): Promise<T> => {

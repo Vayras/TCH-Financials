@@ -317,6 +317,7 @@ export default function CampaignDetailPage() {
 					</p>
 				</div>
 				<div className="flex items-center gap-2">
+					{deal.campaign_id !== null && <Link href={`/campaigns/${deal.campaign_id}/brief`} className="rounded-md border px-3 py-2 text-[12px] hover:underline">Campaign brief</Link>}
 					{!isEditing ? (
 						<Button variant="primary" onClick={() => setConfirmEditOpen(true)}>
 							<Icon name="edit" size={14} className="mr-1" /> Edit Campaign

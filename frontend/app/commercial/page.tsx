@@ -196,7 +196,7 @@ export default function CommercialPage() {
 			const next = prev.filter((mm) => availMonths.includes(mm));
 			return next.length === prev.length ? prev : next;
 		});
-	}, [availMonths]);
+	}, [availMonths, setMonths]);
 
 	const activeData = viewMode === 'table' ? tableQuery.data : groupQuery.data;
 	const billingSummary = { invoiced: Number(activeData?.summary.total_billing ?? 0) };
@@ -267,12 +267,12 @@ export default function CommercialPage() {
 			return;
 		}
 		setPage(1);
-	}, [urlHydrated, debouncedSearch, dirFilter, statusFilter, creatorFilter, months, groupBy, viewMode, fyStart]);
+	}, [urlHydrated, debouncedSearch, dirFilter, statusFilter, creatorFilter, months, groupBy, viewMode, fyStart, setPage]);
 
 	React.useEffect(() => {
 		const lastPage = Math.max(1, Math.ceil(resultTotal / pageSize));
 		if (page > lastPage) setPage(lastPage);
-	}, [page, resultTotal]);
+	}, [page, resultTotal, setPage]);
 
 	return (
 		<>

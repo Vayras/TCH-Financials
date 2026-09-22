@@ -1,37 +1,51 @@
 'use client';
-
 import * as React from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import Button from '@/components/ui/Button';
-import Dialog from '@/components/ui/Dialog';
-import Input from '@/components/ui/Input';
-import Icon from '@/components/ui/Icon';
-import { CreatorPageHeader, FieldLabel, PortalCard, PortalEmptyState } from '../components';
-import { type PortfolioItem, useCreatorWorkspace } from '../workspace';
+import { CreatorImage } from '@/components/CreatorKitView';
+import { InsightActions, ImportProgress } from '../ImportActions';
+import { metric, importedDate, sampleInsights, starterDraft, type KitDraft } from '@/lib/creator-kit';
+import { useKit, useKitActions, useSavedSnapshots, useSocialAccounts } from '../kit-queries';
 
-const EMPTY_ITEM: Omit<PortfolioItem, 'id'> = { brand: '', title: '', format: 'Instagram Reel', metric: '', contentUrl: '', featured: true };
+export default function ContentLibraryPage() {
+  const accounts=useSocialAccounts(),kit=useKit(),actions=useKitActions();
+  const snapshots=useSavedSnapshots(accounts.data??[]);
+  const [sort,setSort]=React.useState('newest');
+  const [accountId,setAccountId]=React.useState('all');
+  const rows=snapshots.flatMap(q=>q.data?q.data.posts.map(post=>({post,snapshot:q.data!})):[]).filter(row=>accountId==='all'||row.snapshot.account_id===accountId);
+  const insights=sampleInsights(rows.map(r=>r.post));
+  const ordered=[...rows].sort((a,b)=>sort==='likes'?(b.post.likes??-1)-(a.post.likes??-1):sort==='comments'?(b.post.comments??-1)-(a.post.comments??-1):(b.post.published_at??'').localeCompare(a.post.published_at??''));
+  const draft=kit.data?starterDraft(kit.data,accounts.data??[]):null;
+  async function toggle(snapshotId:string,postId:string,ownerAccount:string) {
+    if(!kit.data||!draft)return;
+    const exists=draft.featured_posts.some(p=>p.snapshot_id===snapshotId&&p.post_id===postId);
+    if(!exists&&draft.featured_posts.length>=6){toast.error('Choose up to six featured posts.');return;}
+    let next:KitDraft={...draft,featured_posts:exists?draft.featured_posts.filter(p=>!(p.snapshot_id===snapshotId&&p.post_id===postId)):[...draft.featured_posts,{snapshot_id:snapshotId,post_id:postId}]};
+    if(!draft.snapshot_ids.includes(snapshotId)) {
+      // Updating this account's snapshot is explicit; remove its old featured references to keep the selection consistent.
+      const oldIds=kit.data.saved_snapshots.filter(s=>s.account_id===ownerAccount).map(s=>s.id);
+      if(oldIds.length&&draft.featured_posts.some(p=>oldIds.includes(p.snapshot_id))) {toast.error('Open your brand kit and choose Use latest insights to keep your featured work up to date.');return;}
+      next={...next,snapshot_ids:[...draft.snapshot_ids.filter(id=>!oldIds.includes(id)),snapshotId]};
+    }
+    try{await actions.save.mutateAsync({version:kit.data.version,draft:next});toast.success(exists?'Removed from draft':'Added to brand-kit draft');}catch(e){toast.error(e instanceof Error?e.message:'Could not save selection');}
+  }
+  const error=accounts.error||kit.error||snapshots.find(q=>q.error)?.error;
+  const loading=accounts.isLoading||kit.isLoading||snapshots.some(q=>q.isLoading);
 
-export default function CreatorPortfolioPage() {
-	const { workspace, updateWorkspace } = useCreatorWorkspace();
-	const [open, setOpen] = React.useState(false);
-	const [draft, setDraft] = React.useState(EMPTY_ITEM);
-
-	function addItem() {
-		if (!draft.brand.trim() || !draft.title.trim()) return;
-		updateWorkspace((current) => ({ ...current, portfolio: [...current.portfolio, { ...draft, id: crypto.randomUUID() }] }));
-		setDraft(EMPTY_ITEM);
-		setOpen(false);
-		toast.success('Portfolio item added');
-	}
-
-	return <div className="space-y-6">
-		<CreatorPageHeader title="Portfolio" description="Showcase your strongest brand collaborations and creator work." actions={<Button variant="primary" onClick={() => setOpen(true)}><Icon name="plus" size={13} />Add work</Button>} />
-		{workspace.portfolio.length === 0 ? <PortalCard><PortalEmptyState icon="images" title="Build your creator portfolio" description="Add brand campaigns, featured content and results. Existing TCH campaigns can be connected in the backend phase." action={<Button variant="primary" onClick={() => setOpen(true)}>Add first project</Button>} /></PortalCard> : <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{workspace.portfolio.map((item) => <article key={item.id} className="group overflow-hidden rounded-xl border border-[var(--n-border)] bg-white">
-		<div className="grid aspect-[16/9] place-items-center bg-gradient-to-br from-[var(--n-accent-soft)] to-[var(--n-bg-soft)] text-[var(--n-accent)]"><Icon name="play" size={20} /></div>
-		<div className="p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--n-accent)]">{item.brand}</p><h2 className="mt-1 truncate text-[12px] font-semibold">{item.title}</h2></div>{item.featured && <span className="rounded-full bg-[var(--n-accent-soft)] px-2 py-1 text-[8px] font-semibold text-[var(--n-accent)]">Featured</span>}</div><div className="mt-3 flex items-center justify-between text-[9px] text-[var(--n-fg-subtle)]"><span>{item.format}</span><span>{item.metric || 'No metric added'}</span></div><div className="mt-3 flex justify-end border-t border-[var(--n-border)] pt-2"><Button variant="ghost" onClick={() => updateWorkspace((current) => ({ ...current, portfolio: current.portfolio.filter((entry) => entry.id !== item.id) }))}><Icon name="trash" size={12} />Remove</Button></div></div>
-		</article>)}</div>}
-		<Dialog open={open} onOpenChange={setOpen} title="Add portfolio work" description="Add a campaign or piece of content brands should notice." footer={<><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button variant="primary" onClick={addItem} disabled={!draft.brand.trim() || !draft.title.trim()}>Add to portfolio</Button></>}>
-			<div className="grid grid-cols-1 gap-4 sm:grid-cols-2"><label><FieldLabel>Brand</FieldLabel><Input value={draft.brand} onChange={(event) => setDraft({ ...draft, brand: event.target.value })} placeholder="Brand name" /></label><label><FieldLabel>Campaign title</FieldLabel><Input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="Campaign name" /></label><label><FieldLabel>Content format</FieldLabel><Input value={draft.format} onChange={(event) => setDraft({ ...draft, format: event.target.value })} /></label><label><FieldLabel>Result</FieldLabel><Input value={draft.metric} onChange={(event) => setDraft({ ...draft, metric: event.target.value })} placeholder="108K views" /></label><label className="sm:col-span-2"><FieldLabel>Content URL</FieldLabel><Input value={draft.contentUrl} onChange={(event) => setDraft({ ...draft, contentUrl: event.target.value })} placeholder="https://…" /></label><label className="sm:col-span-2 flex items-center gap-2 text-[11px] text-[var(--n-fg-muted)]"><input type="checkbox" checked={draft.featured} onChange={(event) => setDraft({ ...draft, featured: event.target.checked })} />Feature this on my media kit</label></div>
-		</Dialog>
-	</div>;
+  const selectedAccount=accounts.data?.find(a=>a.id===accountId)??accounts.data?.[0];
+  const values=[{label:'Average likes',value:insights.averageLikes,count:insights.likesSample},{label:'Typical likes',value:insights.medianLikes,count:insights.likesSample},{label:'Average comments',value:insights.averageComments,count:insights.commentsSample}].filter(m=>m.value!==null);
+  const views=rows.map(r=>r.post.views).filter((v):v is number=>typeof v==='number');
+  if(views.length)values.push({label:'Average video views',value:Math.round(views.reduce((a,b)=>a+b,0)/views.length),count:views.length});
+  return <div className="creator-flow"><div className="cf-top"><div><p className="cf-step">YOUR CONTENT LIBRARY</p><h1>Find your strongest work</h1><p className="cf-muted">Review your content, understand what connects and choose what brands should see.</p></div><Link className="creator-button" href="/creator-portal/media-kit">Preview brand kit ↗</Link></div>
+    {error&&<p className="cf-banner cf-error" role="alert">{error.message}</p>}
+    {(accounts.data?.length??0)>1&&<label className="cf-label">Instagram account <select className="cf-input" value={accountId} onChange={e=>setAccountId(e.target.value)}><option value="all">All accounts</option>{accounts.data?.map(a=><option value={a.id} key={a.id}>@{a.username}</option>)}</select></label>}
+    {selectedAccount&&<ImportProgress account={selectedAccount}/>}
+    {loading?<p className="cf-muted">Bringing your content together…</p>:<>
+      {values.length>0?<section><div className="cf-top" style={{marginBottom:16}}><div><h2>Content performance</h2><p className="cf-muted">Based on {rows.length} posts · Updated {importedDate(selectedAccount?.collected_at)}</p></div>{selectedAccount&&<InsightActions account={selectedAccount}/>}</div><div className="creator-insight-grid">{values.map((item,i)=><article className={i===0?'creator-stat featured':'creator-stat'} key={item.label}><p>{item.label}</p><div className="creator-big-number">{metric(item.value)}</div><span className="creator-stat-foot">Per post <span aria-hidden="true">↗</span></span></article>)}</div><details className="creator-method"><summary>About these numbers</summary><p>Calculated from the posts in this view. Each metric uses the posts with an available count, including zero. Typical likes is the median. Views and plays are different measures. Updates happen when you request them.</p>{values.map(v=><p key={v.label}>{v.label}: {v.count} posts</p>)}</details></section>:selectedAccount?<section className="creator-insight-invite"><div><span className="cf-step">MEET YOUR NUMBERS</span><h2>See what connects with your audience.</h2><p className="cf-muted">Bring likes, comments and available video views into your content library.</p></div><InsightActions account={selectedAccount}/></section>:<div className="cf-empty"><h2>Your creative story starts here.</h2><p>Add your Instagram to bring your posts together.</p><Link className="creator-button" href="/creator-portal/socials">Create my kit ↗</Link></div>}
+      {!!rows.length&&<><div className="cf-top"><div><h2>Your content <span className="cf-badge">{rows.length}</span></h2><p className="cf-muted">{draft?.featured_posts.length??0} of 6 featured in your brand kit</p></div><label className="creator-sort">Sort by <select value={sort} onChange={e=>setSort(e.target.value)}><option value="newest">Newest first</option><option value="likes">Most likes</option><option value="comments">Most comments</option></select></label></div>
+      <div className="cf-grid">{ordered.map(({post,snapshot})=>{const selected=draft?.featured_posts.some(p=>p.snapshot_id===snapshot.id&&p.post_id===post.platform_post_id);const counts=[post.likes!=null?metric(post.likes)+' likes':null,post.comments!=null?metric(post.comments)+' comments':null,post.views!=null?metric(post.views)+' views':null].filter(Boolean);return <article className="cf-post" key={snapshot.id+':'+post.platform_post_id}><div className="creator-post-visual"><CreatorImage src={post.image_url} alt={post.caption?.slice(0,100)||'Your content'} className="cf-thumb"/><span className="creator-post-format">{post.content_type??'Post'}</span>{selected&&<span className="creator-post-featured">✓ In your kit</span>}</div><div className="cf-post-copy"><p className="cf-muted">{importedDate(post.published_at)}</p><p className="cf-post-caption">{post.caption||'A moment worth sharing.'}</p>{counts.length>0&&<p className="creator-post-counts">{counts.join(' · ')}</p>}<div className="cf-top" style={{marginTop:18}}>{post.url&&<a className="cf-link" href={post.url} target="_blank" rel="noopener noreferrer">View post ↗</a>}<Button variant={selected?'outline':'primary'} disabled={actions.save.isPending} onClick={()=>toggle(snapshot.id,post.platform_post_id,snapshot.account_id)}>{selected?'Remove':'Add to brand kit'}</Button></div></div></article>})}</div>
+      {selectedAccount&&rows.length<300&&<div className="creator-load-more"><InsightActions account={selectedAccount} more/>{selectedAccount.coverage?.last_action==='more'&&selectedAccount.coverage.new_posts===0&&<p className="cf-muted">No new posts were found in this update.</p>}</div>}</>}
+    </>}
+  </div>;
 }

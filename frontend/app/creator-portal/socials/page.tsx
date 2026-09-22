@@ -1,53 +1,14 @@
 'use client';
-
 import * as React from 'react';
-import { toast } from 'sonner';
+import Link from 'next/link';
 import Button from '@/components/ui/Button';
-import Dialog from '@/components/ui/Dialog';
-import Input from '@/components/ui/Input';
-import Icon from '@/components/ui/Icon';
-import { CreatorPageHeader, FieldLabel, PortalCard, PortalEmptyState } from '../components';
-import { compactNumber, type CreatorSocial, useCreatorWorkspace } from '../workspace';
-
-const EMPTY_SOCIAL: Omit<CreatorSocial, 'id' | 'lastUpdated'> = { platform: 'Instagram', handle: '', profileUrl: '', followers: 0, engagementRate: 0, averageViews: 0 };
-
-export default function CreatorSocialsPage() {
-	const { workspace, updateWorkspace } = useCreatorWorkspace();
-	const [open, setOpen] = React.useState(false);
-	const [draft, setDraft] = React.useState(EMPTY_SOCIAL);
-
-	function save() {
-		if (!draft.handle.trim()) return;
-		const social: CreatorSocial = { ...draft, id: crypto.randomUUID(), handle: draft.handle.startsWith('@') ? draft.handle : `@${draft.handle}`, lastUpdated: new Date().toISOString().slice(0, 10) };
-		updateWorkspace((current) => ({ ...current, socials: [...current.socials, social] }));
-		setDraft(EMPTY_SOCIAL);
-		setOpen(false);
-		toast.success('Social account added');
-	}
-
-	return (
-		<div className="space-y-6">
-			<CreatorPageHeader title="Social Accounts" description="Maintain the public statistics shown to brands on your media kit." actions={<Button variant="primary" onClick={() => setOpen(true)}><Icon name="plus" size={13} />Add account</Button>} />
-			<div className="rounded-lg border border-blue-100 bg-blue-50/60 px-4 py-3 text-[10px] leading-5 text-blue-800"><strong className="font-semibold">Frontend preview:</strong> statistics are editable for now. Automated public-data collection and TCH verification will be introduced in the backend phase.</div>
-			{workspace.socials.length === 0 ? <PortalCard><PortalEmptyState icon="at-sign" title="No social accounts" description="Add a public creator handle to start building your cross-platform profile." action={<Button variant="primary" onClick={() => setOpen(true)}>Add account</Button>} /></PortalCard> : (
-				<div className="space-y-3">{workspace.socials.map((social) => <PortalCard key={social.id} className="grid grid-cols-[36px_minmax(0,1fr)] gap-3 p-4 sm:grid-cols-[36px_minmax(160px,1.4fr)_minmax(90px,.7fr)_minmax(90px,.7fr)_auto] sm:items-center">
-					<div className="grid h-9 w-9 place-items-center rounded-lg bg-[var(--n-accent-soft)] text-[var(--n-accent)]"><Icon name={social.platform === 'Instagram' ? 'instagram' : social.platform === 'YouTube' ? 'youtube' : 'at-sign'} size={17} /></div>
-					<div className="min-w-0"><p className="text-[11px] font-semibold">{social.handle}</p><p className="mt-0.5 truncate text-[9px] text-[var(--n-fg-subtle)]">{social.platform} · Updated {social.lastUpdated}</p></div>
-					<div className="col-start-2 sm:col-start-auto"><p className="text-[11px] font-semibold tabular-nums">{compactNumber(social.followers)}</p><p className="text-[9px] text-[var(--n-fg-subtle)]">Followers</p></div>
-					<div className="col-start-2 sm:col-start-auto"><p className="text-[11px] font-semibold tabular-nums">{social.engagementRate.toFixed(2)}%</p><p className="text-[9px] text-[var(--n-fg-subtle)]">Engagement</p></div>
-					<Button variant="ghost" className="col-start-2 justify-self-start text-[var(--color-danger)] sm:col-start-auto" onClick={() => updateWorkspace((current) => ({ ...current, socials: current.socials.filter((item) => item.id !== social.id) }))}><Icon name="trash" size={13} />Remove</Button>
-				</PortalCard>)}</div>
-			)}
-			<Dialog open={open} onOpenChange={setOpen} title="Add social account" description="Enter the public account details you want to display." footer={<><Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button><Button variant="primary" onClick={save} disabled={!draft.handle.trim()}>Add account</Button></>}>
-				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-					<label><FieldLabel>Platform</FieldLabel><select value={draft.platform} onChange={(event) => setDraft({ ...draft, platform: event.target.value as CreatorSocial['platform'] })} className="h-8 w-full rounded border border-[var(--n-border)] bg-[var(--n-bg-soft)] px-2 text-[12px]"><option>Instagram</option><option>YouTube</option><option>TikTok</option><option>Other</option></select></label>
-					<label><FieldLabel>Handle</FieldLabel><Input value={draft.handle} onChange={(event) => setDraft({ ...draft, handle: event.target.value })} placeholder="@creator" /></label>
-					<label className="sm:col-span-2"><FieldLabel>Profile URL</FieldLabel><Input value={draft.profileUrl} onChange={(event) => setDraft({ ...draft, profileUrl: event.target.value })} placeholder="https://…" /></label>
-					<label><FieldLabel>Followers</FieldLabel><Input type="number" min="0" value={draft.followers} onChange={(event) => setDraft({ ...draft, followers: Number(event.target.value) })} /></label>
-					<label><FieldLabel>Engagement rate (%)</FieldLabel><Input type="number" min="0" step="0.01" value={draft.engagementRate} onChange={(event) => setDraft({ ...draft, engagementRate: Number(event.target.value) })} /></label>
-					<label><FieldLabel>Average views</FieldLabel><Input type="number" min="0" value={draft.averageViews} onChange={(event) => setDraft({ ...draft, averageViews: Number(event.target.value) })} /></label>
-				</div>
-			</Dialog>
-		</div>
-	);
+import { CreatorImage } from '@/components/CreatorKitView';
+import { importedDate, metric } from '@/lib/creator-kit';
+import { useSocialAccounts } from '../kit-queries';
+import { CreateKitForm, ImportProgress, InsightActions } from '../ImportActions';
+export default function CreatorSocialsPage(){
+  const query=useSocialAccounts();const[adding,setAdding]=React.useState(false);
+  return <div className="creator-flow"><div className="cf-top"><div><p className="cf-step">YOUR CONNECTIONS</p><h1>Your connected profiles</h1><p className="cf-muted">Manage the profiles used for your brand kit and content insights.</p></div><Button variant="outline" onClick={()=>setAdding(!adding)}>+ Add Instagram</Button></div>
+    {query.isLoading?<p>Loading your accounts…</p>:query.error?<p role="alert">We couldn’t load your accounts. <button onClick={()=>query.refetch()}>Try again</button></p>:<>{(!query.data?.length||adding)&&<CreateKitForm/>}{query.data?.map(account=><section className="cf-panel" key={account.id}><div className="cf-top"><div className="cf-actions"><CreatorImage src={account.profile?.image_url??null} alt={account.username} className="brand-kit-avatar"/><div><h2>{account.profile?.display_name||account.username}</h2><a className="cf-muted" href={account.profile_url} target="_blank" rel="noopener noreferrer">Instagram · @{account.username} ↗</a></div></div>{account.collected_at&&<span className="cf-badge">Updated {importedDate(account.collected_at)}</span>}</div><ImportProgress account={account}/>{account.profile&&<div className="cf-metrics">{[['Followers',account.profile.followers],['Posts',account.profile.posts_count],['Following',account.profile.following]].filter(([,v])=>v!==null).map(([label,value])=><div key={String(label)}><p className="cf-muted">{label}</p><div className="cf-metric-value">{metric(value as number)}</div></div>)}</div>}<div className="cf-top" style={{marginTop:24}}><Link href="/creator-portal/portfolio" className="cf-link">Explore your content ↗</Link><InsightActions account={account}/></div></section>)}</>}
+  </div>;
 }

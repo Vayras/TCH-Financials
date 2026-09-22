@@ -84,7 +84,7 @@ export default function CreatorInvoicesPage() {
 	return (
 		<div className="space-y-6">
 			<div className="flex flex-wrap items-center justify-between gap-4">
-				<PageHeader title="My Invoices" description="Submit and track your campaign billing invoices." />
+				<PageHeader title="Invoices" description="Submit and track invoices for completed campaign work." />
 				<Button variant="primary" onClick={() => setOpen(true)} disabled={pendingDeals.length === 0}>
 					<span className="text-[12px]">Submit New Invoice</span>
 				</Button>
@@ -95,9 +95,9 @@ export default function CreatorInvoicesPage() {
 					<div className="h-12 w-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4 text-gray-400">
 						<Icon name="file-text" size={20} />
 					</div>
-					<h3 className="text-[15px] font-bold text-gray-950 mb-1">No invoices yet</h3>
+					<h3 className="text-[15px] font-bold text-gray-950 mb-1">No invoices submitted yet</h3>
 					<p className="text-[12px] text-gray-500 max-w-[280px] mx-auto">
-						Your submitted invoices will appear here once you upload them.
+						Upload an invoice when your campaign deliverables are complete.
 					</p>
 					<p className="text-[11.5px] text-gray-400 mt-3 max-w-[240px] mx-auto">
 						Use the <strong className="font-semibold text-gray-500">Submit New Invoice</strong> button above to get started.
