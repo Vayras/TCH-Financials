@@ -16,6 +16,7 @@ import {
 } from '@/lib/deals';
 import Icon from '@/components/ui/Icon';
 import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
 import PageHeader from '@/components/PageHeader';
 import Pagination from '@/components/Pagination';
 import QueryErrorState from '@/components/QueryErrorState';
@@ -319,19 +320,19 @@ export default function CommercialPage() {
 				</>} />
 
 				{/* ── Metric Cards ── */}
-				<div className="grid grid-cols-2 gap-3">
-					<div className="rounded-xl p-4 border" style={{ background: 'var(--n-bg)', borderColor: 'var(--n-border)' }}>
+				<div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+					<Card className="p-4">
 						<p className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--n-fg-subtle)' }}>Total Billing</p>
 						<p className="text-[24px] font-bold tracking-tight tabular-nums" style={{ color: 'var(--n-fg)' }}>
 							₹&thinsp;{inr(billingSummary.invoiced) || '0'}
 						</p>
-					</div>
-					<div className="rounded-xl p-4 border" style={{ background: 'var(--n-bg)', borderColor: 'var(--n-border)' }}>
+					</Card>
+					<Card className="p-4">
 						<p className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--n-fg-subtle)' }}>Deals</p>
 						<p className="text-[24px] font-bold tracking-tight tabular-nums" style={{ color: 'var(--n-fg)' }}>
 							{totals.count}
 						</p>
-					</div>
+					</Card>
 				</div>
 
 				<CommercialFilterBar

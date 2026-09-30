@@ -290,7 +290,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 		<FiscalYearProvider>
 			<div className="flex min-h-screen" style={{ background: 'var(--n-bg)' }}>
 				<aside
-					className="sticky top-0 self-start h-screen flex flex-col shrink-0 overflow-hidden transition-[width] duration-150 ease-out z-30"
+					className="app-sidebar sticky top-0 self-start h-screen flex flex-col shrink-0 overflow-hidden transition-[width] duration-150 ease-out z-30"
 					style={{
 						background: 'var(--n-bg-sidebar)',
 						borderRight: '1px solid var(--n-border)',
@@ -379,7 +379,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 
 				<div className="flex-1 min-w-0 flex flex-col">
 					<header
-						className="h-11 flex items-center px-5 gap-2 shrink-0 sticky top-0 z-20"
+						className="app-topbar h-11 flex items-center px-5 gap-2 shrink-0 sticky top-0 z-20"
 						style={{
 							background: 'var(--n-bg)',
 							borderBottom: '1px solid var(--n-border)'
@@ -398,7 +398,7 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 					</header>
 
 					<main className="flex-1 overflow-x-hidden">
-						<div className="mx-auto w-full max-w-[1280px] px-12 py-12">{children}</div>
+						<div className="app-content mx-auto w-full max-w-[1280px] px-12 py-12">{children}</div>
 					</main>
 				</div>
 			</div>

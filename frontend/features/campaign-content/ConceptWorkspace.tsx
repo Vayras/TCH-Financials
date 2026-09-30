@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/AuthGuard';
 import Button from '@/components/ui/Button';
 import { api } from '@/lib/api';
-import { useGenerateAiIdeasMutation, useExpandAiIdeaMutation, useBriefQuery } from './queries';
+import { useGenerateAiIdeasMutation, useExpandAiIdeaMutation, useBriefQuery, useCampaignReferences } from './queries';
+import { useSavedSnapshots, useSocialAccounts } from '@/app/creator-portal/kit-queries';
 
 
 const fields = ['title', 'hook', 'outline', 'script', 'cta', 'requirements'] as const;
@@ -66,6 +67,10 @@ function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas }: { campai
   const [selected, setSelected] = useState<Concept | null>(null);
   const [aiIdeas, setAiIdeas] = useState<any[]>([]);
   const [aiError, setAiError] = useState('');
+  const [panel, setPanel] = useState<'references' | 'ideas' | 'submitted'>('ideas');
+  const accounts = useSocialAccounts();
+  const snapshots = useSavedSnapshots(accounts.data ?? []);
+  const references = useCampaignReferences(campaignId);
 
   const path = `/campaigns/${encodeURIComponent(campaignId)}/concepts`;
   const query = useBriefQuery<Listing>(`${path}?page=${page}`);
@@ -81,10 +86,23 @@ function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas }: { campai
     if (savedIdeas.data?.ideas) setAiIdeas(savedIdeas.data.ideas);
   }, [savedIdeas.data]);
 
+  useEffect(() => {
+    const value = new URLSearchParams(window.location.search).get('panel');
+    if (value === 'references' || value === 'ideas' || value === 'submitted') setPanel(value);
+  }, []);
+
+  const selectPanel = (value: 'references' | 'ideas' | 'submitted') => {
+    setPanel(value);
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', 'ideas');
+    url.searchParams.set('panel', value);
+    window.history.replaceState({}, '', url);
+  };
+
   const handleGenerateAi = async () => {
     setAiError('');
     try {
-      const res = await generateAi.mutateAsync();
+      const res = await generateAi.mutateAsync(references.data?.items.map((r:any)=>r.id) ?? []);
       if (res.ideas) setAiIdeas(res.ideas);
     } catch (e) {
       setAiError(errorMessage(e));
@@ -153,31 +171,24 @@ function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas }: { campai
         )}
       </header>
 
-      {mode === 'ideas' && aiError && <p role="alert" className="text-sm text-red-700 bg-red-50 p-3 rounded-lg">We couldn’t create starting points right now. {aiError}</p>}
-
-      {mode === 'ideas' && aiIdeas.length > 0 && !editing && (
-        <div className="my-4 space-y-3 rounded-xl border border-amber-200 bg-amber-50/50 p-4">
-          <div><h3 className="text-sm font-medium text-amber-900">✨ AI starting points</h3><p className="mt-1 text-xs text-amber-900/80">These ideas use the campaign brief and your saved creator profile. Review and adapt them before submitting.</p></div>
-          <div className="grid gap-3 md:grid-cols-3">
-            {aiIdeas.map((idea) => (
-              <div key={idea.id} className="flex flex-col justify-between rounded-lg border bg-white p-4 shadow-sm">
-                <div>
-                  <h4 className="font-semibold text-sm">{idea.title}</h4>
-                  <p className="mt-1 text-xs text-amber-800 font-medium"><span className="font-semibold">Why it fits: </span>{idea.rationale}</p>
-                  <p className="mt-2 text-xs text-gray-600 line-clamp-3"><span className="font-medium">Hook:</span> {idea.hook}</p>
-                </div>
-                <Button
-                  disabled={idea.is_expanded || expandAi.isPending}
-                  className="mt-3 text-xs w-full"
-                  onClick={() => void handleExpandAi(idea.id)}
-                >
-                  {idea.is_expanded ? 'Draft created' : 'Start a draft from this'}
-                </Button>
-              </div>
-            ))}
-          </div>
+      {mode === 'ideas' && data.creator ? <div className="campaign-ideas-shell">
+        <nav className="campaign-ideas-rail" aria-label="Campaign workspace">
+          {([['references', 'References', 'Pick examples that feel like you.'], ['ideas', 'Ideas', 'Turn the brief into a concept.'], ['submitted', 'Submitted', 'Track reviews and decisions.']] as const).map(([value, label, hint]) => (
+            <button key={value} type="button" className={`campaign-ideas-rail-item ${panel === value ? 'is-active' : ''}`} onClick={() => selectPanel(value)}>
+              <span>{label}</span><small>{hint}</small>
+            </button>
+          ))}
+        </nav>
+        <div className="campaign-ideas-panel">
+          {aiError && <p role="alert" className="campaign-error">We couldn’t create starting points right now. {aiError}</p>}
+          {panel === 'references' && <ReferencePicker campaignId={campaignId} accounts={accounts.data ?? []} snapshots={snapshots.flatMap(s=>s.data?[s.data]:[])} selected={references.data?.items ?? []} onToggle={references.toggle} />}
+          {panel === 'ideas' && <>
+            {generateAi.isPending && <div className="campaign-skeleton-list" aria-label="Generating ideas"><span/><span/><span/></div>}
+            {aiIdeas.length > 0 && !editing && <div className="campaign-generated-list"><div><h3>Generated from your brief</h3><p>Pick a direction, then shape it into your own voice.</p></div><div className="campaign-idea-list">{aiIdeas.map((idea) => <IdeaCard key={idea.id} idea={idea} busy={expandAi.isPending} onExpand={() => void handleExpandAi(idea.id)} />)}</div></div>}
+          </>}
+          {panel === 'submitted' && <SubmittedPanel items={data.items.filter((item) => item.state !== 'draft')} creator={Boolean(data.creator)} onSelect={setSelected} />}
         </div>
-      )}
+      </div> : null}
 
       {!data.brief_revision_id && <p className="text-sm">Share the campaign brief to start creating concepts.</p>}
       {editing ? (
@@ -191,7 +202,7 @@ function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas }: { campai
         />
       ) : (
         <>
-          {!visibleItems.length ? (
+          {!visibleItems.length && !(mode === 'ideas' && data.creator) ? (
             <div className="py-6 text-sm">
               {mode === 'feedback'
                 ? <><p className="font-medium">No feedback yet</p><p className="mt-1 text-[var(--n-fg-muted)]">Submit a concept to start a review.</p>{onGoToIdeas && <Button className="mt-3" onClick={onGoToIdeas}>Go to ideas</Button>}</>
@@ -199,7 +210,7 @@ function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas }: { campai
                   ? 'No concepts yet. Write your own idea or get three starting points from this brief.'
                   : 'Submitted concepts will appear here for review.'}
             </div>
-          ) : (
+          ) : mode === 'ideas' && data.creator ? null : (
             <ul className="divide-y">
               {visibleItems.map((item) => (
                 <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
@@ -228,7 +239,7 @@ function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas }: { campai
               ))}
             </ul>
           )}
-          {(data.has_more || page > 1) && <div className="flex items-center gap-3">
+          {!(mode === 'ideas' && data.creator) && (data.has_more || page > 1) && <div className="flex items-center gap-3">
             <Button
               disabled={page === 1}
               onClick={() => {
@@ -263,6 +274,27 @@ function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas }: { campai
       )}
     </section>
   );
+}
+
+function StatusPill({ state }: { state: string }) {
+  const map: Record<string, [string, string]> = { submitted: ['Waiting for review', 'waitingForReview'], draft: ['Private draft', 'privateDraft'], approved: ['Approved', 'approved'], changes_requested: ['Changes requested', 'rejected'] };
+  const [label, variant] = map[state] ?? ['Needs review', 'waitingForReview'];
+  return <span className={`campaign-status-pill ${variant}`}>{variant === 'approved' ? '✓ ' : ''}{label}</span>;
+}
+
+function SubmittedPanel({ items, creator, onSelect }: { items: Concept[]; creator: boolean; onSelect: (item: Concept) => void }) {
+  return <div className="campaign-submitted-panel"><div><h3>Submitted concepts</h3><p>See what is waiting for review and what needs your attention.</p></div>{items.length ? <div className="campaign-submitted-list">{items.map(item => <button type="button" key={item.id} className="campaign-submitted-row" onClick={() => onSelect(item)}><span><strong>{item.content.title || 'Untitled concept'}</strong><small>{creator ? 'Submitted for campaign review' : `Creator ${item.creator_id}`}</small></span><StatusPill state={item.state} /></button>)}</div> : <div className="campaign-empty-state"><strong>No submissions yet</strong><span>Your submitted concepts will appear here.</span></div>}</div>;
+}
+
+function IdeaCard({ idea, busy, onExpand }: { idea: any; busy: boolean; onExpand: () => void }) {
+  const [open, setOpen] = useState(false);
+  return <article className={`campaign-idea-card ${open ? 'is-expanded' : ''}`}><header><span className="campaign-ai-badge">✦ Generated</span>{idea.is_expanded && <span className="campaign-draft-badge">✓ Draft created</span>}</header><button type="button" className="campaign-idea-title" onClick={() => setOpen(!open)}><strong>{idea.title}</strong><span>{open ? 'Hide details' : 'Why it fits'}</span></button><p className="campaign-idea-hook">{idea.hook}</p>{open && <p className="campaign-idea-rationale">{idea.rationale}</p>}<Button disabled={idea.is_expanded || busy} className="campaign-idea-action" onClick={onExpand}>{idea.is_expanded ? 'Draft created' : 'Start a draft'}</Button></article>;
+}
+
+function ReferencePicker({campaignId,accounts,snapshots,selected,onToggle}:{campaignId:string;accounts:any[];snapshots:any[];selected:any[];onToggle:(snapshotId:string,postId:string,referenceId?:string)=>void}) {
+  const chosen=new Set(selected.map(r=>`${r.snapshot_id}:${r.post_id}`));
+  const posts=snapshots.flatMap(s=>(s.posts??[]).slice(0,30).map((p:any)=>({...p,snapshotId:s.id,username:accounts.find(a=>a.id===s.account_id)?.username}))).slice(0,12);
+  return <div className="campaign-reference-panel"><div className="campaign-section-heading"><div><h3>References</h3><p>Choose up to three posts that show how you naturally create. These stay private.</p></div><span>{selected.length}/3</span></div>{posts.length ? <div className="campaign-reference-row">{posts.map((p:any)=>{const key=`${p.snapshotId}:${p.platform_post_id}`,active=chosen.has(key);return <button type="button" key={key} disabled={!active&&selected.length>=3} onClick={()=>onToggle(p.snapshotId,p.platform_post_id,selected.find(r=>r.snapshot_id===p.snapshotId&&r.post_id===p.platform_post_id)?.id)} className={`campaign-reference-card ${active?'is-selected':''}`}><div className="campaign-reference-thumb">{p.image_url ? <img src={p.image_url} alt="" /> : <span>{p.content_type||'Post'}</span>}{active && <b>✓</b>}</div><strong>{p.content_type||'Post'}</strong><small>{p.caption||'Untitled post'}</small></button>})}</div> : <div className="campaign-empty-state"><strong>No eligible posts yet</strong><span>Connect a social account and save a snapshot to choose references.</span></div>}</div>;
 }
 function ConceptEditor({
   item,

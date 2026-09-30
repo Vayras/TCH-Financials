@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/host-grotesk/wght.css';
+@import '../styles/tokens.css';
 
 :root {
 	--n-bg: #ffffff;
@@ -59,8 +60,7 @@ body {
 	background: var(--n-bg);
 	color: var(--n-fg);
 	font-family:
-		'Host Grotesk Variable',
-		'Host Grotesk',
+		Inter,
 		ui-sans-serif,
 		system-ui,
 		-apple-system,
@@ -69,6 +69,17 @@ body {
 		Helvetica,
 		Arial,
 		sans-serif;
+	/* Host Grotesk remains available for legacy screens but is no longer the product default. */
+	/*
+		ui-sans-serif,
+		system-ui,
+		-apple-system,
+		'Segoe UI',
+		Roboto,
+		Helvetica,
+		Arial,
+		sans-serif;
+	*/
 	font-size: 16px;
 	font-feature-settings: 'tnum' 1;
 	font-variant-ligatures: none;
@@ -212,6 +223,13 @@ h6,
 	.filter-toolbar-meta { width: 100%; justify-content: space-between; }
 	.table-pagination { align-items: flex-start; }
 	.table-pagination-controls { width: 100%; flex-wrap: wrap; }
+	.app-sidebar { width: 64px !important; }
+	.app-sidebar .nav-item { justify-content: center; }
+	.app-sidebar .nav-item > span:last-child,
+	.app-sidebar nav > div > div,
+	.app-sidebar .relative.shrink-0 > div > div:last-child { display: none; }
+	.app-content { padding: 24px 16px !important; }
+	.app-topbar { padding-inline: 16px !important; }
 }
 
 /* ---------- table card + horizontal scroll cue ---------- */

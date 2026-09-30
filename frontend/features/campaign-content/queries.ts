@@ -22,16 +22,27 @@ export const briefPath = (id: string) => `/campaigns/${encodeURIComponent(id)}/b
 export function useGenerateAiIdeasMutation(campaignId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (reference_ids: string[] = []) => {
       return api.post<{ job_id: string; status: string; ideas: any[] }>(
         `/campaigns/${encodeURIComponent(campaignId)}/ai-ideas/generate`,
-        {}
+        { reference_ids }
       );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaign-content'] });
     },
   });
+}
+
+export function useCampaignReferences(campaignId:string) {
+  const client=useQueryClient();
+  const query=useBriefQuery<{items:any[]}>(`/creator-portal/campaign-briefs/${encodeURIComponent(campaignId)}/content-references`);
+  const toggle=async (snapshotId:string,postId:string,referenceId?:string) => {
+    if(referenceId) await api.del(`/creator-portal/campaign-briefs/${encodeURIComponent(campaignId)}/content-references/${referenceId}`);
+    else await api.post(`/creator-portal/campaign-briefs/${encodeURIComponent(campaignId)}/content-references`,{snapshot_id:snapshotId,post_id:postId});
+    await client.invalidateQueries({queryKey:['campaign-content']});
+  };
+  return {...query,toggle};
 }
 
 export function useExpandAiIdeaMutation(campaignId: string) {
@@ -48,5 +59,3 @@ export function useExpandAiIdeaMutation(campaignId: string) {
     },
   });
 }
-
-

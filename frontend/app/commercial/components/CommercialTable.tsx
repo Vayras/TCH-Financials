@@ -4,7 +4,7 @@ import { inr } from '@/lib/utils';
 import { creatorNamesOf, getStatusDisplay } from '@/lib/deals';
 import Icon from '@/components/ui/Icon';
 import Button from '@/components/ui/Button';
-import Tag from '@/components/ui/Tag';
+import StatusPill from '@/components/ui/StatusPill';
 
 interface CommercialTableProps {
 	deals: Deal[];
@@ -13,8 +13,8 @@ interface CommercialTableProps {
 
 export function CommercialTable({ deals, onEdit }: CommercialTableProps) {
 	return (
-		<div className="anim-fade-up rounded-xl border overflow-hidden" style={{ borderColor: 'var(--n-border)', background: 'var(--n-bg)' }}>
-			<table className="w-full border-collapse">
+		<div className="anim-fade-up rounded-xl border overflow-x-auto" style={{ borderColor: 'var(--n-border)', background: 'var(--n-bg)' }}>
+			<table className="w-full border-collapse min-w-[640px]">
 				<thead>
 					<tr style={{ background: 'var(--n-bg-soft)', borderBottom: '1px solid var(--n-border)' }}>
 						<th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--n-fg-subtle)' }}>Campaign / Brand</th>
@@ -60,9 +60,9 @@ export function CommercialTable({ deals, onEdit }: CommercialTableProps) {
 									</span>
 								</td>
 								<td className="px-4 py-3.5">
-									<Tag tone={getStatusDisplay(deal.campaign_status, deal.completed_at !== null).tone}>
+									<StatusPill tone={deal.completed_at !== null ? 'success' : !deal.invoice_received ? 'pending' : 'neutral'}>
 										{getStatusDisplay(deal.campaign_status, deal.completed_at !== null).label}
-									</Tag>
+									</StatusPill>
 								</td>
 								<td className="px-4 py-3.5">
 									<div className="flex items-center justify-end">
