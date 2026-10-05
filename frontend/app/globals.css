@@ -230,6 +230,10 @@ h6,
 	.app-sidebar .relative.shrink-0 > div > div:last-child { display: none; }
 	.app-content { padding: 24px 16px !important; }
 	.app-topbar { padding-inline: 16px !important; }
+	/* shared mobile table behavior: preserve columns without breaking the page */
+	.table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+	.table-responsive table { min-width: 680px; }
+	.page-title { font-size: 24px; }
 }
 
 /* ---------- table card + horizontal scroll cue ---------- */

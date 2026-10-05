@@ -1545,3 +1545,4 @@
 @keyframes campaign-shimmer { to { background-position:-200% 0; } }
 @media (max-width:760px) { .campaign-ideas-shell { grid-template-columns:1fr; } .campaign-ideas-rail { display:grid; grid-template-columns:repeat(3,1fr); } .campaign-ideas-rail-item { padding:9px; } .campaign-idea-list,.campaign-skeleton-list { grid-template-columns:1fr; } }
 @media (max-width: 700px) { .creator-header { gap: 10px; padding-inline: 16px; } .creator-nav { order: 3; width: 100%; overflow-x: auto; justify-content: flex-start; } .creator-main { padding-inline: 16px; } .creator-account { margin-left: auto; } }
+@media (max-width: 700px) { .creator-kit-layout, .creator-portfolio-grid { grid-template-columns: 1fr !important; } .creator-kit-preview { min-height: 420px; } .creator-flow table { min-width: 620px; } .creator-flow .page-header { align-items: flex-start; } }
