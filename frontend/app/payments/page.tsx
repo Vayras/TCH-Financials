@@ -42,6 +42,7 @@ import { InvoicesTab } from './components/InvoicesTab';
 import { UtrTab } from './components/UtrTab';
 import { TdsTab } from './components/TdsTab';
 import { PaymentModals } from './components/PaymentModals';
+import { Tabs } from '@/components/ui/Tabs';
 
 type StatusFilter = 'all' | PaymentStatus;
 type TabState = 'receivables' | 'payables' | 'utr' | 'tds';
@@ -87,13 +88,14 @@ export default function PaymentsPage() {
 	// UTR Tab state
 	const [utrPage, setUtrPage] = React.useState(1);
 	const [utrSearch, setUtrSearch] = React.useState('');
-	const { data: utrData, isLoading: utrLoading, refetch: refetchUtr } = usePaymentTransactionsQuery(utrPage, utrSearch);
+	const { data: utrData, isLoading: utrLoading, refetch: refetchUtr } = usePaymentTransactionsQuery(utrPage, utrSearch, activeTab === 'utr');
 
 	// TDS Tab state
 	const [tdsStatusFilter, setTdsStatusFilter] = React.useState<'All' | 'Pending' | 'Remitted'>('All');
 	const { data: tdsData = [], isLoading: tdsLoading, refetch: refetchTds } = useTdsEntriesQuery(
 		undefined,
-		tdsStatusFilter === 'All' ? undefined : tdsStatusFilter
+		tdsStatusFilter === 'All' ? undefined : tdsStatusFilter,
+		activeTab === 'tds'
 	);
 
 	// Mutations
@@ -607,44 +609,17 @@ export default function PaymentsPage() {
 			<section className="space-y-6">
 				<div className="flex flex-wrap items-center justify-between gap-4">
 					<PageHeader title="Payments" description="Manage accounts receivable, creator payouts, TDS deductions, and UTR logs." />
-					<div className="flex bg-[var(--n-bg-soft)] p-1 rounded-lg border border-[var(--n-border)] mb-4">
-						<button
-							onClick={() => setActiveTab('receivables')}
-							style={{
-								fontSize: 12
-							}}
-							className={`px-4 py-1.5 font-medium rounded-md transition-colors duration-100 ${activeTab === 'receivables' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-						>
-							Receivables (Clients)
-						</button>
-						<button
-							onClick={() => setActiveTab('payables')}
-							style={{
-								fontSize: 12
-							}}
-							className={`px-4 py-1.5 font-medium rounded-md transition-colors duration-100 ${activeTab === 'payables' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-						>
-							Payables (Creators)
-						</button>
-						<button
-							onClick={() => setActiveTab('utr')}
-							style={{
-								fontSize: 12
-							}}
-							className={`px-4 py-1.5 font-medium rounded-md transition-colors duration-100 ${activeTab === 'utr' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-						>
-							UTR Details
-						</button>
-						<button
-							onClick={() => setActiveTab('tds')}
-							style={{
-								fontSize: 12
-							}}
-							className={`px-4 py-1.5 font-medium rounded-md transition-colors duration-100 ${activeTab === 'tds' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
-						>
-							TDS Dues
-						</button>
-					</div>
+					<Tabs
+						value={activeTab}
+						onChange={(value) => setActiveTab(value as TabState)}
+						items={[
+							{ value: 'receivables', label: 'Receivables' },
+							{ value: 'payables', label: 'Payables' },
+							{ value: 'utr', label: 'UTR details' },
+							{ value: 'tds', label: 'TDS dues' }
+						]}
+						className="mb-4 max-w-full overflow-x-auto"
+					/>
 				</div>
 
 				{activeTab !== 'utr' && activeTab !== 'tds' ? (
