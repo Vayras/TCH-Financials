@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { randomUUID } from 'node:crypto';
 import { DataSource, EntityManager } from 'typeorm';
@@ -116,5 +116,33 @@ export class CampaignContentService {
     campaignId(id);const creator=await this.policy.requireCreator(this.db.manager,actor);
     const [row]=await this.db.query(`SELECT c.id::text,c.name,c.brand,r.id AS shared_revision_id,r.draft_version AS shared_version,r.shared_at,r.content FROM tch_campaign_brief_creator a JOIN tch_campaign c ON c.id=a.campaign_id JOIN tch_campaign_brief b ON b.campaign_id=c.id JOIN tch_campaign_brief_revision r ON r.id=b.shared_revision_id WHERE a.creator_id=$1 AND c.id=$2`,[creator,id]);
     if(!row) throw new NotFoundException();return row;
+  }
+
+  async listCreatorReferences(actor: CampaignActor,id: string) {
+    campaignId(id); const creator=await this.policy.requireCreator(this.db.manager,actor);
+    const assigned=await this.db.query('SELECT 1 FROM tch_campaign_brief_creator WHERE campaign_id=$1 AND creator_id=$2',[id,creator]);
+    if(!assigned.length) throw new NotFoundException();
+    return {items:await this.db.query(`SELECT r.id,r.snapshot_id,r.post_id,r.created_at,s.posts
+      FROM tch_campaign_content_reference r JOIN tch_creator_social_snapshot s ON s.id=r.snapshot_id
+      WHERE r.campaign_id=$1 AND r.creator_id=$2 ORDER BY r.created_at DESC`,[id,creator])};
+  }
+
+  async addCreatorReference(actor: CampaignActor,id: string,body: unknown) {
+    campaignId(id); const creator=await this.policy.requireCreator(this.db.manager,actor);
+    const row=object(body,['snapshot_id','post_id']);
+    if(typeof row.snapshot_id!=='string'||!/^[0-9a-f-]{36}$/i.test(row.snapshot_id)||typeof row.post_id!=='string'||!row.post_id) invalid('reference','A valid post is required.');
+    const assigned=await this.db.query('SELECT 1 FROM tch_campaign_brief_creator WHERE campaign_id=$1 AND creator_id=$2',[id,creator]);
+    if(!assigned.length) throw new NotFoundException();
+    const valid=await this.db.query(`SELECT 1 FROM tch_creator_social_snapshot s JOIN tch_creator_social_account a ON a.id=s.account_id WHERE s.id=$1 AND a.creator_id=$2 AND EXISTS (SELECT 1 FROM jsonb_array_elements(s.posts) p WHERE p->>'platform_post_id'=$3)`,[row.snapshot_id,creator,row.post_id]);
+    if(!valid.length) throw new ForbiddenException('Post is not part of your saved creator data.');
+    await this.db.query(`INSERT INTO tch_campaign_content_reference(id,campaign_id,creator_id,snapshot_id,post_id) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,[randomUUID(),id,creator,row.snapshot_id,row.post_id]);
+    return this.listCreatorReferences(actor,id);
+  }
+
+  async removeCreatorReference(actor: CampaignActor,id: string,referenceId: string) {
+    campaignId(id); const creator=await this.policy.requireCreator(this.db.manager,actor);
+    if(!/^[0-9a-f-]{36}$/i.test(referenceId)) throw new NotFoundException();
+    const result=await this.db.query('DELETE FROM tch_campaign_content_reference WHERE id=$1 AND campaign_id=$2 AND creator_id=$3 RETURNING id',[referenceId,id,creator]);
+    if(!result.length) throw new NotFoundException(); return {ok:true};
   }
 }

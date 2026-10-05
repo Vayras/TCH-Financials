@@ -1,4 +1,4 @@
-import { Controller, Get, Header, Param, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Header, Param, Post, Req } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Roles } from '../auth/roles.decorator';
 import { CampaignActor } from './campaign-content.model';
@@ -13,8 +13,8 @@ export class CampaignAIController {
   @Post('generate')
   @Roles('creator')
   @Header('Cache-Control', 'private, no-store')
-  async generate(@Req() r: { user: CampaignActor }, @Param('id') id: string) {
-    return this.service.generateIdeas(r.user, id);
+  async generate(@Req() r: { user: CampaignActor }, @Param('id') id: string, @Body() body: { reference_ids?: string[] }) {
+    return this.service.generateIdeas(r.user, id, body);
   }
 
   @Get()
@@ -34,4 +34,3 @@ export class CampaignAIController {
     return this.service.expandIdea(r.user, id, ideaId);
   }
 }
-

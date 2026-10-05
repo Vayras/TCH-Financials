@@ -41,7 +41,7 @@ export class CampaignAIService {
     throw new ForbiddenException('Only assigned creators can generate AI concept ideas.');
   }
 
-  async generateIdeas(a: CampaignActor, id: string) {
+  async generateIdeas(a: CampaignActor, id: string, options: { reference_ids?: string[] } = {}) {
     if (!env.openaiApiKey) {
       throw new ServiceUnavailableException('AI concept generation is not configured on this server.');
     }
@@ -102,6 +102,9 @@ You MUST output ONLY valid JSON matching this exact structure:
   ]
 }`;
 
+        const referenceIds = Array.isArray(options.reference_ids) ? options.reference_ids.slice(0, 3).filter(v => /^[0-9a-f-]{36}$/i.test(v)) : [];
+        const references = referenceIds.length ? await m.query(`SELECT r.snapshot_id,r.post_id,s.posts FROM tch_campaign_content_reference r JOIN tch_creator_social_snapshot s ON s.id=r.snapshot_id WHERE r.campaign_id=$1 AND r.creator_id=$2 AND r.id = ANY($3::uuid[])`,[id,creatorId,referenceIds]) : [];
+        const referenceText = references.map((r:any) => { const post=(Array.isArray(r.posts)?r.posts:[]).find((p:any)=>p.platform_post_id===r.post_id)||{}; return `- Format: ${post.content_type||'post'}; Caption: ${String(post.caption||'').slice(0,500)}; Likes: ${post.likes??'unavailable'}; Comments: ${post.comments??'unavailable'}`; }).join('\n') || 'None selected.';
         const promptUser = `BRAND CAMPAIGN BRIEF:
 - Title: ${briefContent.title || 'Untitled Campaign'}
 - Objective: ${briefContent.objective || 'N/A'}
@@ -113,6 +116,9 @@ CREATOR PROFILE:
 - Name: ${creatorProfile?.name || 'Creator'}
 - Niche/category: ${creatorProfile?.category || 'General Content'}
 - Notes: ${creatorProfile?.notes || 'N/A'}
+
+PRIVATE CREATOR REFERENCES (use only for format and tone; never copy captions):
+${referenceText}
 
 Generate 3 unique, personalized ideas now in strict JSON format.`;
 

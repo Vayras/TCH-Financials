@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, Param, Post, Put, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Header, Param, Post, Put, Query, Req } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../auth/roles.decorator';
 import { CampaignContentService } from './campaign-content.service';
@@ -44,4 +44,7 @@ export class CreatorCampaignBriefController {
   list(@Req() r:ActorRequest,@Query('page') page?:string,@Query('page_size') size?:string) {return this.service.listCreatorBriefs(r.user,...pagination(page,size));}
   @Get(':id') @Header('Cache-Control','private, no-store')
   get(@Req() r:ActorRequest,@Param('id') id:string) {return this.service.getCreatorBrief(r.user,id);}
+  @Get(':id/content-references') references(@Req() r:ActorRequest,@Param('id') id:string) {return this.service.listCreatorReferences(r.user,id);}
+  @Post(':id/content-references') addReference(@Req() r:ActorRequest,@Param('id') id:string,@Body() body:unknown) {return this.service.addCreatorReference(r.user,id,body);}
+  @Delete(':id/content-references/:referenceId') removeReference(@Req() r:ActorRequest,@Param('id') id:string,@Param('referenceId') referenceId:string) {return this.service.removeCreatorReference(r.user,id,referenceId);}
 }
