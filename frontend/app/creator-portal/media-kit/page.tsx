@@ -6,14 +6,16 @@ import Button from '@/components/ui/Button';
 import CreatorKitView, { CreatorImage } from '@/components/CreatorKitView';
 import { starterDraft, importedDate, type KitRecord, type SocialAccount, type SocialSnapshot, type KitContent } from '@/lib/creator-kit';
 import { useKit, useKitActions, useSavedSnapshots, useSocialAccounts } from '../kit-queries';
+import Skeleton from '@/components/ui/Skeleton';
+import EmptyState from '@/components/ui/EmptyState';
 
 export default function CreatorMediaKitPage() {
   const kit=useKit(),accounts=useSocialAccounts();
   const snapshots=useSavedSnapshots(accounts.data??[]);
-  if(kit.isLoading||accounts.isLoading||snapshots.some(s=>s.isLoading))return <p>Preparing your brand kit…</p>;
+  if(kit.isLoading||accounts.isLoading||snapshots.some(s=>s.isLoading))return <div className="creator-flow"><Skeleton className="h-10 w-56" /><Skeleton className="h-5 w-80" /><div className="creator-kit-layout"><Skeleton className="h-[520px]" /><Skeleton className="h-[520px]" /></div></div>;
   const error=kit.error||accounts.error||snapshots.find(s=>s.error)?.error;
-  if(error)return <div className="creator-flow"><p role="alert">{error.message}</p><Button onClick={()=>{kit.refetch();accounts.refetch();snapshots.forEach(s=>s.refetch());}}>Try again</Button></div>;
-  if(!kit.data)return null;
+  if(error)return <div className="creator-flow"><EmptyState title="Your brand kit could not load" description={error.message} action={<Button onClick={()=>{kit.refetch();accounts.refetch();snapshots.forEach(s=>s.refetch());}}>Try again</Button>} /></div>;
+  if(!kit.data)return <div className="creator-flow"><EmptyState title="Your brand kit is ready to set up" description="Add your profile and choose the work you want brands to see." /></div>;
   return <KitStudio key={kit.data.version} kit={kit.data} accounts={accounts.data??[]} latest={snapshots.flatMap(s=>s.data?[s.data]:[])}/>;
 }
 

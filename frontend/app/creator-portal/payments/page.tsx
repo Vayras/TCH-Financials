@@ -6,6 +6,7 @@ import { inr } from '@/lib/utils';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
 import PageHeader from '@/components/PageHeader';
+import Card from '@/components/ui/Card';
 import QueryErrorState from '@/components/QueryErrorState';
 
 export default function CreatorPaymentsPage() {
@@ -50,7 +51,7 @@ export default function CreatorPaymentsPage() {
 
 			{/* Metric Cards Row */}
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-				<div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
+				<Card className="flex items-center justify-between p-5">
 					<div className="space-y-1">
 						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-455">Amount received</span>
 						<div className="text-[22px] font-extrabold text-gray-900 tracking-tight tabular-nums">
@@ -60,9 +61,9 @@ export default function CreatorPaymentsPage() {
 					<div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center text-green-600">
 						<Icon name="check" size={20} />
 					</div>
-				</div>
+				</Card>
 
-				<div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
+				<Card className="flex items-center justify-between p-5">
 					<div className="space-y-1">
 						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-455">Expected payments</span>
 						<div className="text-[22px] font-extrabold text-gray-900 tracking-tight tabular-nums">
@@ -72,7 +73,7 @@ export default function CreatorPaymentsPage() {
 					<div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
 						<Icon name="clock" size={20} />
 					</div>
-				</div>
+				</Card>
 			</div>
 
 			<div className="space-y-8">
