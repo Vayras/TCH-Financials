@@ -70,10 +70,18 @@ export class PaymentTransactionsController {
     const total = await qb.getCount();
     
     // Get sums of debits and credits
-    const sums = await qb.clone()
+    // Use a separate aggregate query: cloning the paginated query also clones
+    // its ORDER BY, which PostgreSQL rejects when only aggregate columns are selected.
+    const sumsQb = repo.createQueryBuilder('pt')
       .select('SUM(pt.debitAmount)', 'debit')
-      .addSelect('SUM(pt.creditAmount)', 'credit')
-      .getRawOne<{ debit: string | null; credit: string | null }>();
+      .addSelect('SUM(pt.creditAmount)', 'credit');
+    if (search?.trim()) {
+      sumsQb.andWhere(
+        '(pt.vendorName ILIKE :search OR pt.utrOrRef ILIKE :search OR pt.notes ILIKE :search)',
+        { search: `%${search.trim()}%` }
+      );
+    }
+    const sums = await sumsQb.getRawOne<{ debit: string | null; credit: string | null }>();
 
     const items = await qb
       .skip((pagination.page - 1) * pagination.pageSize)
