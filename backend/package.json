@@ -19,7 +19,7 @@
   "dependencies": {
     "@nestjs/common": "^11.0.0",
     "@nestjs/core": "^11.0.0",
-    "@nestjs/platform-express": "^11.1.28",
+    "@nestjs/platform-express": "^11.2.6",
     "@nestjs/serve-static": "^5.0.0",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.0",
