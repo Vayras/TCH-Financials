@@ -8,20 +8,20 @@
   --radius-sm: 12px;
   --radius-md: 20px;
   --radius-lg: 28px;
-  --n-accent: #172a3a;
-  --n-accent-soft: #fff1bf;
-  --n-bg: #fffdf5;
-  --n-bg-soft: #f4f1e8;
-  --n-fg: #172a3a;
-  --n-border: #e3e0d6;
+  --n-accent: #6554c0;
+  --n-accent-soft: #efebfa;
+  --n-bg: #ffffff;
+  --n-bg-soft: #faf9fd;
+  --n-fg: #302a42;
+  --n-border: #ece8f3;
   --creator-yellow: #ffcf4a;
   --creator-teal: #2f7c7a;
   --creator-coral: #e58b73;
   --creator-muted: #68727a;
-  background: #e6e7e2;
+  background: #f4f1fa;
   min-height: 100vh;
   padding: 24px;
-  color: #292b29;
+  color: #302a42;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5
@@ -33,7 +33,7 @@
   min-height: calc(100vh - 48px);
   border: 1px solid #fff9;
   border-radius: 36px;
-  background: radial-gradient(ellipse at 94% 6%, #fff0b6 0%, transparent 36%), linear-gradient(115deg, #edeeea, #faf8ef 58%, #f9f1d0);
+  background: radial-gradient(ellipse at 94% 6%, #e9ddff 0%, transparent 40%), linear-gradient(115deg, #f5f2fb, #fff 58%, #f0eafa);
   box-shadow: 0 24px 80px #333b2d0a
 }
 
@@ -90,7 +90,7 @@
 }
 
 .creator-nav a[aria-current=page] {
-  background: #2b2d2a;
+  background: #6554c0;
   color: #fff
 }
 
@@ -116,7 +116,7 @@
   color: inherit;
 }
 
-.creator-account-trigger:focus-visible { outline: 3px solid #87661b; outline-offset: 4px; border-radius: 24px }
+.creator-account-trigger:focus-visible { outline: 3px solid #6554c0; outline-offset: 4px; border-radius: 24px }
 
 .creator-account summary::-webkit-details-marker {
   display: none
@@ -221,7 +221,7 @@
 
 .creator-campaign-tabs button[aria-selected=true] {
   background: #fff;
-  color: #292b29;
+  color: #302a42;
   box-shadow: 0 1px 2px rgba(30,31,29,.08);
 }
 
@@ -248,7 +248,7 @@
 
 .creator-workspace :focus-visible,
 .public-kit-page :focus-visible {
-  outline: 3px solid #87661b;
+  outline: 3px solid #6554c0;
   outline-offset: 4px
 }
 
