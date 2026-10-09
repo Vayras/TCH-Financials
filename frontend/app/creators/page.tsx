@@ -9,7 +9,7 @@ import Dialog from '@/components/ui/Dialog';
 import { cn, formatDoj } from '@/lib/utils';
 import CreatorFormModal from '@/components/CreatorFormModal';
 import DataTable from '@/components/DataTable';
-import PageHeader from '@/components/PageHeader';
+import styles from './creators.module.css';
 import FilterToolbar from '@/components/FilterToolbar';
 import Pagination from '@/components/Pagination';
 import QueryErrorState from '@/components/QueryErrorState';
@@ -231,36 +231,32 @@ export default function CreatorsPage() {
 			const shared: ColumnDef<Creator, unknown>[] = [
 			{
 				accessorKey: 'name',
-				header: 'Creator Name',
+				header: 'Creator',
 				meta: { tdClassName: 'font-medium' },
 				cell: ({ row }) => (
 					<Link
 						href={`/creators/${row.original.id}`}
-						className="inline-link text-left"
+						className={styles.identity}
 						title={`View ${row.original.name}`}
 					>
-						{row.original.name}
-					</Link>
+						<span className={styles.avatar}>{row.original.name.split(' ').filter(Boolean).slice(0,2).map(part => part[0]).join('')}</span>
+                        <span><strong>{row.original.name}</strong><small>{row.original.category || '—'}</small></span>
+                    </Link>
 				)
 			},
 			{
-				accessorKey: 'category',
-				header: 'Niche',
-				meta: { tdStyle: { color: 'var(--n-fg-muted)' } }
-			},
-			{
 				accessorKey: 'relationship',
-				header: 'Relation',
+				header: 'Relationship',
 				cell: ({ row }) =>
 					row.original.relationship && (
-						<Tag tone={relTone(row.original.relationship)}>{row.original.relationship}</Tag>
+						<Tag className={styles.badge} tone={relTone(row.original.relationship)}>{row.original.relationship}</Tag>
 					)
 			},
 			{
 				accessorKey: 'status',
 				header: 'Status',
 				cell: ({ row }) => (
-					<Tag tone={statusTone(row.original.status ?? 'Active')}>
+					<Tag className={styles.badge} tone={statusTone(row.original.status ?? 'Active')}>
 						{row.original.status ?? 'Active'}
 					</Tag>
 				)
@@ -275,10 +271,10 @@ export default function CreatorsPage() {
 					const tone = pStatus === 'active' ? 'yes' : pStatus === 'invited' ? 'markup' : 'neutral';
 					const label = pStatus === 'active' ? 'Portal Active' : pStatus === 'invited' ? 'Invited' : 'Manual';
 					return (
-						<div className="flex flex-col gap-0.5">
-							<Tag tone={tone}>{label}</Tag>
+						<div className="flex flex-col items-start gap-1.5">
+							<Tag className={styles.badge} tone={tone}>{label}</Tag>
 							{email && (
-								<span className="text-[10px] text-gray-400 font-mono truncate max-w-[120px]" title={email}>
+								<span className="text-[10px] text-gray-400 truncate max-w-[150px]" title={email}>
 									{email}
 								</span>
 							)}
@@ -288,7 +284,7 @@ export default function CreatorsPage() {
 			},
 			{
 				accessorKey: 'doj',
-				header: 'DOJ',
+				header: 'Joined',
 				meta: { tdClassName: 'whitespace-nowrap', tdStyle: { color: 'var(--n-fg-muted)' } },
 				cell: ({ row }) => formatDoj(row.original.doj)
 			},
@@ -297,25 +293,27 @@ export default function CreatorsPage() {
 				header: 'URL',
 				enableSorting: false,
 				cell: ({ row }) =>
-					parseCreatorLinks(row.original.profile_url)[0] && (
+					parseCreatorLinks(row.original.profile_url)[0] ? (
 						<a
 							className="inline-link text-[12px]"
 							href={parseCreatorLinks(row.original.profile_url)[0]}
 							target="_blank"
 							rel="noopener"
 						>
-							link ↗
+							Profile ↗
 						</a>
-					)
+					) : '—'
 			},
 			{
 				accessorKey: 'location',
 				header: 'Location',
+                cell: ({row}) => row.original.location || '—',
 				meta: { tdStyle: { color: 'var(--n-fg-muted)' } }
 			},
 			{
 				accessorKey: 'ops_manager',
 				header: 'Talent Manager',
+                cell: ({row}) => row.original.ops_manager || '—',
 				meta: { tdStyle: { color: 'var(--n-fg)' } }
 			},
 			];
@@ -376,14 +374,13 @@ export default function CreatorsPage() {
 
 	return (
 		<>
-			<section className="space-y-6">
-				<PageHeader
-					title={isAccounts ? 'Creators' : 'Creator Database'}
-					description={isAccounts ? 'Review creator metrics, payment context, and assigned campaigns.' : 'Manage creator profiles, relationships, status, and ownership.'}
-					actions={!isAccounts ? <Button variant="primary" onClick={startAdd}>
-						<Icon name="plus" size={14} /> Add Creator
-					</Button> : undefined}
-				/>
+			<section className={styles.workspace}>
+                <div className={styles.header}>
+                    <div><h1>Creators directory</h1><p>Manage your talent roster, profiles and relationships.</p></div>
+                    {!isAccounts && <Button className={styles.addButton} variant="primary" onClick={startAdd}><Icon name="plus" size={14} /> Add creator</Button>}
+                </div>
+                <div className={styles.panel}>
+
 
 				<FilterToolbar search={{ value: q, onChange: setQ, placeholder: 'Search name, niche, talent manager…' }} resultCount={total} resultLabel={total === 1 ? 'creator' : 'creators'}>
 					<div className="seg-toggle">
@@ -391,7 +388,8 @@ export default function CreatorsPage() {
 							<button
 								key={f}
 								type="button"
-								className={cn(relFilter === f && 'active')}
+								aria-pressed={relFilter === f}
+                                className={cn(relFilter === f && 'active')}
 								onClick={() => setRelFilter(f)}
 							>
 								{f}
@@ -403,7 +401,8 @@ export default function CreatorsPage() {
 							<button
 								key={f}
 								type="button"
-								className={cn(statusFilter === f && 'active')}
+								aria-pressed={statusFilter === f}
+                                className={cn(statusFilter === f && 'active')}
 								onClick={() => setStatusFilter(f)}
 							>
 								{f}
@@ -420,6 +419,7 @@ export default function CreatorsPage() {
 						{!loading && total > 0 && <Pagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />}
 					</div>
 				)}
+                </div>
 			</section>
 
 			{!isAccounts && <CreatorFormModal
