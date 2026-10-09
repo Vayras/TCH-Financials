@@ -16,3 +16,13 @@ test('drafts may be incomplete but sharing requires actionable content', () => {
   assert.throws(() => validateBrief({ ...brief, mandatory_messages: ['Required'] }, 'share'));
   assert.throws(() => validateBrief({ ...brief, objective: 'a'.repeat(4001) }, 'draft'));
 });
+
+import {CampaignContentService} from '../src/campaign-content/campaign-content.service';
+import {DataSource} from 'typeorm';
+test('creator home binds summary to approved creator and shared briefs',async()=>{
+ const queries:{sql:string;params:unknown[]}[]=[];
+ const query=async(sql:string,params:unknown[])=>{queries.push({sql,params});return sql.startsWith('SELECT id,role,status')?[{role:'creator',status:'approved',creator_id:'2'}]:[];};
+ const service=new CampaignContentService({manager:{query},query} as unknown as DataSource);
+ await service.creatorHome({id:'11111111-1111-4111-8111-111111111111',role:'creator',creatorId:'2'});
+ const summary=queries[1];assert.deepEqual(summary.params,['2']);assert.match(summary.sql,/a.creator_id=\$1/);assert.match(summary.sql,/x.creator_id=\$1/);assert.match(summary.sql,/r.id=b.shared_revision_id/);assert.doesNotMatch(summary.sql,/feedback|agency_fee|internal/);
+});
