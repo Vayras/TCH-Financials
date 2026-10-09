@@ -23,9 +23,9 @@ export class ContentConceptService {
   return this.db.transaction(async m=>{
    const access=await this.access(m,a,id);
    const [brief]=await m.query('SELECT shared_revision_id FROM tch_campaign_brief WHERE campaign_id=$1',[id]);
-   const items=await m.query(`SELECT c.id,c.creator_id,c.state,c.version,c.updated_at,r.id AS revision_id,r.content,r.brief_revision_id,
+   const items=await m.query(`SELECT c.id,c.creator_id,creator.name AS creator_name,c.state,c.version,c.updated_at,r.id AS revision_id,r.content,r.brief_revision_id,
     r.brief_revision_id IS DISTINCT FROM $3::uuid AS stale_brief
-    FROM tch_content_concept c JOIN tch_content_concept_revision r ON r.id=CASE WHEN $2::bigint IS NULL THEN c.submitted_revision ELSE c.current_revision END
+    FROM tch_content_concept c JOIN tch_creator creator ON creator.id=c.creator_id JOIN tch_content_concept_revision r ON r.id=CASE WHEN $2::bigint IS NULL THEN c.submitted_revision ELSE c.current_revision END
     WHERE c.campaign_id=$1 AND ($2::bigint IS NULL OR c.creator_id=$2) ORDER BY c.updated_at DESC,c.id LIMIT 21 OFFSET $4`,[id,access.creator,brief?.shared_revision_id,(page-1)*20]);
    return {...access,brief_revision_id:brief?.shared_revision_id??null,items:items.slice(0,20),has_more:items.length>20};
   });
@@ -92,7 +92,7 @@ export class ContentConceptService {
    const access=await this.access(m,a,id);await this.concept(m,id,cid,access.creator);
    const revisions=await m.query('SELECT id,content,created_at,submitted_at FROM tch_content_concept_revision WHERE concept_id=$1 AND ($2::boolean OR submitted_at IS NOT NULL) ORDER BY created_at DESC,id LIMIT 21 OFFSET $3',[cid,Boolean(access.creator),(page-1)*20]);
    const reviews=await m.query('SELECT revision_id,decision,message,created_at FROM tch_content_concept_review WHERE concept_id=$1 AND revision_id=ANY($2::uuid[])',[cid,revisions.slice(0,20).map((r:{id:string})=>r.id)]);
-   const comments=await m.query("SELECT f.id,f.revision_id,f.section,f.message,f.visibility,f.created_at FROM tch_content_concept_feedback f JOIN tch_content_concept_revision r ON r.id=f.revision_id WHERE f.concept_id=$1 AND ($2::boolean OR f.visibility='shared') AND ($3::boolean OR r.submitted_at IS NOT NULL) ORDER BY f.created_at DESC,f.id LIMIT 21 OFFSET $4",[cid,!access.creator,Boolean(access.creator),(page-1)*20]);
+   const comments=await m.query("SELECT f.id,f.revision_id,f.section,f.message,f.visibility,f.created_at,COALESCE(NULLIF(p.display_name,''),creator.name,p.email,'Former member') AS author_name FROM tch_content_concept_feedback f LEFT JOIN tch_profile p ON p.id=f.author_id LEFT JOIN tch_creator creator ON creator.id=p.creator_id JOIN tch_content_concept_revision r ON r.id=f.revision_id WHERE f.concept_id=$1 AND ($2::boolean OR f.visibility='shared') AND ($3::boolean OR r.submitted_at IS NOT NULL) ORDER BY f.created_at DESC,f.id LIMIT 21 OFFSET $4",[cid,!access.creator,Boolean(access.creator),(page-1)*20]);
    return {revisions:revisions.slice(0,20),reviews,comments:comments.slice(0,20),has_more:revisions.length>20||comments.length>20};
   });
  }
