@@ -117,6 +117,7 @@ export type Deal = {
 	creator_name_raw: string;
 	creator_relationship: string;
 	tch_poc: string;
+	responsible_member_id?: string | null;
 	agency_commission_agreed: string;
 	direction: 'Inbound' | 'Outbound' | 'MarkUp';
 	total_fee: string;
@@ -329,6 +330,7 @@ export type QuarterlyExclusive = {
 };
 
 export type EntityRow = {
+	deals: {id:string;campaign:string;brand:string;creators:string[];bookings:string;agency_margin:string}[];
 	entity: string;
 	deal_count: number;
 	total_billing: string;
