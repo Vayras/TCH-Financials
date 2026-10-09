@@ -1,0 +1,5 @@
+.dialog {--n-accent:#6554c0; --n-accent-hover:#5545a8; --n-fg:#302a42; --n-fg-muted:#81768e; --n-border:#e9e4f0; font-family:'Host Grotesk Variable',system-ui,sans-serif; border-radius:14px; width:calc(100% - 32px);}
+.dialog h2 {font-size:20px; font-weight:600; letter-spacing:-.4px; line-height:1.4;}
+.dialog p {font-size:13px; line-height:1.6; max-width:360px;}
+.dialog button:not([aria-label='Close']) {min-height:36px; height:auto; padding:8px 12px; font-size:12px; line-height:18px; border-radius:8px; box-shadow:none;}
+.dialog button[aria-label='Close'] {flex-shrink:0;}

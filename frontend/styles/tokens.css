@@ -1,0 +1,31 @@
+:root {
+	--app-bg: #f7f7f5;
+	--app-surface: #ffffff;
+	--app-surface-muted: #f1f2ef;
+	--app-fg: #202124;
+	--app-muted: #6b7280;
+	--app-border: #e5e7eb;
+	--app-brand: #4f46e5;
+	--app-brand-soft: #eef2ff;
+	--n-accent-hover: #380e44;
+	--app-success: #15803d;
+	--app-success-soft: #dcfce7;
+	--app-warning: #a16207;
+	--app-warning-soft: #fef3c7;
+	--app-danger: #b91c1c;
+	--app-danger-soft: #fee2e2;
+	--app-ai: #7c3aed;
+	--app-ai-soft: #ede9fe;
+	--chart-emw: #2563eb;
+	--chart-external: #94a3b8;
+	--chart-profit: #059669;
+	--app-radius-sm: 8px;
+	--app-radius-md: 12px;
+	--app-radius-lg: 16px;
+	--app-space-1: 4px;
+	--app-space-2: 8px;
+	--app-space-3: 12px;
+	--app-space-4: 16px;
+	--app-space-5: 24px;
+	--app-space-6: 32px;
+}

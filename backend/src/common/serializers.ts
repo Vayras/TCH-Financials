@@ -129,6 +129,7 @@ export function dealDto(d: CommercialDeal) {
     creator_name_raw: d.creatorNameRaw,
     creator_relationship: d.creatorId && d.creator ? d.creator.relationship : 'NonTCH',
     tch_poc: d.tchPoc,
+    responsible_member_id: d.responsibleMemberId,
     agency_commission_agreed: d.agencyCommissionAgreed,
     direction: d.direction,
     total_fee: d.totalFee,

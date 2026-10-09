@@ -12,6 +12,7 @@ export const EMPTY_DEAL_FORM: DealForm = {
 	e_invoice_date: '',
 	creator: '',
 	tch_poc: '',
+	responsible_member_id: '',
 	direction: 'Outbound',
 	total_fee: '',
 	agency_fee_pct: '',

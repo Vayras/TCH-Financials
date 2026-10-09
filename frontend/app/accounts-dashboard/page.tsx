@@ -9,6 +9,8 @@ import { inr } from '@/lib/utils';
 import Icon from '@/components/ui/Icon';
 import PageHeader from '@/components/PageHeader';
 import QueryErrorState from '@/components/QueryErrorState';
+import Card from '@/components/ui/Card';
+import Skeleton from '@/components/ui/Skeleton';
 
 export default function AccountsDashboardPage() {
 	const { fyStart } = useFiscalYear();
@@ -80,13 +82,7 @@ export default function AccountsDashboardPage() {
 
 	if (loading) {
 		return (
-			<div className="flex items-center justify-center gap-3 py-24 text-gray-500">
-				<svg className="animate-spin h-5 w-5 text-[var(--n-accent)]" style={{ willChange: 'transform' }} viewBox="0 0 24 24" fill="none">
-					<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-					<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-				</svg>
-				<span className="text-[14px] font-medium">Loading financial dashboard…</span>
-			</div>
+			<div className="space-y-4 py-8"><Skeleton className="h-12 w-full" /><div className="grid grid-cols-1 gap-4 md:grid-cols-4"><Skeleton className="h-24" /><Skeleton className="h-24" /><Skeleton className="h-24" /><Skeleton className="h-24" /></div></div>
 		);
 	}
 
@@ -104,7 +100,7 @@ export default function AccountsDashboardPage() {
 			{/* Metric Blocks Row */}
 			<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 				{/* Billed */}
-				<div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center justify-between transition-colors duration-100 hover:border-gray-300">
+				<Card className="flex items-center justify-between p-5 transition-colors duration-100 hover:border-gray-300">
 					<div className="space-y-1">
 						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Billed Revenue</span>
 						<div className="text-[20px] font-extrabold text-[var(--color-success)] tracking-tight tabular-nums">
@@ -114,10 +110,10 @@ export default function AccountsDashboardPage() {
 					<div className="h-9 w-9 rounded-lg bg-[var(--color-success-bg)] flex items-center justify-center text-[var(--color-success)]">
 						<Icon name="check" size={18} />
 					</div>
-				</div>
+				</Card>
 
 				{/* Unbilled */}
-				<div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center justify-between transition-colors duration-100 hover:border-gray-300">
+				<Card className="flex items-center justify-between p-5 transition-colors duration-100 hover:border-gray-300">
 					<div className="space-y-1">
 						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Unbilled Revenue</span>
 						<div className="text-[20px] font-extrabold text-[var(--color-warning)] tracking-tight tabular-nums">
@@ -127,10 +123,10 @@ export default function AccountsDashboardPage() {
 					<div className="h-9 w-9 rounded-lg bg-[var(--color-warning-bg)] flex items-center justify-center text-[var(--color-warning)]">
 						<Icon name="clock" size={18} />
 					</div>
-				</div>
+				</Card>
 
 				{/* TDS Remitted */}
-				<div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center justify-between transition-colors duration-100 hover:border-gray-300">
+				<Card className="flex items-center justify-between p-5 transition-colors duration-100 hover:border-gray-300">
 					<div className="space-y-1">
 						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">TDS Remitted</span>
 						<div className="text-[20px] font-extrabold text-gray-900 tracking-tight tabular-nums">
@@ -140,10 +136,10 @@ export default function AccountsDashboardPage() {
 					<div className="h-9 w-9 rounded-lg bg-gray-50 flex items-center justify-center text-gray-700">
 						<Icon name="tag" size={18} />
 					</div>
-				</div>
+				</Card>
 
 				{/* TDS Outstanding */}
-				<div className="bg-white border border-gray-200 rounded-xl p-5 flex items-center justify-between transition-colors duration-100 hover:border-gray-300">
+				<Card className="flex items-center justify-between p-5 transition-colors duration-100 hover:border-gray-300">
 					<div className="space-y-1">
 						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">TDS Outstanding</span>
 						<div className="text-[20px] font-extrabold text-[var(--color-danger)] tracking-tight tabular-nums">
@@ -153,7 +149,7 @@ export default function AccountsDashboardPage() {
 					<div className="h-9 w-9 rounded-lg bg-[var(--color-danger-bg)] flex items-center justify-center text-[var(--color-danger)]">
 						<Icon name="bell" size={18} />
 					</div>
-				</div>
+				</Card>
 			</div>
 
 			{/* Section: Campaign Audits */}

@@ -1,445 +1,529 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { inr, pct } from '@/lib/utils';
-import Button from '@/components/ui/Button';
-import Icon from '@/components/ui/Icon';
-import Select from '@/components/ui/Select';
-import { cn } from '@/lib/utils';
-import { useFiscalYear } from '@/lib/fiscal-year';
-import BillingBarChart from '@/components/BillingBarChart';
-import MetricCard from '@/components/MetricCard';
-import PageHeader from '@/components/PageHeader';
-import QueryErrorState from '@/components/QueryErrorState';
-import { TrajectoryAreaChart } from '@/components/TrajectoryAreaChart';
-import { DonutChart } from '@/components/DonutChart';
-import { TopList } from '@/components/TopList';
-import { useOverviewQuery, useOverviewCreatorsQuery } from './queries';
+import * as React from "react";
+import Link from "next/link";
+import { inr, pct, cn } from "@/lib/utils";
+import Button from "@/components/ui/Button";
+import Icon from "@/components/ui/Icon";
+import { useFiscalYear } from "@/lib/fiscal-year";
+import BillingBarChart from "@/components/BillingBarChart";
+import QueryErrorState from "@/components/QueryErrorState";
+import { DonutChart } from "@/components/DonutChart";
+import { useOverviewQuery, useOverviewCreatorsQuery } from "./queries";
+import styles from "./overview.module.css";
 
-const STATUS_DOT: Record<string, string> = {
-	'Awaiting Invoices': 'bg-[#441151]',
-	'Pending Payment': 'bg-[#0d9070]',
-	'Completed': 'bg-[#9b9a97]'
-};
-
-function fyLabelFor(start: number | null): string {
-	if (start === null) return '…';
-	return `FY ${start % 100}-${(start + 1) % 100}`;
-}
+const statuses = [
+	"All",
+	"Awaiting Invoices",
+	"Pending Payment",
+	"Completed",
+] as const;
+const money = (value: string | number | undefined) => `₹${inr(value) || "0"}`;
 
 export default function OverviewPage() {
 	const { fyStart } = useFiscalYear();
-	const [creatorFilter, setCreatorFilter] = React.useState('All');
-	const [creatorInput, setCreatorInput] = React.useState('');
-
-	const { data, isLoading: overviewLoading, error: overviewError, refetch } = useOverviewQuery(fyStart, creatorFilter);
-	const { data: creators = [], isLoading: creatorsLoading } = useOverviewCreatorsQuery();
-
-	const loading = overviewLoading || creatorsLoading;
-	const error = overviewError ? overviewError.message : null;
-
-	const [view, setView] = React.useState<'month' | 'quarter'>('month');
-	const [monthFilter, setMonthFilter] = React.useState('All');
-	const [showAllCampaigns, setShowAllCampaigns] = React.useState(false);
-
-	const monthActive = monthFilter !== 'All';
-	const effView: 'month' | 'quarter' = monthActive ? 'month' : view;
-	const allCols = data ? (effView === 'month' ? data.months : data.quarters) : [];
-	const cols = monthActive ? allCols.filter((c) => c.key === monthFilter) : allCols;
-	const src = data
-		? effView === 'month'
-			? {
-				totals: data.totals.by_month,
-				emw: data.emw_billing.by_month,
-				profits: data.profits.by_month,
-				emwPct: data.emw_pct.by_month,
-				profitPct: data.profit_pct.by_month
-			}
-			: {
-				totals: data.totals.by_quarter,
-				emw: data.emw_billing.by_quarter,
-				profits: data.profits.by_quarter,
-				emwPct: data.emw_pct.by_quarter,
-				profitPct: data.profit_pct.by_quarter
-			}
-		: null;
+	const [creatorFilter, setCreatorFilter] = React.useState("All");
+	const [creatorInput, setCreatorInput] = React.useState("");
+	const [tableSearch, setTableSearch] = React.useState("");
+	const [status, setStatus] = React.useState<string>("All");
+	const [view, setView] = React.useState<"month" | "quarter">("month");
+	const [monthFilter, setMonthFilter] = React.useState("All");
+	const [showAll, setShowAll] = React.useState(false);
+	const { data, isLoading, isFetching, error, refetch } = useOverviewQuery(
+		fyStart,
+		creatorFilter,
+	);
+	const { data: creators = [] } = useOverviewCreatorsQuery();
+	const fy =
+		fyStart === null
+			? "Fiscal year"
+			: `FY ${fyStart % 100}–${(fyStart + 1) % 100}`;
+	const periodView = monthFilter === "All" ? view : "month";
+	const cols =
+		(periodView === "month" ? data?.months : data?.quarters)?.filter(
+			(c) => monthFilter === "All" || c.key === monthFilter,
+		) ?? [];
+	const periodKey = periodView === "month" ? "by_month" : "by_quarter";
+	const rows = (data?.rows ?? []).filter((row) => {
+		const search = tableSearch.trim().toLowerCase();
+		return (
+			(status === "All" || String(row.status) === status) &&
+			(!search ||
+				[row.name, row.brand, ...row.creators].some((value) =>
+					value.toLowerCase().includes(search),
+				))
+		);
+	});
+	const displayedRows = showAll ? rows : rows.slice(0, 8);
 
 	return (
-		<section className="space-y-6">
-			<PageHeader eyebrow={<>Dashboard · {fyLabelFor(fyStart)}</>} title="Current Overview" description={<>
-				Live financial performance and campaign revenue metrics for the selected fiscal year.
-			</>} />
-
-			{data && (
-				<div className="space-y-6">
-					{/* Key Metrics Section */}
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-						{/* Financial Summary */}
-						<div className="md:col-span-2 grid grid-cols-2 gap-2">
-							<div className="col-span-full grid grid-cols-3 gap-2">
-								<HeroMetricCard
-									label="Gross Bookings"
-									value={`₹${inr(data.totals.total) || '0'}`}
-								/>
-								<div
-									className="rounded-lg p-4 flex flex-col justify-between"
-									style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-								>
-									<div
-										className="text-[11.5px] font-semibold uppercase flex items-center gap-1.5"
-										style={{ color: '#15803d', letterSpacing: '0.06em' }}
-									>
-										<span className="h-1.5 w-1.5 rounded-full bg-[#15803d]" />
-										Billed Revenue
-									</div>
-									<div
-										className="text-[20px] font-bold tabular-nums tracking-tight mt-2 leading-none"
-										style={{ color: 'var(--n-fg)' }}
-									>
-										₹{inr(data.billed?.total) || '0'}
-									</div>
-									<span className="text-[10px] text-gray-400 mt-1">Invoices issued</span>
-								</div>
-								<div
-									className="rounded-lg p-4 flex flex-col justify-between"
-									style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-								>
-									<div
-										className="text-[11.5px] font-semibold uppercase flex items-center gap-1.5"
-										style={{ color: '#b45309', letterSpacing: '0.06em' }}
-									>
-										<span className="h-1.5 w-1.5 rounded-full bg-[#b45309]" />
-										Unbilled Revenue
-									</div>
-									<div
-										className="text-[20px] font-bold tabular-nums tracking-tight mt-2 leading-none"
-										style={{ color: 'var(--n-fg)' }}
-									>
-										₹{inr(data.unbilled?.total) || '0'}
-									</div>
-									<span className="text-[10px] text-gray-400 mt-1">Confirmed deals awaiting invoice</span>
-								</div>
-							</div>
-							<MetricCard
-								label="EMW Retained Bookings"
-								dotColor="#1a63a3"
-								value={
-									<div className="flex flex-col">
-										<span>{inr(data.emw_billing.total)}</span>
-										<span className="text-[12px] font-normal mt-1" style={{ color: 'var(--n-fg-subtle)' }}>
-											{pct(data.emw_pct.total)} of bookings
-										</span>
-									</div>
-								}
-							/>
-							<MetricCard
-								label="Third-Party Bookings"
-								dotColor="#9b9a97"
-								value={
-									<div className="flex flex-col">
-										<span>{inr(Number(data.totals.total) - Number(data.emw_billing.total))}</span>
-										<span className="text-[12px] font-normal mt-1" style={{ color: 'var(--n-fg-subtle)' }}>
-											{pct(String(1 - Number(data.emw_pct.total)))} of bookings
-										</span>
-									</div>
-								}
-							/>
-						</div>
-
-						{/* Operational Metrics & Net Margin */}
-						<div className="flex flex-col gap-2">
-							<MetricCard
-								label="Net Operating Margin (TCH Fee)"
-								dotColor="#0d9070"
-								valueColor="#0d9070"
-								value={
-									<div className="flex flex-col">
-										<span>{inr(data.profits.total)}</span>
-										<span className="text-[12px] font-normal mt-1" style={{ color: 'var(--n-fg-subtle)' }}>
-											{pct(data.profit_pct.total)} profit margin
-										</span>
-									</div>
-								}
-							/>
-							<div className="flex-1 bg-white border border-gray-200 rounded-lg flex items-center justify-between p-3 mt-1">
-								<div className="flex flex-col items-center flex-1">
-									<span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">Total</span>
-									<span className="text-[18px] font-bold text-gray-900 tabular-nums leading-none mt-1">{data.total_campaigns}</span>
-								</div>
-								<div className="w-px h-8 bg-gray-100"></div>
-								<div className="flex flex-col items-center flex-1">
-									<span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider flex items-center gap-1.5">
-										<span className="w-1.5 h-1.5 rounded-full bg-[#441151]"></span> Pre-Invoice
-									</span>
-									<span className="text-[18px] font-bold text-gray-900 tabular-nums leading-none mt-1">{data.campaign_counts['Awaiting Invoices'] ?? 0}</span>
-								</div>
-								<div className="w-px h-8 bg-gray-100"></div>
-								<div className="flex flex-col items-center flex-1">
-									<span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider flex items-center gap-1.5">
-										<span className="w-1.5 h-1.5 rounded-full bg-[#0d9070]"></span> Unpaid
-									</span>
-									<span className="text-[18px] font-bold text-gray-900 tabular-nums leading-none mt-1">{data.campaign_counts['Pending Payment'] ?? 0}</span>
-								</div>
-								<div className="w-px h-8 bg-gray-100"></div>
-								<div className="flex flex-col items-center flex-1">
-									<span className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider flex items-center gap-1.5">
-										<span className="w-1.5 h-1.5 rounded-full bg-[#9b9a97]"></span> Paid
-									</span>
-									<span className="text-[18px] font-bold text-gray-900 tabular-nums leading-none mt-1">{data.campaign_counts['Completed'] ?? 0}</span>
-								</div>
-							</div>
-						</div>
-					</div>
+		<section className={styles.dashboard}>
+			<header className={styles.header}>
+				<div>
+					<h1>Current overview</h1>
+					<p>A clear view of your campaigns, talent and revenue.</p>
 				</div>
-			)}
-
-			{/* Filters Toolbar */}
-			<div
-				className="flex items-center gap-3 flex-wrap pb-3"
-				style={{ borderBottom: '1px solid var(--n-border)' }}
-			>
-				<div className="seg-toggle" title={monthActive ? 'Clear the month filter to switch to quarter view' : undefined}>
-					<button
-						type="button"
-						className={cn(view === 'month' && 'active')}
-						onClick={() => setView('month')}
-						disabled={monthActive}
+				<div className={styles.actions}>
+					<Link className={styles.primaryLink} href="/commercial">
+						<Icon name="briefcase" size={15} />
+						Manage campaigns
+						<Icon name="arrow-right" size={14} />
+					</Link>
+					<Button
+						variant="outline"
+						className={styles.refresh}
+						aria-label={isFetching ? "Refreshing overview" : "Refresh overview"}
+						title="Refresh overview"
+						onClick={() => refetch()}
+						disabled={isFetching}
 					>
-						Month
-					</button>
-					<button
-						type="button"
-						className={cn(view === 'quarter' && 'active')}
-						onClick={() => setView('quarter')}
-						disabled={monthActive}
-					>
-						Quarter
-					</button>
-				</div>
-
-				<div className="flex items-center gap-2 min-w-[150px]">
-					<span className="text-[12px] whitespace-nowrap" style={{ color: 'var(--n-fg-muted)' }}>Month</span>
-					<Select
-						value={monthFilter}
-						onChange={(e) => setMonthFilter(e.target.value)}
-						options={[
-							{ value: 'All', label: 'All months' },
-							...(data?.months ?? []).map((m) => ({ value: m.key, label: m.label }))
-						]}
-					/>
-				</div>
-
-				<div className="flex items-center gap-2 min-w-[200px]">
-					<span className="text-[12px] whitespace-nowrap" style={{ color: 'var(--n-fg-muted)' }}>Creator</span>
-					<div className="relative flex-1">
-						<input
-							type="text"
-							list="creator-list"
-							className="w-full h-8 px-3 text-[12px] rounded-md border bg-transparent"
-							style={{ borderColor: 'var(--n-border)', color: 'var(--n-fg)' }}
-							placeholder="All creators"
-							value={creatorInput}
-							onChange={(e) => {
-								setCreatorInput(e.target.value);
-								const val = e.target.value.trim();
-								if (val === '' || creators.some(c => c.name === val)) {
-									setCreatorFilter(val || 'All');
-								}
-							}}
-							onBlur={() => {
-								if (creatorInput.trim() === '') {
-									setCreatorFilter('All');
-								}
-							}}
+						<Icon
+							name="refresh"
+							size={14}
+							className={cn(styles.refreshIcon, isFetching && styles.spinning)}
 						/>
-						<datalist id="creator-list">
-							{creators.map((c) => <option key={c.id} value={c.name} />)}
-						</datalist>
-					</div>
-				</div>
-
-				<div className="ml-auto flex items-center gap-2">
-					{(monthActive || creatorFilter !== 'All') && (
-						<Button
-							variant="ghost"
-							onClick={() => {
-								setMonthFilter('All');
-								setCreatorFilter('All');
-								setCreatorInput('');
-							}}
-						>
-							Clear filters
-						</Button>
-					)}
-					<Button variant="ghost" onClick={() => refetch()}>
-						<Icon name="refresh" size={14} /> Refresh
+						<span className={styles.refreshLabel}>
+							{isFetching ? "Refreshing…" : "Refresh"}
+						</span>
 					</Button>
-				</div>
-			</div>
 
-			{loading ? (
-				<div className="text-[14px] py-8 text-center" style={{ color: 'var(--n-fg-subtle)' }}>
-					Loading…
+				</div>
+			</header>
+
+			{isLoading ? (
+				<div className={styles.empty} role="status">
+					Getting your workspace ready…
 				</div>
 			) : error ? (
-				<QueryErrorState description="The overview could not be loaded right now." onRetry={() => refetch()} />
-			) : data && src ? (
-				<div className="space-y-6">
-					{/* Billing Chart */}
-					<div
-						className="rounded-lg p-4"
-						style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-					>
-						<BillingBarChart
-							cols={cols}
-							totals={src.totals}
-							emw={src.emw}
-							profits={src.profits}
-							emwPct={src.emwPct}
-							profitPct={src.profitPct}
-						/>
+				<QueryErrorState
+					description="The overview could not be loaded right now."
+					onRetry={() => refetch()}
+				/>
+			) : data ? (
+				<>
+					<div className={styles.metrics}>
+						{[
+							{
+								label: "Gross bookings",
+								value: money(data.totals.total),
+								detail: `${data.total_campaigns} campaigns this financial year`,
+								icon: "briefcase",
+							},
+							{
+								label: "Billed revenue",
+								value: money(data.billed?.total),
+								detail: `${pct(Number(data.billed?.total) / (Number(data.totals.total) || 1)) || "0.0%"} of gross bookings`,
+								icon: "file-text",
+							},
+							{
+								label: "Unbilled revenue",
+								value: money(data.unbilled?.total),
+								detail: "Bookings awaiting invoicing",
+								icon: "clock",
+							},
+							{
+								label: "Agency margin",
+								value: pct(data.profit_pct.total) || "0.0%",
+								detail: `${money(data.profits.total)} retained margin`,
+								icon: "trending",
+							},
+						].map((metric, index) => (
+							<article
+								className={cn(styles.metric, index === 0 && styles.featured)}
+								key={metric.label}
+							>
+								<div className={styles.metricLabel}>
+									{metric.label}
+									<span className={styles.icon}>
+										<Icon name={metric.icon} size={17} />
+									</span>
+								</div>
+								<strong>{metric.value}</strong>
+								<p>{metric.detail}</p>
+							</article>
+						))}
 					</div>
 
-					{/* Trajectory Area Chart */}
-					<TrajectoryAreaChart cols={cols} totals={src.totals} />
-
-					{/* Insights Grid */}
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-						<DonutChart
-							emw={Number(data.emw_billing.total)}
-							external={Number(data.totals.total) - Number(data.emw_billing.total)}
-						/>
-						<TopList title="Top 5 Brands" items={data.top_brands || []} />
-						<TopList title="Top 5 Creators" items={data.top_creators || []} />
-					</div>
-
-					<div className="tbl-card overflow-hidden border border-gray-200 rounded-xl mb-6">
-						<div className="scroll-x overview-matrix-scroll">
-							<table className="grid-table with-sticky-first border-0">
-								<thead>
-									<tr>
-										<th className="w-[220px]">{data.fy} · Campaign</th>
-										{[...cols].reverse().map((c) => (
-											<th key={c.key} className="num">
-												{c.label}
-											</th>
-										))}
-										<th className="num">FY Total</th>
-									</tr>
-								</thead>
-								<tbody>
-									{(showAllCampaigns ? data.rows : data.rows.slice(0, 7)).map((row) => {
-										const bySel = effView === 'month' ? row.by_month : row.by_quarter;
-										return (
-											<tr key={row.campaign_id ?? 'none'}>
-												<td>
-													<span className="inline-flex items-center gap-2">
-														<span
-															className={cn(
-																'h-1.5 w-1.5 rounded-full shrink-0',
-																STATUS_DOT[row.status] ?? 'bg-[#d9730d]'
-															)}
-															title={row.status || 'No campaign'}
-														/>
-														<span className="min-w-0">
-															<span className="font-medium block truncate max-w-[200px] text-gray-900" title={row.name}>
-																{row.name}
-															</span>
-															<span className="text-[11px] block truncate max-w-[200px] text-gray-400 mt-0.5">
-																{[row.brand, row.creators.join(', ')].filter(Boolean).join(' · ')}
-															</span>
-														</span>
-													</span>
-												</td>
-												{[...cols].reverse().map((c) => {
-													const val = bySel[c.key];
-													return (
-														<td
-															key={c.key}
-															className="num"
-															style={{ color: val ? 'var(--n-fg)' : 'var(--n-fg-muted)', opacity: val ? 1 : 0.4 }}
-														>
-															{inr(val) || '—'}
-														</td>
-													)
-												})}
-												<td className="num font-semibold text-gray-900">
-													{inr(row.total)}
-												</td>
-											</tr>
-										);
-									})}
-
-									{data.rows.length > 7 && !showAllCampaigns && (
-										<tr>
-											<td colSpan={cols.length + 2} className="text-center py-4 bg-gray-50/50 cursor-pointer hover:bg-gray-100 transition-colors border-b border-gray-200" onClick={() => setShowAllCampaigns(true)}>
-												<span className="text-[12px] font-medium text-gray-600">Show more</span>
-											</td>
-										</tr>
-									)}
-
-									<tr className="row-total">
-										<td>Total Billing</td>
-										{[...cols].reverse().map((c) => (
-											<td key={c.key} className="num">
-												{inr(src.totals[c.key]) || '—'}
-											</td>
-										))}
-										<td className="num">{inr(data.totals.total)}</td>
-									</tr>
-								</tbody>
-							</table>
+					<div className={styles.summary}>
+						<div>
+							<span className={styles.dot} />
+							EMW bookings<strong>{money(data.emw_billing.total)}</strong>
+						</div>
+						<div>
+							<span className={styles.externalDot} />
+							Third-party bookings
+							<strong>
+								{money(
+									Number(data.totals.total) - Number(data.emw_billing.total),
+								)}
+							</strong>
+						</div>
+						<div>
+							<Icon name="activity" size={15} />
+							Campaigns
+							<strong>
+								{data.campaign_counts["Completed"] ?? 0} completed
+							</strong>
 						</div>
 					</div>
 
 					{data.not_invoiced.count > 0 && (
-						<div
-							className="flex items-center gap-3 rounded-lg p-3 text-[12px]"
-							style={{
-								background: 'var(--n-bg-soft)',
-								border: '1px solid var(--n-border)',
-								color: 'var(--n-fg-muted)'
-							}}
-						>
-							<span className="h-1.5 w-1.5 rounded-full bg-[#9b9a97]" />
-							<span>
-								<span className="font-medium" style={{ color: 'var(--n-fg)' }}>
-									Not yet invoiced — {data.not_invoiced.count} deal
-									{data.not_invoiced.count === 1 ? '' : 's'}
-								</span>{' '}
-								· {inr(data.not_invoiced.total_fee)} billing, {inr(data.not_invoiced.profit)}{' '}
-								profit. No E-Invoice No yet, so these are not assigned to any fiscal year above.
-							</span>
+						<div className={styles.attention}>
+							<Icon name="file-text" size={18} />
+							<div>
+								<strong>Ready for the next step</strong>
+								<p>
+									{data.not_invoiced.count} deals awaiting invoices ·{" "}
+									{money(data.not_invoiced.total_fee)} · Across all periods
+								</p>
+							</div>
+							<Link className={styles.textLink} href="/commercial">
+								Review deals
+								<Icon name="arrow-right" size={14} />
+							</Link>
 						</div>
 					)}
-				</div>
+
+					<div className={styles.analytics}>
+						<article className={styles.panel}>
+							<div className={styles.panelHeader}>
+								<div>
+									<h2>Bookings over time</h2>
+									<p>EMW and third-party bookings, alongside agency margin</p>
+								</div>
+								<div className={styles.segment} aria-label="Chart period">
+									{(["month", "quarter"] as const).map((option) => (
+										<button
+											key={option}
+											type="button"
+											aria-pressed={periodView === option}
+											onClick={() => {
+												setView(option);
+												setMonthFilter("All");
+											}}
+										>
+											{option === "month" ? "Monthly" : "Quarterly"}
+										</button>
+									))}
+								</div>
+							</div>
+							<div className={styles.filters}>
+								<label>
+									Period
+									<select
+										value={monthFilter}
+										onChange={(e) => setMonthFilter(e.target.value)}
+									>
+										<option value="All">Full financial year</option>
+										{data.months.map((m) => (
+											<option key={m.key} value={m.key}>
+												{m.label}
+											</option>
+										))}
+									</select>
+								</label>
+								<label>
+									Creator
+									<input
+										list="creator-list"
+										placeholder="All creators"
+										value={creatorInput}
+										onChange={(e) => {
+											setCreatorInput(e.target.value);
+											const value = e.target.value.trim();
+											if (!value || creators.some((c) => c.name === value))
+												setCreatorFilter(value || "All");
+										}}
+										onBlur={() =>
+											setCreatorInput(
+												creatorFilter === "All" ? "" : creatorFilter,
+											)
+										}
+									/>
+								</label>
+								<datalist id="creator-list">
+									{creators.map((c) => (
+										<option key={c.id} value={c.name} />
+									))}
+								</datalist>
+								{(monthFilter !== "All" || creatorFilter !== "All") && (
+									<button
+										type="button"
+										onClick={() => {
+											setMonthFilter("All");
+											setCreatorFilter("All");
+											setCreatorInput("");
+										}}
+									>
+										Clear filters
+									</button>
+								)}
+							</div>
+							<BillingBarChart
+								cols={cols}
+								totals={data.totals[periodKey]}
+								emw={data.emw_billing[periodKey]}
+								profits={data.profits[periodKey]}
+								emwPct={data.emw_pct[periodKey]}
+								profitPct={data.profit_pct[periodKey]}
+							/>
+							<div className={styles.caption}>
+								<Icon name="info" size={13} />
+								{fy} · {monthFilter === "All" ? "Full year" : cols[0]?.label} ·
+								Margin is shown separately from total bookings.
+							</div>
+						</article>
+						<article className={styles.panel}>
+							<div className={styles.panelHeader}>
+								<div>
+									<h2>Booking mix</h2>
+									<p>How your business is distributed</p>
+								</div>
+								<Icon name="pie" size={18} />
+							</div>
+							<DonutChart
+								emw={Number(data.emw_billing.total)}
+								external={
+									Number(data.totals.total) - Number(data.emw_billing.total)
+								}
+							/>
+							<div className={styles.mixRow}>
+								<span>
+									<i className={styles.dot} />
+									EMW managed
+								</span>
+								<strong>{money(data.emw_billing.total)}</strong>
+							</div>
+							<div className={styles.mixRow}>
+								<span>
+									<i className={styles.externalDot} />
+									Third-party
+								</span>
+								<strong>
+									{money(
+										Number(data.totals.total) - Number(data.emw_billing.total),
+									)}
+								</strong>
+							</div>
+							<p className={styles.caption}>
+								Booking mix covers {fy}; the period selector applies to the
+								chart.
+							</p>
+						</article>
+					</div>
+
+					<div className={styles.leaderboards}>
+						{[
+							{
+								title: "Top brands",
+								description: "Your strongest relationships by booking value",
+								items: data.top_brands,
+								href: "/commercial",
+								action: "View campaigns",
+								label: "Bookings",
+								icon: "briefcase",
+							},
+							{
+								title: "Top creators",
+								description: "Talent ranked by booking value",
+								items: data.top_creators,
+								href: "/creators",
+								action: "View creators",
+								label: "Bookings",
+								icon: "users",
+							},
+						].map((board) => (
+							<article className={styles.panel} key={board.title}>
+								<div className={styles.panelHeader}>
+									<div>
+										<h2>{board.title}</h2>
+										<p>{board.description}</p>
+									</div>
+									<Icon name={board.icon} size={18} />
+								</div>
+								{board.items.length ? (
+									<ol className={styles.rankings}>
+										{board.items.slice(0, 5).map((item, index) => (
+											<li key={item.name}>
+												<span className={styles.rank}>{index + 1}</span>
+												<span className={styles.avatar}>
+													{item.name
+														.split(" ")
+														.map((n) => n[0])
+														.join("")
+														.slice(0, 2)
+														.toUpperCase()}
+												</span>
+												<span className={styles.person}>{item.name}</span>
+												<div>
+													<strong>{money(item.total)}</strong>
+													<small>{board.label}</small>
+												</div>
+											</li>
+										))}
+									</ol>
+								) : (
+									<div className={styles.empty}>
+										Your {board.title.toLowerCase()} will appear as bookings are
+										added.
+									</div>
+								)}
+								<Link className={styles.textLink} href={board.href}>
+									{board.action}
+									<Icon name="arrow-right" size={14} />
+								</Link>
+							</article>
+						))}
+					</div>
+
+					<article className={cn(styles.panel, styles.campaigns)}>
+						<div className={styles.panelHeader}>
+							<div>
+								<h2>Campaign workspace</h2>
+								<p>Keep your talent, bookings and next steps in view.</p>
+							</div>
+							<span className={styles.year}>{fy}</span>
+						</div>
+						<div className={styles.tableToolbar}>
+							<div className={styles.tabs} aria-label="Campaign status">
+								{statuses.map((tab) => (
+									<button
+										type="button"
+										key={tab}
+										aria-pressed={status === tab}
+										onClick={() => {
+											setStatus(tab);
+											setShowAll(false);
+										}}
+									>
+										{tab === "Awaiting Invoices"
+											? "Awaiting invoices"
+											: tab === "Pending Payment"
+												? "Pending payment"
+												: tab}
+										<span>
+											{tab === "All"
+												? data.rows.length
+												: data.rows.filter((r) => String(r.status) === tab)
+													.length}
+										</span>
+									</button>
+								))}
+							</div>
+							<label className={styles.search}>
+								<Icon name="search" size={16} />
+								<input
+									aria-label="Search campaigns, brands or creators"
+									placeholder="Search campaigns, brands or creators"
+									value={tableSearch}
+									onChange={(e) => {
+										setTableSearch(e.target.value);
+										setShowAll(false);
+									}}
+								/>
+							</label>
+						</div>
+						<div className={styles.tableScroll}>
+							<table role="table" aria-label="Campaign workspace">
+								<thead>
+									<tr>
+										<th scope="col">Campaign / brand</th>
+										<th scope="col">Talent</th>
+										<th scope="col">Deals</th>
+										<th scope="col" className={styles.numeric}>
+											Bookings
+										</th>
+										<th scope="col" className={styles.numeric}>
+											Agency margin
+										</th>
+										<th scope="col">Status</th>
+									</tr>
+								</thead>
+								<tbody>
+									{displayedRows.map((row) => (
+										<tr key={row.campaign_id ?? row.name}>
+											<td className={styles.campaignName}>
+												<strong>{row.name}</strong>
+												<small>{row.brand || "No brand assigned"}</small>
+											</td>
+											<td className={styles.campaignTalent}>
+												<span
+													className={styles.talent}
+													title={row.creators.join(", ")}
+												>
+													{row.creators[0] || "Unassigned"}
+													{row.creators.length > 1 && (
+														<span className={styles.year}>
+															+{row.creators.length - 1}
+														</span>
+													)}
+												</span>
+											</td>
+											<td data-label="Deals">{row.deal_count}</td>
+											<td data-label="Bookings" className={styles.numeric}>
+												{money(row.total)}
+											</td>
+											<td data-label="Agency margin" className={styles.numeric}>
+												{money(row.profit)}
+											</td>
+											<td className={styles.campaignStatus}>
+												<span
+													className={cn(
+														styles.status,
+														String(row.status) === "Completed" &&
+														styles.complete,
+														String(row.status) === "Pending Payment" &&
+														styles.pending,
+													)}
+												>
+													{String(row.status) || "Active"}
+												</span>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+						{!rows.length && (
+							<div className={styles.empty}>
+								<Icon name="briefcase" size={24} />
+								<strong>
+									{tableSearch || status !== "All"
+										? "No matching campaigns"
+										: "Your next campaign starts here"}
+								</strong>
+								<p>
+									{tableSearch || status !== "All"
+										? "Try another search or choose All."
+										: "Add a campaign to begin tracking your talent and bookings."}
+								</p>
+								<Link className={styles.textLink} href="/commercial">
+									Open campaigns
+									<Icon name="arrow-right" size={14} />
+								</Link>
+							</div>
+						)}
+						<footer className={styles.tableFooter}>
+							<span>
+								Showing {displayedRows.length} of {rows.length} campaigns · {fy}
+							</span>
+							{rows.length > 8 && (
+								<button type="button" onClick={() => setShowAll(!showAll)}>
+									{showAll ? "Show fewer" : "Show all campaigns"}
+								</button>
+							)}
+							<Link className={styles.textLink} href="/commercial">
+								Manage campaigns
+								<Icon name="arrow-right" size={14} />
+							</Link>
+						</footer>
+					</article>
+					<footer className={styles.footer}>
+						<span>TCH Financials · Built around your talent</span>
+						<span>Amounts in INR · {fy}</span>
+					</footer>
+				</>
 			) : null}
 		</section>
 	);
 }
-
-// ── Design System Sub-components ───────────────────────────────────────────
-
-function HeroMetricCard({ label, value }: { label: string; value: string }) {
-	return (
-		<div
-			className="rounded-lg p-4 flex flex-col justify-between"
-			style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-		>
-			<div
-				className="text-[11.5px] font-semibold uppercase"
-				style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
-			>
-				{label}
-			</div>
-			<div
-				className="text-[30px] font-bold tabular-nums tracking-tight mt-2 leading-none"
-				style={{ color: 'var(--n-fg)' }}
-			>
-				{value}
-			</div>
-		</div>
-	);
-}
-
-

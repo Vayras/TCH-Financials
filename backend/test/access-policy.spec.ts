@@ -4,6 +4,9 @@ import test from 'node:test';
 import { PATH_METADATA } from '@nestjs/common/constants';
 import { ROLES_KEY } from '../src/auth/roles.decorator';
 import { SKIP_AUTH_KEY } from '../src/auth/skip-auth.decorator';
+import { PUBLIC_ROUTE_KEY } from '../src/auth/public.decorator';
+import { BrandKitController, PublicBrandKitController } from '../src/creator-social/brand-kit.controller';
+import { CampaignContentController, CreatorCampaignBriefController } from '../src/campaign-content/campaign-content.controller';
 import { AnalyticsController } from '../src/analytics/analytics.controller';
 import { AuthController } from '../src/auth/auth.controller';
 import { CampaignsController } from '../src/resources/campaigns.controller';
@@ -21,14 +24,18 @@ import {
 } from '../src/resources/simple-resources.controllers';
 import { AuditController } from '../src/resources/audit.controller';
 import { HealthController } from '../src/health.controller';
+import { CreatorSocialController, SocialImportOperationsController } from '../src/creator-social/creator-social.controller';
 
 const CONTROLLERS = [
+  CampaignContentController, CreatorCampaignBriefController,
   AnalyticsController, AuthController, CampaignsController, CreatorInvoicesController,
   CreatorsController, DealDocumentsController, DealsController, DocumentsController,
   PaymentTransactionsController, TdsController, UsersController, ContractingController,
   DropOffsController, EmployeeReportsController, EventInvitesController,
   SocialSnapshotsController,
   AuditController, HealthController,
+  CreatorSocialController, SocialImportOperationsController,
+  BrandKitController, PublicBrandKitController,
 ];
 
 test('every HTTP route declares roles or skip-auth metadata', () => {
@@ -43,7 +50,8 @@ test('every HTTP route declares roles or skip-auth metadata', () => {
         if (typeof handler !== 'function' || Reflect.getMetadata(PATH_METADATA, handler) === undefined) continue;
         const roles = Reflect.getMetadata(ROLES_KEY, handler) ?? classRoles;
         const skip = Reflect.getMetadata(SKIP_AUTH_KEY, handler) ?? Reflect.getMetadata(SKIP_AUTH_KEY, Controller);
-        if (!roles?.length && !skip) missing.push(`${Controller.name}.${name}`);
+        const publicRoute = Reflect.getMetadata(PUBLIC_ROUTE_KEY, handler) ?? Reflect.getMetadata(PUBLIC_ROUTE_KEY, Controller);
+        if (!roles?.length && !skip && !publicRoute) missing.push(`${Controller.name}.${name}`);
       }
       prototype = Object.getPrototypeOf(prototype) as Record<string, unknown>;
     }

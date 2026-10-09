@@ -1,13 +1,33 @@
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 
-// The repo keeps one .env at the root (shared with the frontend / docker);
-// backend/.env can override locally. Real environment variables win over both.
-dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
-dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
+const baseDir = typeof __dirname !== 'undefined' ? __dirname : process.cwd();
+// Docker/deployment database routing must take precedence over local .env files.
+const injectedDatabaseUrl = process.env.DATABASE_URL;
+const injectedOpenAiKey = process.env.OPENAI_API_KEY;
+const injectedOpenAiModel = process.env.OPENAI_MODEL;
+const injectedOpenAiSearchModel = process.env.OPENAI_SEARCH_MODEL;
+if (!process.env.OPENAI_API_KEY?.trim()) delete process.env.OPENAI_API_KEY;
+if (!process.env.OPENAI_SEARCH_MODEL?.trim()) delete process.env.OPENAI_SEARCH_MODEL;
+
+dotenv.config({ path: path.resolve(baseDir, '.env'), override: true });
+dotenv.config({ path: path.resolve(baseDir, '..', '.env'), override: true });
+dotenv.config({ path: path.resolve(baseDir, '..', '..', '.env'), override: true });
+dotenv.config({ path: path.resolve(process.cwd(), '.env'), override: true });
+dotenv.config({ path: path.resolve(process.cwd(), '..', '.env'), override: true });
+if (injectedDatabaseUrl) process.env.DATABASE_URL = injectedDatabaseUrl;
+if (injectedOpenAiKey) process.env.OPENAI_API_KEY = injectedOpenAiKey;
+if (injectedOpenAiModel) process.env.OPENAI_MODEL = injectedOpenAiModel;
+if (injectedOpenAiSearchModel) process.env.OPENAI_SEARCH_MODEL = injectedOpenAiSearchModel;
+
+
+
 
 export const env = {
   appEnv: process.env.APP_ENV ?? 'development',
+  swaggerEnabled: process.env.SWAGGER_ENABLED === undefined
+    ? (process.env.APP_ENV ?? 'development') === 'development'
+    : process.env.SWAGGER_ENABLED === 'true',
   databaseUrl: process.env.DATABASE_URL ?? '',
   databaseSslCa: (process.env.DATABASE_SSL_CA ?? '').replace(/\\n/g, '\n'),
   databaseSslRejectUnauthorized:
@@ -29,6 +49,9 @@ export const env = {
   resendApiKey: process.env.RESEND_API_KEY ?? '',
   resendFromEmail:
     process.env.RESEND_FROM_EMAIL?.trim() || 'TCH Financials <beth.t@example.com>',
+  // OpenAI — used for AI concept generation in Campaign Briefs.
+  openaiApiKey: (process.env.OPENAI_API_KEY ?? '').trim(),
+  openaiModel: (process.env.OPENAI_SEARCH_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini').trim(),
 };
 
 if (!env.databaseUrl) {

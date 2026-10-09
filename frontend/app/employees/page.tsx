@@ -1,408 +1,51 @@
 'use client';
-
 import * as React from 'react';
-import PageHeader from '@/components/PageHeader';
-import QueryErrorState from '@/components/QueryErrorState';
-import { ConflictError, type EmployeeReport } from '@/lib/api';
-import { cn, inr } from '@/lib/utils';
+import Link from 'next/link';
+import {useQuery,useMutation,useQueryClient} from '@tanstack/react-query';
+import {api} from '@/lib/api';
+import {inr} from '@/lib/utils';
+import type {TeamMember} from '@/components/ResponsibleMemberSelect';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
-import Input from '@/components/ui/Input';
 import Textarea from '@/components/ui/Textarea';
-import Label from '@/components/ui/Label';
-import Icon from '@/components/ui/Icon';
-import {
-	useEmployeeReportsQuery,
-	useCreateEmployeeReportMutation,
-	useUpdateEmployeeReportMutation,
-	useDeleteEmployeeReportMutation
-} from './queries';
-import { type EmployeeForm } from '@/lib/types';
-import { toast } from 'sonner';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
-
-const EMPTY_FORM: EmployeeForm = {
-	week_ending: '',
-	employee_name: '',
-	new_outreach: 0,
-	paid_confirmations: '',
-	revenue_locked: '',
-	profit_locked: '',
-	barter_confirmations: '',
-	live_campaigns: 0,
-	action_points: ''
-};
-
-export default function EmployeesPage() {
-	const { data: rows = [], isLoading: loading, error: queryError, refetch } = useEmployeeReportsQuery();
-	const createMutation = useCreateEmployeeReportMutation();
-	const updateMutation = useUpdateEmployeeReportMutation();
-	const deleteMutation = useDeleteEmployeeReportMutation();
-
-	const error = queryError ? queryError.message : null;
-
-	const [open, setOpen] = React.useState(false);
-	const [editing, setEditing] = React.useState<EmployeeReport | null>(null);
-	const [q, setQ] = React.useState('');
-	const [expandedCards, setExpandedCards] = React.useState<Record<string, boolean>>({});
-	const [form, setForm] = React.useState<EmployeeForm>(EMPTY_FORM);
-	const [deleting, setDeleting] = React.useState<EmployeeReport | null>(null);
-	const [confirmEditing, setConfirmEditing] = React.useState<EmployeeReport | null>(null);
-
-	function startAdd() {
-		setEditing(null);
-		setForm(EMPTY_FORM);
-		setOpen(true);
-	}
-
-	function startEdit(r: EmployeeReport) {
-		setEditing(r);
-		setForm({
-			week_ending: r.week_ending ?? '',
-			employee_name: r.employee_name,
-			new_outreach: r.new_outreach,
-			paid_confirmations: r.paid_confirmations,
-			revenue_locked: r.revenue_locked,
-			profit_locked: r.profit_locked,
-			barter_confirmations: r.barter_confirmations,
-			live_campaigns: r.live_campaigns,
-			action_points: r.action_points
-		});
-		setOpen(true);
-	}
-
-	async function submit() {
-		const payload = {
-			...form,
-			week_ending: form.week_ending || null,
-			new_outreach: Number(form.new_outreach) || 0,
-			live_campaigns: Number(form.live_campaigns) || 0,
-			revenue_locked: form.revenue_locked || '0',
-			profit_locked: form.profit_locked || '0'
-		};
-		try {
-			if (editing) {
-				await updateMutation.mutateAsync({
-					id: editing.id,
-					version: editing.version,
-					payload
-				});
-			} else {
-				await createMutation.mutateAsync(payload);
-			}
-			setOpen(false);
-			toast.success(editing ? 'Weekly report updated.' : 'Weekly report created.');
-		} catch (e) {
-			toast.error('Weekly report could not be saved.', { description: (e as Error).message });
-			if (e instanceof ConflictError) {
-				setOpen(false);
-			}
-		}
-	}
-
-	async function remove(r: EmployeeReport) {
-		try {
-			await deleteMutation.mutateAsync(r.id);
-			setDeleting(null);
-			toast.success('Weekly report deleted.');
-		} catch (e) {
-			toast.error('Weekly report could not be deleted.', { description: (e as Error).message });
-		}
-	}
-
-	const filtered = React.useMemo(() => {
-		const needle = q.trim().toLowerCase();
-		if (!needle) return rows;
-		return rows.filter((r) => r.employee_name?.toLowerCase().includes(needle));
-	}, [rows, q]);
-
-	const totals = React.useMemo(() => {
-		let revenue = 0;
-		let profit = 0;
-		let outreach = 0;
-		for (const r of rows) {
-			revenue += Number(r.revenue_locked || 0);
-			profit += Number(r.profit_locked || 0);
-			outreach += r.new_outreach || 0;
-		}
-		return { revenue, profit, outreach };
-	}, [rows]);
-
-	const employees = React.useMemo(
-		() => [...new Set(rows.map((r) => r.employee_name))],
-		[rows]
-	);
-
-	const employeeGroups = React.useMemo(() => {
-		const map = new Map<string, { key: string; name: string; reports: EmployeeReport[]; outreach: number; revenue: number; profit: number; live: number }>();
-		for (const r of filtered) {
-			const name = r.employee_name || '—';
-			const key = name.toLowerCase();
-			const group = map.get(key) ?? { key, name, reports: [], outreach: 0, revenue: 0, profit: 0, live: 0 };
-			group.reports.push(r);
-			group.outreach += r.new_outreach || 0;
-			group.revenue += Number(r.revenue_locked || 0);
-			group.profit += Number(r.profit_locked || 0);
-			group.live += r.live_campaigns || 0;
-			map.set(key, group);
-		}
-		return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-	}, [filtered]);
-
-	const set = <K extends keyof EmployeeForm>(k: K, v: EmployeeForm[K]) =>
-		setForm((f) => ({ ...f, [k]: v }));
-
-	return (
-		<>
-			<section className="space-y-6">
-				<PageHeader eyebrow="Workspace · Employees" title="Weekly Reports" description={<>
-								Weekly performance log per employee — outreach, confirmations, revenue, and live
-								campaigns.
-							</>} actions={<Button variant="primary" onClick={startAdd}>
-							<Icon name="plus" size={14} /> Add Weekly Report
-						</Button>} />
-
-				<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-					<div
-						className="rounded p-3"
-						style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-					>
-						<div
-							className="text-[11.5px] font-medium uppercase"
-							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-						>
-							Reports
-						</div>
-						<div
-							className="text-[22px] font-semibold tabular-nums mt-1"
-							style={{ color: 'var(--n-fg)' }}
-						>
-							{rows.length}
-						</div>
-					</div>
-					<div
-						className="rounded p-3"
-						style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-					>
-						<div
-							className="text-[11.5px] font-medium uppercase"
-							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-						>
-							Employees
-						</div>
-						<div
-							className="text-[22px] font-semibold tabular-nums mt-1"
-							style={{ color: 'var(--n-fg)' }}
-						>
-							{employees.length}
-						</div>
-					</div>
-					<div
-						className="rounded p-3"
-						style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-					>
-						<div
-							className="text-[11.5px] font-medium uppercase flex items-center gap-1.5"
-							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-						>
-							<span className="h-1.5 w-1.5 rounded-full bg-[#0f7b6c]" />
-							Total Revenue
-						</div>
-						<div
-							className="text-[22px] font-semibold tabular-nums mt-1"
-							style={{ color: 'var(--n-fg)' }}
-						>
-							₹ {inr(totals.revenue)}
-						</div>
-					</div>
-					<div
-						className="rounded p-3"
-						style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
-					>
-						<div
-							className="text-[11.5px] font-medium uppercase"
-							style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-						>
-							Total Outreach
-						</div>
-						<div
-							className="text-[22px] font-semibold tabular-nums mt-1"
-							style={{ color: 'var(--n-fg)' }}
-						>
-							{totals.outreach}
-						</div>
-					</div>
-				</div>
-
-				<div className="flex items-center gap-2">
-					<div className="relative flex-1 min-w-[260px]">
-						<span
-							className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none"
-							style={{ color: 'var(--n-fg-subtle)' }}
-						>
-							<Icon name="search" size={14} />
-						</span>
-						<input
-							type="text"
-							placeholder="Search employee…"
-							className="h-8 w-full rounded pl-8 pr-2 text-[14px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors placeholder:text-[var(--n-fg-subtle)]"
-							value={q}
-							onChange={(e) => setQ(e.target.value)}
-						/>
-					</div>
-				</div>
-
-				{loading ? (
-					<div className="flex items-center justify-center gap-3 py-16 text-gray-500">
-						<svg className="animate-spin h-5 w-5 text-[var(--n-accent)]" style={{ willChange: 'transform' }} viewBox="0 0 24 24" fill="none">
-							<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-							<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-						</svg>
-						<span className="text-[14px]">Loading employee reports…</span>
-					</div>
-				) : error ? (
-					<QueryErrorState description="Weekly reports are temporarily unavailable." onRetry={() => refetch()} />
-				) : (
-					<>
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 anim-fade-up">
-							{employeeGroups.map((group) => {
-								const expanded = expandedCards[group.key] ?? false;
-								return (
-									<div key={group.key} className="rounded-lg p-4 space-y-3 transition-[box-shadow,transform,border-color] duration-150 hover:shadow-md hover:-translate-y-0.5 hover:border-[var(--n-accent)]" style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}>
-										<div className="flex items-start justify-between gap-2">
-											<div>
-												<div className="font-semibold text-[15px]" style={{ color: 'var(--n-fg)' }}>{group.name}</div>
-												<div className="text-[12px] mt-0.5" style={{ color: 'var(--n-fg-muted)' }}>{group.reports.length} report{group.reports.length === 1 ? '' : 's'}</div>
-											</div>
-											<button
-												type="button"
-												aria-label={expanded ? 'Collapse reports' : 'Expand reports'}
-												onClick={() => setExpandedCards((prev) => ({ ...prev, [group.key]: !expanded }))}
-												className="h-5 w-5 inline-flex items-center justify-center rounded-[3px] border border-[var(--n-border)] text-[var(--n-fg-muted)] hover:bg-[var(--n-accent)] hover:border-[var(--n-accent)] hover:text-white transition-colors"
-											>
-												<Icon name="chevron-right" size={13} className={cn('transition-transform duration-150', expanded && 'rotate-90')} />
-											</button>
-										</div>
-										<div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
-											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Revenue</div><div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{inr(group.revenue)}</div></div>
-											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Profit</div><div className="font-semibold tabular-nums" style={{ color: 'var(--color-success)' }}>{inr(group.profit)}</div></div>
-											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Outreach</div><div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{group.outreach}</div></div>
-											<div><div className="text-[11px] uppercase" style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}>Live</div><div className="font-semibold tabular-nums" style={{ color: 'var(--n-fg)' }}>{group.live}</div></div>
-										</div>
-										{expanded && (
-											<div className="space-y-2 pt-2 border-t anim-fade-up" style={{ borderColor: 'var(--n-border)' }}>
-												{group.reports.map((r) => (
-													<div key={r.id} className="text-[12px] space-y-1">
-														<div className="flex items-center gap-2">
-															<div className="min-w-0 flex-1"><div className="font-medium" style={{ color: 'var(--n-fg)' }}>{r.week_ending || 'No date'}</div><div className="truncate" style={{ color: 'var(--n-fg-muted)' }}>{r.paid_confirmations || r.action_points || '—'}</div></div>
-													<Button variant="primary" onClick={() => setConfirmEditing(r)}>Edit</Button>
-													<Button variant="danger" onClick={() => setDeleting(r)}>Del</Button>
-														</div>
-													</div>
-												))}
-											</div>
-										)}
-									</div>
-								);
-							})}
-						</div>
-						{filtered.length === 0 && <div className="text-[14px] py-8 text-center" style={{ color: 'var(--n-fg-subtle)' }}>No reports yet.</div>}
-					</>
-				)}
-			</section>
-
-			<Dialog
-				open={open}
-				onOpenChange={setOpen}
-				title={editing ? 'Edit Weekly Report' : 'Add Weekly Report'}
-				footer={
-					<>
-						<Button variant="outline" onClick={() => setOpen(false)}>
-							Cancel
-						</Button>
-						<Button variant="primary" onClick={submit}>
-							{editing ? 'Save' : 'Create'}
-						</Button>
-					</>
-				}
-			>
-				<div className="grid grid-cols-2 gap-3">
-					<div>
-						<Label>Week Ending (Thursday)</Label>
-						<Input
-							type="date"
-							value={form.week_ending}
-							onChange={(e) => set('week_ending', e.target.value)}
-						/>
-					</div>
-					<div>
-						<Label>Employee Name</Label>
-						<Input
-							value={form.employee_name}
-							onChange={(e) => set('employee_name', e.target.value)}
-						/>
-					</div>
-					<div>
-						<Label>New Outreach (count)</Label>
-						<Input
-							type="number"
-							value={form.new_outreach}
-							onChange={(e) => set('new_outreach', Number(e.target.value))}
-						/>
-					</div>
-					<div>
-						<Label>Paid Confirmations</Label>
-						<Input
-							value={form.paid_confirmations}
-							onChange={(e) => set('paid_confirmations', e.target.value)}
-							placeholder="e.g. 1 - Eucerin"
-						/>
-					</div>
-					<div>
-						<Label>Revenue Locked (minus taxes)</Label>
-						<Input
-							type="number"
-							step="0.01"
-							value={form.revenue_locked}
-							onChange={(e) => set('revenue_locked', e.target.value)}
-						/>
-					</div>
-					<div>
-						<Label>Profit Locked (TCH fee)</Label>
-						<Input
-							type="number"
-							step="0.01"
-							value={form.profit_locked}
-							onChange={(e) => set('profit_locked', e.target.value)}
-						/>
-					</div>
-					<div className="col-span-2">
-						<Label>Barter / PR Confirmations</Label>
-						<Input
-							value={form.barter_confirmations}
-							onChange={(e) => set('barter_confirmations', e.target.value)}
-						/>
-					</div>
-					<div>
-						<Label>Live Campaigns (count)</Label>
-						<Input
-							type="number"
-							value={form.live_campaigns}
-							onChange={(e) => set('live_campaigns', Number(e.target.value))}
-						/>
-					</div>
-					<div />
-					<div className="col-span-2">
-						<Label>Action Points for coming week</Label>
-						<Textarea
-							value={form.action_points}
-							onChange={(e) => set('action_points', e.target.value)}
-						/>
-					</div>
-				</div>
-			</Dialog>
-			<ConfirmDialog open={deleting !== null} onOpenChange={(value) => { if (!value) setDeleting(null); }} title="Delete weekly report?" description={`Delete ${deleting?.employee_name ?? 'this employee'}’s report for ${deleting?.week_ending ?? 'this week'}?`} confirmLabel="Delete report" confirmVariant="danger" pending={deleteMutation.isPending} onConfirm={() => { if (deleting) return remove(deleting); }} />
-			<ConfirmDialog open={confirmEditing !== null} onOpenChange={(value) => { if (!value) setConfirmEditing(null); }} title="Edit weekly report?" description={`You are about to update ${confirmEditing?.employee_name ?? 'this employee'}’s report.`} confirmLabel="Continue to edit" onConfirm={() => { if (confirmEditing) startEdit(confirmEditing); setConfirmEditing(null); }} />
-		</>
-	);
+import QueryErrorState from '@/components/QueryErrorState';
+import LegacyReports from './LegacyReports';
+import styles from './reports.module.css';
+import formStyles from '@/components/CreatorFormModal.module.css';
+import {toast} from 'sonner';
+import {reportTotals} from './report-totals';
+type DealRow={id:string;responsible_member_id:string|null;tch_poc:string;campaign_id:string|null;campaign:string|null;brand:string;total_fee:string;agency_fee_inr:string;active_now:boolean;confirmed_this_week:boolean;confirmation_date:string|null};
+type Note={member_id:string;note:string;version:number};
+type Report={members:TeamMember[];deals:DealRow[];notes:Note[]};
+function currentWeek(){const d=new Date();d.setDate(d.getDate()+(4-d.getDay()+7)%7);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+export default function TeamReports(){
+ const [week,setWeek]=React.useState(currentWeek);
+ const [selected,setSelected]=React.useState<TeamMember|null>(null);
+ const [note,setNote]=React.useState('');
+ const [noteVersion,setNoteVersion]=React.useState(0);
+ const client=useQueryClient();
+ const {data,isLoading,error,refetch}=useQuery({queryKey:['automatic-team-reports',week],queryFn:()=>api.get<Report>(`/employee-reports/automatic?week=${week}`),enabled:Boolean(week)});
+ const save=useMutation({mutationFn:()=>api.put('/employee-reports/note',{member_id:selected?.id,week,note,version:noteVersion}),onSuccess:()=>{client.invalidateQueries({queryKey:['automatic-team-reports']});setSelected(null);toast.success('Weekly note saved.');},onError:(e:Error)=>toast.error(e.message)});
+ const members=data ? [...data.members,{id:'unassigned',display_name:'Unassigned',email:''}] : [];
+ const start=new Date(`${week}T00:00:00Z`);start.setUTCDate(start.getUTCDate()-6);
+ return <section className={styles.workspace}>
+  <header className={styles.header}><div><h1>Team reports</h1><p>Confirmed work and agency margin, calculated from owned deals.</p></div><label>Week ending (Thursday)<input aria-label="Week ending Thursday" type="date" value={week} onChange={e=>setWeek(e.target.value)} /></label></header>
+  <p>Reporting period: {Number.isFinite(start.getTime()) ? start.toISOString().slice(0,10) : '—'} – {week}. Active campaigns reflect their current status.</p>
+  {isLoading ? <p>Loading reports…</p> : error ? <QueryErrorState description={error.message} onRetry={()=>refetch()} /> : data && <>
+   <div className={styles.list}>{members.map(member=>{
+    const deals=data.deals.filter(d=>member.id==='unassigned' ? !d.responsible_member_id || !data.members.some(m=>m.id===d.responsible_member_id) : d.responsible_member_id===member.id);
+    const totals=reportTotals(deals);
+    const saved=data.notes.find(n=>n.member_id===member.id);
+    return <article key={member.id} className={styles.autoReport}>
+     <div><h2>{member.display_name || member.email}</h2>{member.id==='unassigned' && <p>Review ownership in each deal before assigning credit.</p>}</div>
+     <div><span>Deals confirmed</span><strong>{totals.confirmed}</strong></div><div><span>Bookings confirmed</span><strong>₹{inr(totals.bookings) || '0'}</strong></div><div><span>Agency margin confirmed</span><strong>₹{inr(totals.margin) || '0'}</strong></div><div><span>Active now</span><strong>{totals.active}</strong></div>
+     <details className={styles.figures}><summary>View deals ({deals.length})</summary>{deals.length ? deals.map(d=><p key={d.id}><Link href={`/commercial/${d.id}/`}>{d.campaign || d.brand || `Deal ${d.id}`}</Link> · {d.confirmed_this_week ? `Confirmed ${d.confirmation_date} · ₹${inr(Number(d.total_fee)) || '0'}` : 'Outside selected week'}{d.active_now && ' · Active now'}{member.id==='unassigned' && d.tch_poc && ` · Previous POC: ${d.tch_poc}`}</p>) : <p>No confirmed or currently active deals.</p>}</details>
+     {member.id!=='unassigned' && <div className={styles.weeklyNote}><p>{saved?.note || 'No weekly note yet.'}</p><Button variant="outline" onClick={()=>{setSelected(member);setNote(saved?.note || '');setNoteVersion(saved?.version || 0);}}>{saved ? 'Edit weekly note' : 'Add weekly note'}</Button></div>}
+    </article>;
+   })}</div>
+   <p>Outreach and barter / PR confirmations: not tracked automatically.</p>
+  </>}
+  <details><summary>Historical manual reports</summary><LegacyReports /></details>
+  <Dialog open={Boolean(selected)} onOpenChange={open=>{if(!open)setSelected(null);}} title={`Weekly note · ${selected?.display_name || selected?.email || ''}`} className={formStyles.dialog} footer={<><Button variant="outline" onClick={()=>setSelected(null)}>Cancel</Button><Button variant="primary" disabled={save.isPending} onClick={()=>save.mutate()}>{save.isPending ? 'Saving…' : 'Save note'}</Button></>}><label>Wins, blockers and next-week priorities<Textarea value={note} maxLength={10000} onChange={e=>setNote(e.target.value)} /></label></Dialog>
+ </section>;
 }

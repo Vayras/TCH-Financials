@@ -1,13 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import PageHeader from '@/components/PageHeader';
+import styles from './summary.module.css';
 import QueryErrorState from '@/components/QueryErrorState';
 import { type EntityRow } from '@/lib/api';
 import { inr } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Select from '@/components/ui/Select';
-import Tag from '@/components/ui/Tag';
+import Link from 'next/link';
 import Icon from '@/components/ui/Icon';
 import { useFiscalYear } from '@/lib/fiscal-year';
 import { useEntitySummaryQuery } from './queries';
@@ -45,53 +45,27 @@ const PERIOD_OPTIONS = [
 ];
 
 export default function EntitySummaryPage() {
-	const { fyStart, fyOptions } = useFiscalYear();
-
-	// Local FY override — syncs with the global selector but can be pointed
-	// at any past year independently without changing the site-wide context.
-	const [fy, setFy] = React.useState<number | null>(fyStart);
-	React.useEffect(() => {
-		if (fyStart !== null) setFy(fyStart);
-	}, [fyStart]);
+	const { fyStart: fy } = useFiscalYear();
 
 	const [period, setPeriod] = React.useState('FY');
 	const [searchInput, setSearchInput] = React.useState('');
-	// The committed filter — only updates on Filter/Enter, driving the query key.
-	const [entityFilter, setEntityFilter] = React.useState('');
-	const [expandedEntity, setExpandedEntity] = React.useState<string | null>(null);
-
-	const { data, isLoading, error, refetch } = useEntitySummaryQuery(fy, entityFilter, period);
-
-	function applyFilter() {
-		const next = searchInput.trim();
-		setEntityFilter(next);
-	}
-
-	function clearFilter() {
-		setSearchInput('');
-		setEntityFilter('');
-	}
-
+    const [expandedEntity, setExpandedEntity] = React.useState<string | null>(null);
+    const { data, isLoading, error, refetch } = useEntitySummaryQuery(fy, '', period);
+    const entityFilter = searchInput.trim();
+    const visibleRows = data?.entities.filter(row => row.entity.toLowerCase().includes(entityFilter.toLowerCase())) ?? [];
+    const billing = visibleRows.reduce((n,row) => n + Number(row.total_billing), 0);
+    const margin = visibleRows.reduce((n,row) => n + Number(row.total_profit), 0);
 	function toggleExpand(entity: string) {
 		setExpandedEntity((prev) => (prev === entity ? null : entity));
 	}
 
-	// Widen picker to include past years not in the global selector
-	const fyPickerOptions = React.useMemo(() => {
-		const pastYears = [2023, 2024].filter((y) => !fyOptions.includes(y));
-		return [...pastYears, ...fyOptions].sort((a, b) => a - b);
-	}, [fyOptions]);
-
 	return (
-		<section className="space-y-6">
-			<PageHeader eyebrow={<>Workspace · Entity Summary · {fyLabelFor(fy)}</>} title="Billing Entity Summary" description={<>
-					Total billing and TCH profit grouped by billing entity. Auto-calculated from
-					Commercial Tracking. Use the period selector to drill into a quarter or month.
-				</>} />
+		<section className={styles.workspace}>
+            <header><h1>Billing entities</h1><p>Bookings and agency margin by billing entity · {fyLabelFor(fy)}</p></header>
 
 			{/* Toolbar */}
 			<div
-				className="flex flex-wrap items-center gap-2 pb-3"
+				className={styles.toolbar}
 				style={{ borderBottom: '1px solid var(--n-border)' }}
 			>
 				<div className="relative flex-1 min-w-[260px]">
@@ -103,37 +77,26 @@ export default function EntitySummaryPage() {
 					</span>
 					<input
 						type="text"
-						placeholder="Filter by entity name…"
+						aria-label="Filter by entity name"
+                        placeholder="Filter by entity name…"
 						value={searchInput}
 						onChange={(e) => setSearchInput(e.target.value)}
-						onKeyDown={(e) => e.key === 'Enter' && applyFilter()}
 						className="h-8 w-full rounded pl-8 pr-2 text-[14px] bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors placeholder:text-[var(--n-fg-subtle)]"
 					/>
 				</div>
-				<Button variant="outline" onClick={applyFilter}>Filter</Button>
-				{entityFilter && (
-					<Button variant="ghost" onClick={clearFilter}>Clear</Button>
-				)}
-
-				{/* Local FY picker — wider range than the global sidebar selector */}
-				<div className="min-w-[130px]">
-					<Select
-						value={String(fy ?? '')}
-						onChange={(e) => setFy(Number(e.target.value))}
-						options={fyPickerOptions.map((y) => ({ value: String(y), label: fyLabelFor(y) }))}
-					/>
-				</div>
+                {entityFilter && <Button variant="ghost" onClick={() => setSearchInput('')}>Clear</Button>}
 
 				<div className="min-w-[160px]">
 					<Select
-						value={period}
+						aria-label="Reporting period"
+                        value={period}
 						onChange={(e) => setPeriod(e.target.value)}
 						options={PERIOD_OPTIONS}
 					/>
 				</div>
 
 				<div className="ml-auto">
-					<Button variant="ghost" onClick={() => refetch()}>
+					<Button variant="outline" disabled={isLoading} onClick={() => refetch()}>
 						<Icon name="refresh" size={14} /> Refresh
 					</Button>
 				</div>
@@ -141,36 +104,18 @@ export default function EntitySummaryPage() {
 
 			{/* Summary cards */}
 			{!isLoading && !error && data && (
-				<div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+				<div className={styles.metrics}>
 					<SummaryCard
-						label={entityFilter ? `"${entityFilter}" Billing` : 'Total Billing'}
-						value={inr(data.grand_total_billing)}
+						label={entityFilter ? `"${entityFilter}" bookings` : 'Total bookings'}
+						value={`₹${inr(billing) || '0'}`}
 					/>
 					<SummaryCard
-						label="TCH Profit"
-						value={inr(data.grand_total_profit)}
+						label="Agency margin"
+						value={`₹${inr(margin) || '0'}`}
 						dot="#0f7b6c"
 					/>
-					<SummaryCard label="Entities" value={String(data.entities.length)} />
-					{entityFilter && (
-						<div
-							className="rounded p-3"
-							style={{
-								border: '1px solid var(--n-accent)',
-								background: 'var(--n-accent-soft)'
-							}}
-						>
-							<div
-								className="text-[11.5px] font-medium uppercase"
-								style={{ color: 'var(--n-accent)', letterSpacing: '0.04em' }}
-							>
-								Filter Active
-							</div>
-							<div className="text-[15px] font-semibold mt-1" style={{ color: 'var(--n-fg)' }}>
-								{entityFilter}
-							</div>
-						</div>
-					)}
+					<SummaryCard label="Entities" value={String(visibleRows.length)} />
+                    <SummaryCard label="Margin rate" value={profitPct(billing, margin)} />
 				</div>
 			)}
 
@@ -190,62 +135,60 @@ export default function EntitySummaryPage() {
 									<th className="w-6" />
 									<th>Billing Entity</th>
 									<th className="num">Deals</th>
-									<th className="num">Total Billing</th>
-									<th className="num">TCH Profit</th>
-									<th className="num">Profit %</th>
-									<th className="num">Campaigns</th>
-									<th className="num">Creators</th>
-									<th>Top Brands</th>
+									<th className="num">Bookings</th>
+									<th className="num">Agency margin</th>
+									<th className="num">Margin %</th>
+
+
+
 								</tr>
 							</thead>
 							<tbody>
-								{data.entities.map((row) => (
+								{visibleRows.map((row) => (
 									<React.Fragment key={row.entity}>
 										<tr className="cursor-pointer" onClick={() => toggleExpand(row.entity)}>
 											<td className="text-center select-none" style={{ color: 'var(--n-fg-subtle)' }}>
-												{expandedEntity === row.entity ? '▾' : '▸'}
+												<button type="button" className={styles.expand} aria-label={`View deals for ${row.entity}`} aria-expanded={expandedEntity === row.entity} onClick={(e) => {e.stopPropagation();toggleExpand(row.entity);}}><Icon name="chevron-right" size={16} className={expandedEntity === row.entity ? 'rotate-90' : ''} /></button>
 											</td>
 											<td className="font-medium" style={{ color: 'var(--n-fg)' }}>
 												{row.entity}
-												{row.deal_count === 1 && (
-													<Tag tone="neutral" className="ml-2">low activity</Tag>
-												)}
+
 											</td>
 											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>{row.deal_count}</td>
-											<td className="num tabular-nums" style={{ color: 'var(--n-fg)' }}>{inr(row.total_billing)}</td>
-											<td className="num font-semibold tabular-nums" style={{ color: 'var(--color-success)' }}>{inr(row.total_profit)}</td>
+											<td className="num tabular-nums" style={{ color: 'var(--n-fg)' }}>{`₹${inr(row.total_billing) || '0'}`}</td>
+											<td className="num font-semibold tabular-nums" style={{ color: 'var(--color-success)' }}>{`₹${inr(row.total_profit) || '0'}`}</td>
 											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>{profitPct(row.total_billing, row.total_profit)}</td>
-											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>{row.campaign_count}</td>
-											<td className="num" style={{ color: 'var(--n-fg-muted)' }}>{row.creator_count}</td>
-											<td className="text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>{row.top_brands.join(', ')}</td>
+
+
+
 										</tr>
 										{expandedEntity === row.entity && (
 											<ExpandedRow row={row} />
 										)}
 									</React.Fragment>
 								))}
-								{data.entities.length === 0 ? (
+								{visibleRows.length === 0 ? (
 									<tr>
-										<td colSpan={9} className="text-center py-8" style={{ color: 'var(--n-fg-subtle)' }}>
-											No entity data for this FY{entityFilter ? ` matching "${entityFilter}"` : ''}.
+										<td colSpan={6} className="text-center py-8" style={{ color: 'var(--n-fg-subtle)' }}>
+											No entity data for this reporting period{entityFilter ? ` matching "${entityFilter}"` : ''}.
 										</td>
 									</tr>
 								) : (
 									<tr className="row-total">
 										<td />
 										<td>Grand Total</td>
-										<td className="num">{data.entities.reduce((a, r) => a + r.deal_count, 0)}</td>
-										<td className="num">{inr(data.grand_total_billing)}</td>
-										<td className="num" style={{ color: 'var(--color-success)' }}>{inr(data.grand_total_profit)}</td>
-										<td className="num">{profitPct(data.grand_total_billing, data.grand_total_profit)}</td>
-										<td colSpan={3} />
+										<td className="num">{visibleRows.reduce((a, r) => a + r.deal_count, 0)}</td>
+										<td className="num">{`₹${inr(billing) || '0'}`}</td>
+										<td className="num" style={{ color: 'var(--color-success)' }}>{`₹${inr(margin) || '0'}`}</td>
+										<td className="num">{profitPct(billing, margin)}</td>
+
 									</tr>
 								)}
 							</tbody>
 						</table>
 					</div>
 					<div className="tbl-caption">
-						<span>Tip · click a row to expand campaigns and creators linked to that billing entity.</span>
+						<span>Expand an entity to see the deals behind its totals. Entity names reflect the names entered on deals.</span>
 					</div>
 				</div>
 			) : null}
@@ -273,45 +216,8 @@ function SummaryCard({ label, value, dot }: { label: string; value: string; dot?
 }
 
 function ExpandedRow({ row }: { row: EntityRow }) {
-	return (
-		<tr style={{ background: 'var(--n-bg-soft)' }}>
-			<td />
-			<td colSpan={8} className="py-3 px-4">
-				<TagGroup label="Campaigns billed under this entity" items={row.campaigns} tone="accent" />
-				<TagGroup label="Creators involved" items={row.creators} tone="neutral" className="mt-3" />
-			</td>
-		</tr>
-	);
-}
-
-function TagGroup({
-	label,
-	items,
-	tone,
-	className,
-}: {
-	label: string;
-	items: string[];
-	tone: 'accent' | 'neutral';
-	className?: string;
-}) {
-	return (
-		<div className={className}>
-			<div
-				className="text-[11.5px] font-medium uppercase mb-2"
-				style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
-			>
-				{label}
-			</div>
-			<div className="flex flex-wrap gap-1.5">
-				{items.length > 0 ? (
-					items.map((c) => <Tag key={c} tone={tone}>{c}</Tag>)
-				) : (
-					<span className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
-						No linked {tone === 'accent' ? 'campaigns' : 'creators'}
-					</span>
-				)}
-			</div>
-		</div>
-	);
+ return <tr className={styles.detailsRow}><td colSpan={6}>
+  <div className={styles.detailHeader}>{row.deal_count} deal{row.deal_count === 1 ? '' : 's'} · {row.campaign_count} campaign{row.campaign_count === 1 ? '' : 's'} · {row.creator_count} creator{row.creator_count === 1 ? '' : 's'}</div>
+  <table className={styles.dealTable}><caption className="sr-only">Deals billed under {row.entity}</caption><thead><tr><th>Campaign</th><th>Brand</th><th>Creators</th><th className="num">Bookings</th><th className="num">Agency margin</th><th /></tr></thead><tbody>{row.deals.map(deal=><tr key={deal.id}><td>{deal.campaign || 'No campaign'}</td><td>{deal.brand || '—'}</td><td>{deal.creators.join(', ') || '—'}</td><td className="num">₹{inr(deal.bookings) || '0'}</td><td className="num">₹{inr(deal.agency_margin) || '0'}</td><td><Link href={`/commercial/${deal.id}/`}>Open deal →</Link></td></tr>)}</tbody></table>
+ </td></tr>;
 }

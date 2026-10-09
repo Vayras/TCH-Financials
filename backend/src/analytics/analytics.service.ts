@@ -441,6 +441,7 @@ export class AnalyticsService {
       campaignNames: string[];
       creatorNames: string[];
       brands: string[];
+      deals: Array<{id:string;campaign:string;brand:string;creators:string[];bookings:string;agency_margin:string}>;
     }
     const entities = new Map<string, EntityAgg>();
     for (const deal of deals) {
@@ -461,9 +462,11 @@ export class AnalyticsService {
           campaignNames: [],
           creatorNames: [],
           brands: [],
+          deals: [],
         };
         entities.set(be, e);
       }
+      e.deals.push({id:deal.id,campaign:deal.campaign?.name || '',brand:deal.brand,creators:[...new Set(creatorSplits(deal).map(c=>c.name).filter(Boolean))],bookings:money(D(deal.totalFee)),agency_margin:money(D(deal.agencyFeeInr))});
       e.dealCount += 1;
       e.totalBilling = e.totalBilling.add(D(deal.totalFee));
       e.totalProfit = e.totalProfit.add(D(deal.agencyFeeInr));
@@ -480,6 +483,7 @@ export class AnalyticsService {
         const creators = [...new Set(data.creatorNames)].sort();
         return {
           entity: data.entity,
+          deals: data.deals,
           deal_count: data.dealCount,
           total_billing: money(data.totalBilling),
           total_profit: money(data.totalProfit),

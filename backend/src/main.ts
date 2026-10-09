@@ -5,6 +5,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { AppModule } from './app.module';
 import { env } from './env';
 import { requestContext, structuredLog } from './common/observability';
+import { setupSwagger } from './swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -15,6 +16,11 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   app.use(requestContext);
   const allowedOrigins = new Set([env.appUrl, ...env.corsOrigins]);
+  // Swagger's local Try it out sends the backend page's origin on mutations.
+  if (env.appEnv === 'development' && env.swaggerEnabled) {
+    allowedOrigins.add(`http://localhost:${env.port}`);
+    allowedOrigins.add(`http://127.0.0.1:${env.port}`);
+  }
   app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
@@ -35,6 +41,7 @@ async function bootstrap() {
     },
   });
 
+  setupSwagger(app);
   await app.listen(env.port);
   structuredLog('info', 'application_started', { port: env.port, prefix: '/api', app_env: env.appEnv });
 }

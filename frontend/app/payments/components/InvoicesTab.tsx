@@ -2,7 +2,8 @@ import React from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
 import { type Deal } from '@/lib/api';
 import { inr } from '@/lib/utils';
-import MetricCard from '@/components/MetricCard';
+import styles from '../payments.module.css';
+import Icon from '@/components/ui/Icon';
 import DataTable from '@/components/DataTable';
 import QueryErrorState from '@/components/QueryErrorState';
 import { type PaymentStatus } from '@/lib/payments';
@@ -49,51 +50,34 @@ export function InvoicesTab({
 }: InvoicesTabProps) {
 	return (
 		<>
-			<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 anim-fade-up">
-				<MetricCard
-					label="Due Soon"
-					value={`${metrics.dueCount} · ₹${inr(metrics.dueTotal) || '0'}`}
-				/>
-				<div className="rounded-xl p-4 border" style={{ background: metrics.overdueCount > 0 ? 'var(--color-danger-bg)' : 'var(--n-bg)', borderColor: metrics.overdueCount > 0 ? 'var(--color-danger-border)' : 'var(--n-border)' }}>
-					<p className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: metrics.overdueCount > 0 ? 'var(--color-danger)' : 'var(--n-fg-subtle)' }}>Overdue</p>
-					<p className="text-[24px] font-bold tracking-tight tabular-nums" style={{ color: metrics.overdueCount > 0 ? 'var(--color-danger-muted)' : 'var(--n-fg)' }}>
-						{metrics.overdueCount} · ₹{inr(metrics.overdueTotal) || '0'}
-					</p>
-				</div>
-				<MetricCard label="Awaiting Invoices" value={metrics.awaitingCount} />
-				<MetricCard label="Cleared" value={metrics.clearedCount} />
-			</div>
-
-			<div className="flex items-center gap-2 border-b mb-4" style={{ borderColor: 'var(--n-border)' }}>
-				<div className="flex-1 flex items-center gap-2">
-					{FILTER_OPTIONS.map((f) => {
-						const isActive = statusFilter === f.key;
-						return (
-							<button
-								key={f.key}
-								onClick={() => setStatusFilter(f.key)}
-								className={`px-4 py-2.5  font-medium transition-colors relative`}
-								style={{
-									color: isActive ? 'var(--n-fg)' : 'var(--n-fg-subtle)',
-									fontSize: 12
-								}}
-							>
-								{f.label}
-								{isActive && (
-									<div className="absolute bottom-0 left-0 right-0 h-[2px] bg-current rounded-t-sm" />
-								)}
-							</button>
-						);
-					})}
-				</div>
-				<div className="text-[12px] pr-2" style={{ color: 'var(--n-fg-muted)' }}>
-					{(filtered || []).length} {(filtered || []).length === 1 ? 'payment' : 'payments'}
-				</div>
-			</div>
+			<div className={styles.metrics}>
+                {[
+                    {label:'Due soon', value:`₹${inr(metrics.dueTotal) || '0'}`, note:`${metrics.dueCount} payments`, alert:false},
+                    {label:'Overdue', value:`₹${inr(metrics.overdueTotal) || '0'}`, note:`${metrics.overdueCount} payments`, alert:metrics.overdueCount > 0},
+                    {label:'Awaiting invoices', value:metrics.awaitingCount, note:'Completed campaigns', alert:false},
+                    {label:'Cleared', value:metrics.clearedCount, note:'Payments settled', alert:false}
+                ].map(metric => <div key={metric.label} className={styles.metric} data-alert={metric.alert}>
+                    <span>{metric.label}</span><strong>{loading ? '—' : metric.value}</strong><small>{metric.note}</small>
+                </div>)}
+            </div>
+            <div className={styles.panel}>
+                <div className={styles.filterBar}>
+                    <div className={styles.filters} aria-label="Payment status">
+                        {FILTER_OPTIONS.map(f => <button key={f.key} type="button" aria-pressed={statusFilter === f.key} onClick={() => setStatusFilter(f.key)}>{f.label}</button>)}
+                    </div>
+                    <span className={styles.count}>{loading ? 'Loading…' : `${filtered.length} ${filtered.length === 1 ? 'payment' : 'payments'}`}</span>
+                </div>
 
 			{error ? (
 				<QueryErrorState description="Payment information is temporarily unavailable." onRetry={refetchDeals} />
-			) : (
+			) : !loading && filtered.length === 0 ? (
+                <div className={styles.empty}>
+                    <span className={styles.emptyIcon}><Icon name="credit-card" size={22} /></span>
+                    <h2>{statusFilter === 'all' ? 'No payments to show yet' : 'No matching payments'}</h2>
+                    <p>{statusFilter === 'all' ? 'Payments appear here once a campaign is completed.' : 'There are no completed campaigns with this payment status.'}</p>
+                    {statusFilter !== 'all' && <button type="button" onClick={() => setStatusFilter('all')}>Show all payments</button>}
+                </div>
+            ) : (
 				<DataTable
 					data={filtered}
 					columns={columns}
@@ -101,6 +85,7 @@ export function InvoicesTab({
 					emptyMessage="No completed campaigns match."
 				/>
 			)}
+            </div>
 		</>
 	);
 }

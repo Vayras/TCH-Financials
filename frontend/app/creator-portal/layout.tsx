@@ -1,128 +1,37 @@
 'use client';
-
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { cn } from '@/lib/utils';
-import Icon from '@/components/ui/Icon';
-import { getSupabase } from '@/lib/supabase';
 import { useAuth } from '@/components/AuthGuard';
+import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
+import ChangePasswordModal from '@/components/ChangePasswordModal';
+import Icon from '@/components/ui/Icon';
 
-const CREATOR_NAV = [
-	{ href: '/creator-portal', label: 'My Deals', icon: 'briefcase' },
-	{ href: '/creator-portal/invoices', label: 'My Invoices', icon: 'file-text' },
-	{ href: '/creator-portal/payments', label: 'Payments & TDS', icon: 'credit-card' }
-];
-
+const base = '/creator-portal';
+const navigation = [{ label: 'Home', href: base, paths: [base] }, { label: 'Content library', href: `${base}/portfolio`, paths: [`${base}/portfolio`] }, { label: 'Brand kit', href: `${base}/media-kit`, paths: [`${base}/media-kit`] }, { label: 'Campaigns', href: `${base}/campaigns`, paths: [`${base}/campaigns`] }, { label: 'Work', href: `${base}/deals`, paths: [`${base}/deals`, `${base}/enquiries`] }, { label: 'Earnings', href: `${base}/invoices`, paths: [`${base}/invoices`, `${base}/payments`] }];
 export default function CreatorPortalLayout({ children }: { children: React.ReactNode }) {
-	const pathname = usePathname() ?? '/creator-portal';
+	const pathname = (usePathname() ?? base).replace(/\/$/, '');
 	const { email, displayName } = useAuth();
-
-	async function signOut() {
-		await getSupabase().auth.signOut();
-		window.location.assign('/login');
-	}
-
-	const initials = React.useMemo(() => {
-		if (displayName) {
-			return displayName.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
-		}
-		return (email?.[0] ?? '?').toUpperCase();
-	}, [displayName, email]);
-
-	return (
-		<div className="flex min-h-screen" style={{ background: 'var(--n-bg-soft)' }}>
-			{/* Warm minimalist sidebar */}
-			<aside
-				className="sticky top-0 self-start h-screen flex flex-col shrink-0 overflow-hidden"
-				style={{
-					background: '#fff',
-					borderRight: '1px solid #e5e5e0',
-					width: '240px'
-				}}
-			>
-				<div
-					className="flex items-center px-4 h-12 shrink-0 gap-2.5"
-					style={{ borderBottom: '1px solid #e5e5e0' }}
-				>
-					<div
-						className="h-6 w-6 rounded flex items-center justify-center text-[12px] font-bold"
-						style={{ background: 'var(--n-accent)', color: '#fff' }}
-					>
-						C
-					</div>
-					<span className="text-[12px] font-bold text-gray-800">Creator Portal</span>
-				</div>
-
-				<nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-					{CREATOR_NAV.map((item) => {
-						const active = pathname === item.href;
-						return (
-							<Link
-								key={item.href}
-								href={item.href}
-								className={cn(
-									'flex items-center gap-3 px-3 py-2.5 rounded-lg text-[12px] font-medium transition-colors duration-100',
-									active
-										? 'bg-[var(--n-accent-soft)] text-[var(--n-accent)] font-semibold'
-										: 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-								)}
-							>
-								<Icon name={item.icon} size={15} />
-								<span>{item.label}</span>
-							</Link>
-						);
-					})}
-				</nav>
-
-				{/* Warm profile footer card */}
-				<div className="p-3" style={{ borderTop: '1px solid #e5e5e0' }}>
-					<div className="flex items-center gap-2.5 p-2 rounded-lg">
-						<div
-							className="h-8 w-8 rounded-full flex items-center justify-center text-[12px] font-bold select-none text-white shrink-0"
-							style={{ background: 'var(--n-accent)' }}
-						>
-							{initials}
-						</div>
-						<div className="min-w-0 flex-1">
-							<div className="text-[12.5px] font-semibold text-gray-800 truncate">
-								{displayName}
-							</div>
-							<div className="text-[10px] text-gray-400 truncate">{email}</div>
-						</div>
-						<button
-							onClick={signOut}
-							className="group/logout h-7 px-1.5 inline-flex items-center justify-center gap-1 rounded text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors duration-100 shrink-0"
-							title="Sign out"
-							aria-label="Sign out"
-						>
-							<Icon name="log-out" size={14} />
-							<span className="text-[10px] font-medium opacity-0 group-hover/logout:opacity-100 transition-opacity duration-100 hidden group-hover/logout:inline">Out</span>
-						</button>
-					</div>
-				</div>
-			</aside>
-
-			{/* Main body area */}
-			<div className="flex-1 flex flex-col min-w-0">
-				<header
-					className="creator-portal-header h-12 flex items-center justify-between px-6 shrink-0 sticky top-0 z-10"
-					style={{
-						background: 'rgba(255, 255, 255, 0.72)',
-						backdropFilter: 'blur(16px) saturate(160%)',
-						WebkitBackdropFilter: 'blur(16px) saturate(160%)',
-						borderBottom: '1px solid rgba(0,0,0,0.06)'
-					}}
-				>
-					<span className="text-[12px] font-medium text-gray-500">
-						Welcome back, <span className="text-[var(--n-accent)] font-semibold">{displayName || 'Creator'}</span>
-					</span>
-				</header>
-
-				<main className="flex-1 overflow-x-hidden">
-					<div className="mx-auto w-full max-w-[1200px] px-8 py-8">{children}</div>
-				</main>
-			</div>
-		</div>
-	);
+	const [passwordOpen, setPasswordOpen] = React.useState(false);
+	const [accountOpen, setAccountOpen] = React.useState(false);
+	const accountRef = React.useRef<HTMLDivElement>(null);
+	const initials = (displayName || email || 'Creator').split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase();
+	const secondary = pathname.includes('/deals') || pathname.includes('/enquiries') ? [['Active work', 'deals'], ['Brand opportunities', 'enquiries']] : pathname.includes('/invoices') || pathname.includes('/payments') ? [['Invoices', 'invoices'], ['Payments & tax', 'payments']] : pathname.includes('/profile') || pathname.includes('/socials') ? [['Your profile', 'profile'], ['Connected accounts', 'socials']] : [];
+	async function signOut() { if (isSupabaseConfigured()) await getSupabase().auth.signOut(); else window.localStorage.removeItem('tch-dev-user'); window.location.assign('/login'); }
+	React.useEffect(() => {
+		if (!accountOpen) return;
+		const close = (event: MouseEvent) => { if (!accountRef.current?.contains(event.target as Node)) setAccountOpen(false); };
+		const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') setAccountOpen(false); };
+		document.addEventListener('mousedown', close); document.addEventListener('keydown', escape);
+		return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escape); };
+	}, [accountOpen]);
+	return <div className="creator-workspace"><div className="creator-shell">
+		<header className="creator-header"><Link className="creator-wordmark" href={base}><Image className="creator-symbol" src="/creatorledger-mark.svg" alt="" aria-hidden="true" width={34} height={34} priority /> Creator<span className="creator-wordmark-light">Ledger</span></Link>
+			<nav className="creator-nav" aria-label="Creator navigation">{navigation.map(item => <Link key={item.label} href={item.href} aria-current={item.paths.includes(pathname) ? 'page' : undefined}>{item.label}</Link>)}</nav>
+			<div className="creator-account" ref={accountRef}><button className="creator-account-trigger" type="button" aria-label="Your account" aria-expanded={accountOpen} onClick={() => setAccountOpen(value => !value)}><span className="creator-account-avatar">{initials}</span><Icon name="chevron-down" size={14} /></button>{accountOpen && <div className="creator-account-menu" role="menu"><p>{displayName || 'Your account'}</p><Link role="menuitem" href={`${base}/profile`} onClick={() => setAccountOpen(false)}>Edit profile</Link><Link role="menuitem" href={`${base}/socials`} onClick={() => setAccountOpen(false)}>Connected accounts</Link><button role="menuitem" onClick={() => { setAccountOpen(false); setPasswordOpen(true); }}>Change password</button><button role="menuitem" onClick={() => { setAccountOpen(false); void signOut(); }}>Sign out</button></div>}</div>
+		</header>
+		<main className="creator-main">{secondary.length > 0 && <nav className="creator-subnav" aria-label="Section navigation">{secondary.map(([label, path]) => <Link key={path} href={`${base}/${path}`} aria-current={pathname === `${base}/${path}` ? 'page' : undefined}>{label}</Link>)}</nav>}{children}</main>
+		<footer className="creator-footer"><span>A little more you. A lot more possibility.</span><Link href={`${base}/media-kit`}>Your next collaboration starts here ↗</Link></footer>
+	</div><ChangePasswordModal isOpen={passwordOpen} userEmail={email ?? ''} onClose={() => setPasswordOpen(false)} /></div>;
 }

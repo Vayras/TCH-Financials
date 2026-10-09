@@ -1,6 +1,6 @@
 import {
   Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch,
-  Post, Put,
+  Post, Put, ConflictException,
 } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
@@ -116,7 +116,12 @@ export class CampaignsController {
   @Roles('super_admin', 'tch_member')
   @HttpCode(204)
   async remove(@Param('id') id: string) {
-    const res = await this.repo().delete({ id });
-    if (!res.affected) throw new NotFoundException({ detail: 'Not found.' });
+    try {
+      const res = await this.repo().delete({ id });
+      if (!res.affected) throw new NotFoundException({ detail: 'Not found.' });
+    } catch (error) {
+      if ((error as {code?:string}).code === '23503') throw new ConflictException('This campaign has retained records, including brief history, and cannot be deleted.');
+      throw error;
+    }
   }
 }

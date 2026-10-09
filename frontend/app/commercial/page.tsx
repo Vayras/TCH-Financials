@@ -15,8 +15,9 @@ import {
 	normalisePctString,
 } from '@/lib/deals';
 import Icon from '@/components/ui/Icon';
+import Dialog from '@/components/ui/Dialog';
+import dialogStyles from '@/components/ui/ConfirmDialog.module.css';
 import Button from '@/components/ui/Button';
-import PageHeader from '@/components/PageHeader';
 import Pagination from '@/components/Pagination';
 import QueryErrorState from '@/components/QueryErrorState';
 import { CampaignGroupCard, CreatorGroupCard } from '@/components/CampaignCards';
@@ -32,6 +33,7 @@ import { useRouter } from 'next/navigation';
 import { useCommercialFilters } from './useCommercialFilters';
 import { CommercialFilterBar } from './components/CommercialFilterBar';
 import { CommercialTable } from './components/CommercialTable';
+import styles from './commercial.module.css';
 
 export default function CommercialPage() {
 	const { fyStart } = useFiscalYear();
@@ -42,6 +44,7 @@ export default function CommercialPage() {
 
 	const saveDealMutation = useSaveDealMutation(fyStart);
 
+	const [created, setCreated] = React.useState<Deal | null>(null);
 	const [open, setOpen] = React.useState(false);
 	const [editing, setEditing] = React.useState<Deal | null>(null);
 	const skipFirstPageReset = React.useRef(true);
@@ -112,6 +115,7 @@ export default function CommercialPage() {
 					? String(editing.creator)
 					: '',
 			tch_poc: editing.tch_poc ?? '',
+            responsible_member_id: editing.responsible_member_id ?? '',
 			direction: editing.direction,
 			total_fee: primary ? primary.total_fee : editing.total_fee,
 			agency_fee_pct: primary ? primary.agency_fee_pct : editing.agency_fee_pct,
@@ -160,7 +164,7 @@ export default function CommercialPage() {
 			setOpen(false);
 			if (!editing && deal && deal.id) {
 				toast.success('Campaign created.');
-				router.push(`/commercial/${deal.id}?edit=true`);
+				setCreated(deal);
 			} else {
 				toast.success('Campaign updated.');
 			}
@@ -196,10 +200,10 @@ export default function CommercialPage() {
 			const next = prev.filter((mm) => availMonths.includes(mm));
 			return next.length === prev.length ? prev : next;
 		});
-	}, [availMonths]);
+	}, [availMonths, setMonths]);
 
 	const activeData = viewMode === 'table' ? tableQuery.data : groupQuery.data;
-	const billingSummary = { invoiced: Number(activeData?.summary.total_billing ?? 0) };
+	const billingSummary = { bookings: Number(activeData?.summary.total_billing ?? 0) };
 
 	const renderEmptyState = (type: 'campaigns' | 'deals') => {
 		let title = `No ${type} found`;
@@ -212,7 +216,7 @@ export default function CommercialPage() {
 			iconName = "search";
 		} else if (statusFilter === 'Completed') {
 			title = `No completed ${type}`;
-			desc = `There are no ${type} that have been fully paid and completed.`;
+			desc = `There are no ${type} that have been marked as completed in this selection.`;
 			iconName = "check";
 		} else if (statusFilter === 'Awaiting Invoices') {
 			title = "All caught up!";
@@ -220,7 +224,7 @@ export default function CommercialPage() {
 			iconName = "check";
 		} else if (statusFilter === 'Pending Payment') {
 			title = "No pending payments";
-			desc = `All invoiced ${type} have been processed.`;
+			desc = `There are no matching ${type} with this status.`;
 			iconName = "credit-card";
 		} else if (filtersActive) {
 			title = "No matches found";
@@ -228,7 +232,7 @@ export default function CommercialPage() {
 		}
 
 		return (
-			<div className="py-20 flex flex-col items-center justify-center text-center anim-fade-up">
+			<div className={styles.empty}>
 				<div className="w-14 h-14 rounded-full flex items-center justify-center mb-4" style={{ background: 'var(--n-bg-soft)' }}>
 					<Icon name={iconName} size={24} style={{ color: 'var(--n-fg-subtle)' }} />
 				</div>
@@ -267,132 +271,92 @@ export default function CommercialPage() {
 			return;
 		}
 		setPage(1);
-	}, [urlHydrated, debouncedSearch, dirFilter, statusFilter, creatorFilter, months, groupBy, viewMode, fyStart]);
+	}, [urlHydrated, debouncedSearch, dirFilter, statusFilter, creatorFilter, months, groupBy, viewMode, fyStart, setPage]);
 
 	React.useEffect(() => {
 		const lastPage = Math.max(1, Math.ceil(resultTotal / pageSize));
 		if (page > lastPage) setPage(lastPage);
-	}, [page, resultTotal]);
+	}, [page, resultTotal, setPage]);
 
 	return (
 		<>
-			<section className="space-y-5">
-				{/* ── Header ── */}
-				<PageHeader title="Campaign Tracking" description={`${totals.count} deal${totals.count !== 1 ? 's' : ''} · FY ${fyStart}–${((fyStart ?? 0) + 1).toString().slice(2)}`} actions={<>
-					<div className="flex items-center gap-2.5">
-						<div className="flex items-center rounded-lg overflow-hidden border" style={{ borderColor: 'var(--n-border)', background: 'var(--n-bg)' }}>
-							<button
-								type="button"
-								onClick={() => setViewMode('cards')}
-								title="Card view"
-								style={viewMode === 'cards'
-									? { background: 'var(--n-accent)', color: '#fff' }
-									: { background: 'transparent', color: 'var(--n-accent)', opacity: 0.45 }
-								}
-								className="h-7 w-7 flex items-center justify-center transition-colors duration-100"
-							>
-								<Icon name="grid" size={12} />
-							</button>
-							<button
-								type="button"
-								onClick={() => setViewMode('table')}
-								title="Table view"
-								style={viewMode === 'table'
-									? { background: 'var(--n-accent)', color: '#fff' }
-									: { background: 'transparent', color: 'var(--n-accent)', opacity: 0.45 }
-								}
-								className="h-7 w-7 flex items-center justify-center transition-colors duration-100"
-							>
-								<Icon name="list" size={12} />
-							</button>
+			<section className={styles.workspace}>
+				<header className={styles.header}>
+					<div><h1>Campaign tracking</h1><p>Your campaigns, talent and commercial progress in one place.</p></div>
+					<div className={styles.actions}>
+						<div className={styles.viewToggle} aria-label="Campaign view">
+							{(['cards', 'table'] as const).map(mode => <button type="button" key={mode} aria-label={mode === 'cards' ? 'Card view' : 'Table view'} aria-pressed={viewMode === mode} onClick={() => setViewMode(mode)}><Icon name={mode === 'cards' ? 'grid' : 'list'} size={15} /></button>)}
 						</div>
-
-						<Button variant="primary" size="sm" onClick={startAdd}
-							style={{
-								fontSize: 11
-							}}
-						>
-							<Icon name="plus" size={12} />
-							Add Campaign
-						</Button>
+						<Button className={styles.addButton} variant="primary" onClick={startAdd}><Icon name="plus" size={14} />Add campaign</Button>
 					</div>
-				</>} />
-
-				{/* ── Metric Cards ── */}
-				<div className="grid grid-cols-2 gap-3">
-					<div className="rounded-xl p-4 border" style={{ background: 'var(--n-bg)', borderColor: 'var(--n-border)' }}>
-						<p className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--n-fg-subtle)' }}>Total Billing</p>
-						<p className="text-[24px] font-bold tracking-tight tabular-nums" style={{ color: 'var(--n-fg)' }}>
-							₹&thinsp;{inr(billingSummary.invoiced) || '0'}
-						</p>
-					</div>
-					<div className="rounded-xl p-4 border" style={{ background: 'var(--n-bg)', borderColor: 'var(--n-border)' }}>
-						<p className="text-[11px] font-semibold uppercase tracking-widest mb-1" style={{ color: 'var(--n-fg-subtle)' }}>Deals</p>
-						<p className="text-[24px] font-bold tracking-tight tabular-nums" style={{ color: 'var(--n-fg)' }}>
-							{totals.count}
-						</p>
-					</div>
+				</header>
+				<div className={styles.metrics}>
+					<article><span>Total bookings<Icon name="briefcase" size={16} /></span><strong>{loading ? '…' : `₹${inr(billingSummary.bookings) || '0'}`}</strong><small>Across matching deals · FY {fyStart}–{((fyStart ?? 0) + 1).toString().slice(2)}</small></article>
+					<article><span>Deals<Icon name="users" size={16} /></span><strong>{loading ? '…' : totals.count}</strong><small>{statusFilter === 'All' ? 'Across all campaign statuses' : statusFilter} · Current filters</small></article>
 				</div>
+				<div className={styles.panel}>
 
-				<CommercialFilterBar
-					statusFilter={statusFilter}
-					setStatusFilter={setStatusFilter}
-					q={q}
-					setQ={setQ}
-					viewMode={viewMode}
-					groupBy={groupBy}
-					setGroupBy={setGroupBy}
-					dirFilter={dirFilter}
-					setDirFilter={setDirFilter}
-					creatorFilter={creatorFilter}
-					setCreatorFilter={setCreatorFilter}
-					months={months}
-					setMonths={setMonths}
-					creatorNames={creatorNames}
-					availMonths={availMonths}
-					resetFilters={resetFilters}
-				/>
+					<CommercialFilterBar
+						statusFilter={statusFilter}
+						setStatusFilter={setStatusFilter}
+						q={q}
+						setQ={setQ}
+						viewMode={viewMode}
+						groupBy={groupBy}
+						setGroupBy={setGroupBy}
+						dirFilter={dirFilter}
+						setDirFilter={setDirFilter}
+						creatorFilter={creatorFilter}
+						setCreatorFilter={setCreatorFilter}
+						months={months}
+						setMonths={setMonths}
+						creatorNames={creatorNames}
+						availMonths={availMonths}
+						resetFilters={resetFilters}
+					/>
 
-				{/* ── Content ── */}
-				{loading ? (
-					<div className="flex items-center justify-center gap-3 py-16" style={{ color: 'var(--n-fg-subtle)' }}>
-						<svg className="animate-spin h-5 w-5" style={{ willChange: 'transform' }} viewBox="0 0 24 24" fill="none">
-							<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-							<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-						</svg>
-						<span className="text-[14px]">Loading campaigns…</span>
-					</div>
-				) : error ? (
-					<QueryErrorState description="Campaign data is temporarily unavailable." onRetry={() => activeQuery.refetch()} />
-				) : viewMode === 'table' ? (
-					<>
-						<CommercialTable deals={pagedDeals} onEdit={startEdit} />
-						{resultTotal === 0 && renderEmptyState('deals')}
-						{resultTotal > 0 && <Pagination page={page} pageSize={pageSize} total={resultTotal} onPageChange={setPage} className="mt-4" />}
-					</>
-				) : groupBy === 'campaign' ? (
-					<div className="anim-fade-up">
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-							{pagedCampaignGroups.map((group) => (
-								<CampaignGroupCard key={group.key} group={group} onView={startEdit} />
-							))}
+					{/* ── Content ── */}
+					{loading ? (
+						<div className="flex items-center justify-center gap-3 py-16" style={{ color: 'var(--n-fg-subtle)' }}>
+							<svg className="animate-spin h-5 w-5" style={{ willChange: 'transform' }} viewBox="0 0 24 24" fill="none">
+								<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+								<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+							</svg>
+							<span className="text-[14px]">Loading campaigns…</span>
 						</div>
-						{resultTotal === 0 && renderEmptyState('campaigns')}
-						{resultTotal > 0 && <Pagination page={page} pageSize={pageSize} total={resultTotal} onPageChange={setPage} className="mt-8 pt-4" />}
-					</div>
-				) : (
-					<div className="anim-fade-up">
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-							{pagedCreatorGroups.map((group) => (
-								<CreatorGroupCard key={group.key} group={group} onView={startEdit} />
-							))}
+					) : error ? (
+						<QueryErrorState description="Campaign data is temporarily unavailable." onRetry={() => activeQuery.refetch()} />
+					) : viewMode === 'table' ? (
+						<>
+							<CommercialTable deals={pagedDeals} onEdit={startEdit} />
+							{resultTotal === 0 && renderEmptyState('deals')}
+							{resultTotal > 0 && <Pagination page={page} pageSize={pageSize} total={resultTotal} onPageChange={setPage} className="mt-4" />}
+						</>
+					) : groupBy === 'campaign' ? (
+						<div className="anim-fade-up">
+							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+								{pagedCampaignGroups.map((group) => (
+									<CampaignGroupCard key={group.key} group={group} onView={startEdit} />
+								))}
+							</div>
+							{resultTotal === 0 && renderEmptyState('campaigns')}
+							{resultTotal > 0 && <Pagination page={page} pageSize={pageSize} total={resultTotal} onPageChange={setPage} className="mt-8 pt-4" />}
 						</div>
-						{resultTotal === 0 && renderEmptyState('deals')}
-						{resultTotal > 0 && <Pagination page={page} pageSize={pageSize} total={resultTotal} onPageChange={setPage} className="mt-8 pt-4" />}
-					</div>
-				)}
+					) : (
+						<div className="anim-fade-up">
+							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+								{pagedCreatorGroups.map((group) => (
+									<CreatorGroupCard key={group.key} group={group} onView={startEdit} />
+								))}
+							</div>
+							{resultTotal === 0 && renderEmptyState('deals')}
+							{resultTotal > 0 && <Pagination page={page} pageSize={pageSize} total={resultTotal} onPageChange={setPage} className="mt-8 pt-4" />}
+						</div>
+					)}
+				</div>
 			</section>
 
+			<Dialog open={Boolean(created)} onOpenChange={value=>{if(!value)setCreated(null);}} title="Campaign created" description="Write the creative brief now, or continue with campaign details." className={`max-w-md ${dialogStyles.dialog}`} footer={<><Button onClick={()=>{router.push(`/commercial/${created!.id}`);setCreated(null);}}>View details</Button>{created?.campaign_id!=null&&<Button variant="primary" onClick={()=>{router.push(`/campaigns/${created.campaign_id}/brief?deal=${created.id}`);setCreated(null);}}>Write brief</Button>}</>}/>
 			<CampaignFormModal
 				open={open}
 				onOpenChange={setOpen}

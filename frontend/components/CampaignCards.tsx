@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import * as React from 'react';
 import type { Deal } from '@/lib/api';
 import type { CampaignGroup, CreatorGroup } from '@/types/deal';
@@ -78,6 +79,7 @@ export function CampaignGroupCard({ group, onView }: { group: CampaignGroup; onV
 					</div>
 				</div>
 			</div>
+			{group.deals[0]?.campaign_id!=null&&<Link href={`/campaigns/${group.deals[0].campaign_id}/brief?deal=${group.deals[0].id}`} onClick={event=>event.stopPropagation()} className="w-fit rounded-lg border border-[#e9e4f0] px-3 py-2 text-xs text-[#6554c0]">Open brief</Link>}
 		</div>
 	);
 }

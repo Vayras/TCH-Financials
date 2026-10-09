@@ -115,9 +115,10 @@ export interface PaymentTransactionResponse {
 export const PAYMENT_TRANSACTIONS_QUERY_KEY = (page: number, search: string) =>
 	['payment-transactions', { page, search }] as const;
 
-export function usePaymentTransactionsQuery(page: number, search: string) {
+export function usePaymentTransactionsQuery(page: number, search: string, enabled = true) {
 	return useQuery<PaymentTransactionResponse>({
 		queryKey: PAYMENT_TRANSACTIONS_QUERY_KEY(page, search),
+		enabled,
 		queryFn: async () => {
 			const params = new URLSearchParams({ page: String(page) });
 			if (search.trim()) params.set('search', search.trim());
@@ -188,9 +189,10 @@ export interface TdsEntryItem {
 	};
 }
 
-export function useTdsEntriesQuery(creatorId?: string, status?: string) {
+export function useTdsEntriesQuery(creatorId?: string, status?: string, enabled = true) {
 	return useQuery<TdsEntryItem[]>({
 		queryKey: ['tds-entries', { creatorId, status }],
+		enabled,
 		queryFn: () => {
 			const params = new URLSearchParams();
 			if (creatorId) params.set('creatorId', creatorId);

@@ -8,7 +8,7 @@ const DEV_ACCOUNTS = [
 
 export default function DevAccountSwitcher({ currentEmail }: { currentEmail: string }) {
 	return (
-		<label className="fixed bottom-3 left-3 right-3 z-50 flex items-center justify-between rounded-md border bg-white px-3 py-2 text-xs shadow-lg sm:bottom-4 sm:left-auto sm:right-4 sm:justify-start">
+		<details className="dev-tools-panel"><summary>Developer tools</summary><label className="flex items-center gap-2 p-3">
 			<span className="mr-2 font-semibold">Dev account</span>
 			<select
 				value={currentEmail}
@@ -25,6 +25,6 @@ export default function DevAccountSwitcher({ currentEmail }: { currentEmail: str
 					<option key={account.email} value={account.email}>{account.label}</option>
 				))}
 			</select>
-		</label>
+		</label></details>
 	);
 }

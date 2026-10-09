@@ -74,7 +74,7 @@ interface PaymentModalsProps {
 }
 
 export function PaymentModals({
-	uploadOpen, setUploadOpen, closeUpload, uploadDeal, clientFile, setClientFile, saving, saveUpload, existingDocs,
+	uploadOpen, closeUpload, uploadDeal, clientFile, setClientFile, saving, saveUpload, existingDocs,
 	importOpen, setImportOpen, excelFile, setExcelFile, importing, submitImport,
 	manualOpen, setManualOpen, isAddingTransaction, submitManualTransaction, txDate, setTxDate, txType, setTxType, txVendor, setTxVendor, txUtr, setTxUtr, txAmount, setTxAmount, txNotes, setTxNotes,
 	tdsOpen, setTdsOpen, isAddingTds, submitTdsEntry, creators, tdsCreatorId, setTdsCreatorId, tdsQuarter, setTdsQuarter, tdsRate, setTdsRate, tdsGross, setTdsGross, tdsNotes, setTdsNotes,

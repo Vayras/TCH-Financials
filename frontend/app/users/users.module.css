@@ -1,0 +1,7 @@
+.workspace {--n-accent:#6554c0;--n-accent-hover:#5545a8;--n-border:#e9e4f0;--n-bg-soft:#faf9fd;--n-bg-sidebar:#faf9fd;--n-fg:#302a42;--n-fg-subtle:#81768e;font-family:'Host Grotesk Variable',system-ui,sans-serif;display:grid;gap:24px;color:#302a42;}.header {display:flex;align-items:center;justify-content:space-between;gap:16px;}.header h1 {font-size:28px;font-weight:600;letter-spacing:-1px;}.header p {font-size:13px;color:#81768e;margin-top:6px;}.workspace button {font-size:12px;min-height:34px;padding:6px 12px;border-radius:8px;box-shadow:none;}.workspace button svg {flex-shrink:0;}.tabs {display:flex;gap:8px;}.tabs button {border:1px solid #e9e4f0!important;background:white;}.tabs button[aria-pressed=true] {border-color:#6554c0!important;color:#6554c0!important;background:#faf9fd;}.workspace table {min-width:700px;}.workspace th {font-size:11px;color:#81768e;}.workspace td {padding:16px 12px;}.workspace select {border-radius:8px;height:34px;font-size:12px;}.workspace button[aria-expanded] {padding:6px 12px;width:auto;color:#6554c0!important;font-weight:500;}@media(max-width:640px){.header {flex-wrap:wrap;}.header h1 {font-size:24px;}}
+
+.actionMenu {position:fixed;z-index:100;width:176px;padding:4px;background:#faf9fd;border:1px solid #e9e4f0;border-radius:8px;box-shadow:0 8px 24px #302a4224;font-family:Host Grotesk Variable,system-ui,sans-serif;}
+.actionMenu button {min-height:36px;padding:8px 10px;font-size:12px;border-radius:6px;}
+.actionMenu button:hover {background:#f0edf8;}
+
+.selfAccount {font-size:12px;color:#81768e;white-space:nowrap;}
