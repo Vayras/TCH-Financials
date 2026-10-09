@@ -55,6 +55,7 @@ const NAME_MAP: Record<string, keyof typeof LucideIcons> = {
 	'panel-top': 'PanelTop',
 	play: 'Play',
 	list: 'List',
+	menu: 'Menu',
 	inbox: 'Inbox',
 	zap: 'Zap',
 	'file-text': 'FileText',
