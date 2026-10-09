@@ -138,6 +138,17 @@ export class CreatorsController {
     return creatorDto(row);
   }
 
+  @Get(':id/brand-kit')
+  async brandKit(@Param('id') id: string) {
+    if (!/^[1-9]\d*$/.test(id)) throw new BadRequestException('Invalid creator ID.');
+    if (!(await this.repo().findOneBy({ id }))) throw new NotFoundException();
+    // Agency views receive only the creator's explicitly published revision.
+    const [row] = await this.dataSource.query(`SELECT k.slug, r.id AS revision, r.published_at, r.content
+      FROM tch_creator_brand_kit k LEFT JOIN tch_creator_brand_kit_revision r ON r.id=k.published_revision
+      WHERE k.creator_id=$1`, [id]);
+    return { status: !row ? 'not_started' : row.revision ? 'published' : 'private_draft', kit: row?.revision ? row : null };
+  }
+
   @Post()
   @Roles('super_admin', 'tch_member')
   @HttpCode(201)
