@@ -1,0 +1,23 @@
+.workspace {--n-accent:#6554c0; --n-accent-hover:#5545a8; --n-border:#e9e4f0; --n-fg:#302a42; --n-fg-muted:#70677f; --n-fg-subtle:#81768e; --n-bg-soft:#faf9fd; font-family:'Host Grotesk Variable',system-ui,sans-serif; display:flex; flex-direction:column; gap:22px; max-width:1152px; margin:auto; min-width:0;}
+.workspace h1 {font-size:26px; font-weight:600; letter-spacing:-.6px; margin-bottom:6px;}
+.workspace h2 {font-size:16px; font-weight:600; line-height:1.5; margin-bottom:4px;}
+.workspace label {font-size:12px; color:#70677f;}
+.workspace input:not([type='file']), .workspace select {height:38px; font-size:13px; border:1px solid #e9e4f0; border-radius:8px; background-color:#faf9fd;}
+.workspace select {background-repeat:no-repeat;}
+.workspace textarea {font-size:13px; border-radius:8px; border:1px solid #e9e4f0; background:#faf9fd; padding:10px; min-height:90px;}
+.workspace button, .workspace header a {font-size:12px; border-radius:8px; box-shadow:none;}
+.workspace button {min-height:34px; padding:6px 11px;}
+.workspace input:focus, .workspace select:focus, .workspace textarea:focus {outline:2px solid #6554c030; border-color:#6554c0;}
+.workspace .badge {height:24px; font-size:11px; padding:2px 8px; border-radius:6px; border:1px solid currentColor; background:transparent; width:fit-content;}
+.workspace input[type='file'] {font-size:12px; max-width:100%;}
+.workspace input::file-selector-button {font-size:12px; color:#6554c0; padding:8px 12px; margin-right:10px; border:1px solid #e4deed; border-radius:8px; background:white;}
+.saveBar {position:sticky; bottom:12px; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; border:1px solid #e9e4f0; border-radius:12px; padding:12px 16px; background:#fff; box-shadow:0 3px 14px #302a4208; z-index:10;}
+@media(max-width:640px) { .workspace {gap:16px;} .workspace h1 {font-size:23px;} .workspace input:not([type='file']), .workspace select, .workspace textarea {font-size:16px;} .workspace :global(.grid-cols-2) {grid-template-columns:minmax(0,1fr);} .workspace :global(.col-span-2) {grid-column:1/-1;} .workspace :global(.justify-between) {flex-wrap:wrap; gap:12px;} .workspace header > div:last-child {flex-wrap:wrap;} .saveBar {bottom:8px;} }
+.singleSplit {display:grid; grid-template-columns:minmax(0,1fr); gap:16px;}
+.splitGrid {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px;}
+.workspace .calculatedInput {background:#f1eef7; border-color:#ded7ee; font-weight:600; color:#5545a8;}
+.fieldHint {font-size:11px; line-height:1.5; color:#81768e; margin-top:6px;}
+@media(max-width:640px) {.splitGrid {grid-template-columns:minmax(0,1fr);}}
+.workspace button svg {flex-shrink:0;}
+.workspace .removeSplit {display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; width:34px; height:34px; padding:0; border:1px solid #f1d8dd; border-radius:8px; background:#fff; color:#bb435c;}
+.workspace .removeSplit:hover {background:#fff3f5; border-color:#bb435c;}

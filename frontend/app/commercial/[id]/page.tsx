@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import styles from './detail.module.css';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useForm, useFieldArray, type Path, type RegisterOptions } from 'react-hook-form';
 import { useFiscalYear } from '@/lib/fiscal-year';
@@ -16,6 +17,7 @@ import { inr } from '@/lib/utils';
 import Icon from '@/components/ui/Icon';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import ResponsibleMemberSelect from '@/components/ResponsibleMemberSelect';
 import Select from '@/components/ui/Select';
 import Textarea from '@/components/ui/Textarea';
 import Label from '@/components/ui/Label';
@@ -77,6 +79,7 @@ export default function CampaignDetailPage() {
 					? String(deal.creator)
 					: '',
 			tch_poc: deal.tch_poc ?? '',
+            responsible_member_id: deal.responsible_member_id ?? '',
 			direction: deal.direction,
 			total_fee: primary ? primary.total_fee : deal.total_fee,
 			agency_fee_pct: primary ? primary.agency_fee_pct : deal.agency_fee_pct,
@@ -193,7 +196,7 @@ export default function CampaignDetailPage() {
 
 		const payload: Record<string, unknown> = {};
 		const simpleFields: (keyof DealForm)[] = [
-			'confirmation_date', 'e_invoice_number', 'e_invoice_date', 'creator', 'tch_poc',
+			'confirmation_date', 'e_invoice_number', 'e_invoice_date', 'creator', 'tch_poc', 'responsible_member_id',
 			'direction', 'total_fee', 'agency_fee_pct', 'agency_fee_inr', 'creator_fee',
 			'billing_entity', 'brand', 'brand_poc', 'campaign', 'deliverables', 'ro_number', 'comments'
 		];
@@ -287,7 +290,7 @@ export default function CampaignDetailPage() {
 	const campaignTitle = [deal.brand, deal.campaign].filter(Boolean).join(' · ') || 'Campaign';
 
 	return (
-		<div className="space-y-6 max-w-6xl mx-auto px-4 py-6">
+		<div className={styles.workspace}>
 			<style dangerouslySetInnerHTML={{ __html: `
 				@keyframes fadeInUp {
 					from {
@@ -317,7 +320,7 @@ export default function CampaignDetailPage() {
 					</p>
 				</div>
 				<div className="flex items-center gap-2">
-					{deal.campaign_id !== null && <Link href={`/campaigns/${deal.campaign_id}/brief`} className="rounded-md border px-3 py-2 text-[12px] hover:underline">Campaign brief</Link>}
+					{deal.campaign_id !== null && <Link href={`/campaigns/${deal.campaign_id}/brief?deal=${deal.id}`} className="rounded-md border px-3 py-2 text-[12px] hover:underline">Campaign brief</Link>}
 					{!isEditing ? (
 						<Button variant="primary" onClick={() => setConfirmEditOpen(true)}>
 							<Icon name="edit" size={14} className="mr-1" /> Edit Campaign
@@ -357,7 +360,7 @@ export default function CampaignDetailPage() {
 									</p>
 								</div>
 								{watch('direction') && (
-									<Tag tone={watch('direction') === 'Outbound' ? 'outbound' : 'inbound'}>
+									<Tag className={styles.badge} tone={watch('direction') === 'Outbound' ? 'outbound' : 'inbound'}>
 										{watch('direction')}
 									</Tag>
 								)}
@@ -471,8 +474,8 @@ export default function CampaignDetailPage() {
 								<div className="space-y-4 pt-3 border-t" style={{ borderColor: 'var(--n-border)' }}>
 									<div className="grid grid-cols-2 gap-3">
 										<div>
-											<Label>TCH Point of Contact *</Label>
-											<Input placeholder="TCH person handling this deal" {...reg('tch_poc', required)} />
+											<Label>Responsible team member</Label>
+											<ResponsibleMemberSelect {...reg('responsible_member_id')} />
 											{errors.tch_poc && <p className="text-[12px] mt-0.5 text-red-600">Required</p>}
 										</div>
 										<div>
@@ -513,7 +516,7 @@ export default function CampaignDetailPage() {
 								<h2 className="text-[16px] font-semibold text-[var(--n-fg)]">Creator Splits</h2>
 								<p className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
 									{shares.fields.length > 0
-										? `Multiple creators configured. Combined split: ₹${inr(splitTotal)}`
+										? `Multiple creators configured. Combined split: ₹${inr(splitTotal) || '0'}`
 										: 'Configure the creator fee and agency splits for this campaign.'}
 								</p>
 							</div>
@@ -538,13 +541,13 @@ export default function CampaignDetailPage() {
 						)}
 
 						{/* Grid of Creator Cards */}
-						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div className={shares.fields.length ? styles.splitGrid : styles.singleSplit}>
 							{/* Primary Creator Card */}
 							{!isEditing ? (
 								<div className="rounded-xl border p-4 flex flex-col justify-between space-y-3 transition-all" style={{ background: 'var(--n-bg)', borderColor: 'var(--n-border)' }}>
 									<div className="flex items-center justify-between border-b pb-2" style={{ borderColor: 'var(--n-border)' }}>
 										<span className="text-[11px] font-semibold uppercase tracking-wider text-[var(--n-fg-subtle)]">Primary Creator</span>
-										<Tag tone="accent">Primary</Tag>
+										<Tag className={styles.badge} tone="accent">Primary</Tag>
 									</div>
 									<div>
 										<p className="text-[15px] font-semibold" style={{ color: 'var(--n-fg)' }}>
@@ -590,7 +593,7 @@ export default function CampaignDetailPage() {
 									</div>
 									<div className="grid grid-cols-2 gap-3">
 										<div>
-											<Label>Their Fee (₹) *</Label>
+											<Label>Gross creator fee (₹) *</Label>
 											<Input
 												type="number"
 												step="0.01"
@@ -615,14 +618,16 @@ export default function CampaignDetailPage() {
 									</div>
 									<div className="pt-2 border-t grid grid-cols-2 gap-3" style={{ borderColor: 'var(--n-border)' }}>
 										<div>
-											<Label>Net Payout (Creator Fee) *</Label>
+											<Label>Net payout (editable) *</Label>
 											<Input
 												type="number"
 												step="0.01"
 												placeholder="0.00"
-												{...register('creator_fee', { ...required, onChange: recomputeFromCreatorFee })}
+												className={styles.calculatedInput}
+                                            {...register('creator_fee', { ...required, onChange: recomputeFromCreatorFee })}
 											/>
-											{errors.creator_fee && <p className="text-[12px] mt-0.5 text-red-600">Required</p>}
+											<p className={styles.fieldHint}>Calculated from fee and agency %. You can adjust this amount.</p>
+                                            {errors.creator_fee && <p className="text-[12px] mt-0.5 text-red-600">Required</p>}
 										</div>
 										<div>
 											<Label>RO Number</Label>
@@ -719,9 +724,11 @@ export default function CampaignDetailPage() {
 											<button
 												type="button"
 												onClick={() => shares.remove(i)}
-												className="h-6 w-6 inline-flex items-center justify-center rounded hover:bg-red-50 text-red-600 transition-colors"
+												className={styles.removeSplit}
+                                                aria-label={`Remove split partner ${i + 1}`}
+                                                title="Remove creator split"
 											>
-												<Icon name="x" size={14} />
+												<Icon name="trash" size={16} />
 											</button>
 										</div>
 										<div>
@@ -731,7 +738,7 @@ export default function CampaignDetailPage() {
 										</div>
 										<div className="grid grid-cols-2 gap-3">
 											<div>
-												<Label>Their Fee (₹) *</Label>
+												<Label>Gross creator fee (₹) *</Label>
 												<Input
 													type="number"
 													step="0.01"
@@ -753,14 +760,16 @@ export default function CampaignDetailPage() {
 										</div>
 									<div className="pt-2 border-t grid grid-cols-2 gap-3" style={{ borderColor: 'var(--n-border)' }}>
 											<div>
-												<Label>Net Payout (Creator Fee) *</Label>
+												<Label>Net payout (editable) *</Label>
 												<Input
 													type="number"
 													step="0.01"
 													placeholder="0.00"
-													{...register(`shares.${i}.creator_fee`, { required: 'Required', onChange: recomputeSharePctFromCreatorFee })}
+													className={styles.calculatedInput}
+                                                {...register(`shares.${i}.creator_fee`, { required: 'Required', onChange: recomputeSharePctFromCreatorFee })}
 												/>
-												{errors.shares?.[i]?.creator_fee && <p className="text-[12px] mt-0.5 text-red-600">Required</p>}
+												<p className={styles.fieldHint}>Calculated from fee and agency %. You can adjust this amount.</p>
+                                                {errors.shares?.[i]?.creator_fee && <p className="text-[12px] mt-0.5 text-red-600">Required</p>}
 											</div>
 											<div>
 												<Label>RO Number</Label>
@@ -783,12 +792,12 @@ export default function CampaignDetailPage() {
 
 				{/* Actions Panel */}
 				{isEditing && (
-					<div className="border-t pt-4 flex items-center justify-between gap-3" style={{ borderColor: 'var(--n-border)' }}>
+					<div className={styles.saveBar} style={{ borderColor: 'var(--n-border)' }}>
 						{hasDuplicateCreator ? (
 							<p className="text-[12.5px] text-red-600 font-semibold flex items-center gap-1.5">
 								<Icon name="alert-circle" size={15} /> Duplicate creators selected. Each split row must be unique.
 							</p>
-						) : <div />}
+						) : <span className={styles.fieldHint}>{Object.keys(dirtyFields).length ? 'Unsaved changes' : 'No changes yet'}</span>}
 						<div className="flex items-center gap-3">
 							<Button type="button" variant="outline" onClick={() => { setIsEditing(false); reset({ ...initialForm, shares: initialShares }); }}>
 								Cancel
