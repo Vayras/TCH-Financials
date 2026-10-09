@@ -21,6 +21,7 @@ const FIELDS = {
   e_invoice_date: 'eInvoiceDate',
   creator: 'creatorId',
   tch_poc: 'tchPoc',
+  responsible_member_id: 'responsibleMemberId',
   agency_commission_agreed: 'agencyCommissionAgreed',
   direction: 'direction',
   total_fee: 'totalFee',
@@ -56,7 +57,6 @@ const FIELDS = {
 const REQUIRED: Record<string, string> = {
   confirmation_date: 'Confirmation Date',
   direction: 'Direction',
-  tch_poc: 'TCH POC',
   brand: 'Brand',
   brand_poc: 'POC Email',
   campaign: 'Campaign',
@@ -207,7 +207,7 @@ export class DealsController {
         }
       : {};
     const missing = Object.entries(REQUIRED)
-      .filter(([field]) => isBlank(field in body ? body[field] : instanceWire[field]))
+      .filter(([field]) => !(field === 'tch_poc' && body.responsible_member_id) && isBlank(field in body ? body[field] : instanceWire[field]))
       .map(([, label]) => label);
     if (missing.length) {
       throw new BadRequestException({
@@ -215,6 +215,16 @@ export class DealsController {
           `Please fill required campaign fields: ${missing.join(', ')}. ` +
           'Client Invoice and Creator Invoice sections are optional.',
       });
+    }
+
+    if ('responsible_member_id' in body) {
+      const id = body.responsible_member_id;
+      if (id !== null && id !== '') {
+        if (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new BadRequestException('Invalid responsible member.');
+        const [member] = await manager.query("SELECT id,display_name,email FROM tch_profile WHERE id=$1 AND status='approved' AND role IN ('super_admin','tch_member')", [id]);
+        if (!member) throw new BadRequestException('Choose an approved team member.');
+        body.tch_poc = member.display_name || member.email;
+      } else body.responsible_member_id = null;
     }
 
     const shares = body.creator_shares as SharePayload[] | undefined;
