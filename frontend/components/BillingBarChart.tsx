@@ -13,8 +13,8 @@ export interface BillingBarChartProps {
 }
 
 const config: ChartConfig = {
-	emw: { label: 'EMW retained', color: 'var(--chart-emw)' },
-	external: { label: 'Third-party payouts', color: 'var(--chart-external)' },
+	emw: { label: 'EMW bookings', color: 'var(--chart-emw)' },
+	external: { label: 'Third-party bookings', color: 'var(--chart-external)' },
 	profit: { label: 'Agency margin', color: 'var(--chart-profit)' }
 };
 
@@ -27,7 +27,7 @@ export default function BillingBarChart({ cols, totals, emw, profits }: BillingB
 		const retained = Math.min(amount(emw[col.key]), total);
 		return { label: col.key.startsWith('Q') ? col.key : col.label.replace(' 20', ' '), emw: retained, external: Math.max(0, total - retained), profit: amount(profits[col.key]) };
 	});
-	if (!data.some((row) => row.emw || row.external || row.profit)) return <div className="rounded-lg border border-dashed border-[var(--app-border)] p-8 text-center text-xs text-[var(--app-muted)]">No invoiced billing in this period yet.</div>;
+	if (!data.some((row) => row.emw || row.external || row.profit)) return <div className="rounded-lg border border-dashed border-[var(--app-border)] p-8 text-center text-xs text-[var(--app-muted)]">No bookings in this period yet.</div>;
 	return <ChartContainer config={config} className="h-[300px]">
 		<ResponsiveContainer width="100%" height="100%">
 			<BarChart data={data} margin={{ top: 12, right: 8, bottom: 4, left: 8 }}>
@@ -36,8 +36,8 @@ export default function BillingBarChart({ cols, totals, emw, profits }: BillingB
 				<YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: 'var(--app-muted)' }} tickFormatter={compact} width={48} />
 				<Tooltip content={<ChartTooltipContent />} cursor={{ fill: 'var(--app-surface-muted)' }} formatter={(value: unknown) => compact(Number(value) || 0)} />
 				<Legend iconType="circle" wrapperStyle={{ fontSize: 12, color: 'var(--app-muted)' }} />
-				<Bar dataKey="emw" name="EMW retained" stackId="billing" fill="var(--chart-emw)" radius={[0, 0, 3, 3]} />
-				<Bar dataKey="external" name="Third-party payouts" stackId="billing" fill="var(--chart-external)" radius={[3, 3, 0, 0]} />
+				<Bar dataKey="emw" name="EMW bookings" stackId="billing" fill="var(--chart-emw)" radius={[0, 0, 3, 3]} />
+				<Bar dataKey="external" name="Third-party bookings" stackId="billing" fill="var(--chart-external)" radius={[3, 3, 0, 0]} />
 				<Bar dataKey="profit" name="Agency margin" fill="var(--chart-profit)" radius={[3, 3, 0, 0]} />
 			</BarChart>
 		</ResponsiveContainer>
