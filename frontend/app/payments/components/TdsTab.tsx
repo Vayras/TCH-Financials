@@ -1,4 +1,5 @@
 import React from 'react';
+import styles from '../payments.module.css';
 import type { ColumnDef } from '@tanstack/react-table';
 import Icon from '@/components/ui/Icon';
 import Button from '@/components/ui/Button';
@@ -25,19 +26,19 @@ export function TdsTab({
 	return (
 		<div className="space-y-4 anim-fade-up">
 			<div className="flex flex-wrap items-center justify-between gap-3">
-				<div className="flex bg-[var(--n-bg-soft)] p-1 rounded-lg border border-[var(--n-border)]">
+				<div className={styles.filters}>
 					{(['All', 'Pending', 'Remitted'] as const).map((statusOption) => (
 						<button
 							key={statusOption}
 							onClick={() => setTdsStatusFilter(statusOption)}
-							className={`px-3 py-1 text-[12px] font-medium rounded-md transition-colors duration-100 ${tdsStatusFilter === statusOption ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}
+							aria-pressed={tdsStatusFilter === statusOption}
 						>
 							{statusOption}
 						</button>
 					))}
 				</div>
 
-				<Button variant="primary" onClick={() => setTdsOpen(true)}>
+				<Button className={styles.actionButton} variant="primary" onClick={() => setTdsOpen(true)}>
 					<Icon name="plus" size={14} /> Add TDS Entry
 				</Button>
 			</div>
