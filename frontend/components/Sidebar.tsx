@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Icon from '@/components/ui/Icon';
+import Dialog from '@/components/ui/Dialog';
 import { FiscalYearProvider, useFiscalYear, fyLabel } from '@/lib/fiscal-year';
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuth } from './AuthGuard';
@@ -25,7 +26,7 @@ const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
 	creator: { bg: '#581c87', color: '#f3e8ff' },
 };
 
-function UserFooter({ collapsed }: { collapsed: boolean }) {
+function UserFooter({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
 	const { email, role, displayName } = useAuth();
 	const [isChangePasswordOpen, setIsChangePasswordOpen] = React.useState(false);
 	const [menuOpen, setMenuOpen] = React.useState(false);
@@ -53,7 +54,7 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
 		return () => document.removeEventListener('mousedown', handle);
 	}, [menuOpen]);
 
-	if (!isSupabaseConfigured()) return null;
+	const accountActionsAvailable = isSupabaseConfigured();
 
 	async function signOut() {
 		await getSupabase().auth.signOut();
@@ -64,13 +65,17 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
 		<>
 			<div
 				ref={menuRef}
-				className="relative shrink-0"
+				className="sidebar-profile relative shrink-0"
 				style={{ borderTop: '1px solid var(--n-border)' }}
 			>
-				{/* Profile trigger div */}
-				<div
+				{/* Account summary remains visible in local development too. */}
+				<button
+					type="button"
+					disabled={!accountActionsAvailable}
+					aria-expanded={accountActionsAvailable ? menuOpen : undefined}
+					aria-label={`Account: ${label}, ${ROLE_LABELS[role] ?? role}`}
 					onClick={() => setMenuOpen((o) => !o)}
-					className="w-full flex items-center justify-between gap-2.5 px-3 py-2.5 transition-colors duration-100 active:scale-[0.985] cursor-pointer"
+					className="sidebar-profile-trigger w-full flex items-center justify-between gap-2.5 px-3 py-3 text-left transition-colors duration-100 active:scale-[0.985] cursor-pointer disabled:cursor-default"
 					style={{ color: 'var(--n-fg)' }}
 					onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--n-bg-hover)')}
 					onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
@@ -79,21 +84,21 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
 					<div className="flex items-center gap-2.5 min-w-0">
 						{/* Avatar */}
 						<div
-							className="h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 select-none"
+							className="h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 select-none"
 							style={{ background: roleStyle.bg, color: roleStyle.color }}
 						>
 							{initials}
 						</div>
 
 						{!collapsed && (
-							<div className="flex flex-col gap-0 min-w-0">
-								<div className="text-[10px] font-medium truncate" style={{ color: 'var(--n-fg)' }}>
+							<div className="sidebar-profile-copy flex flex-col gap-0.5 min-w-0">
+								<div className="text-[12px] font-semibold truncate" style={{ color: 'var(--n-fg)' }}>
 									{label}
 								</div>
 								<div
-									className="text-[10px] font-semibold 
+									className="text-[10px] font-semibold
 									inline-block"
-									style={{ color: roleStyle.bg }}
+									style={{ color: 'var(--n-accent)' }}
 								>
 									{ROLE_LABELS[role] ?? role}
 								</div>
@@ -101,10 +106,10 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
 						)}
 					</div>
 
-					{!collapsed && (
+					{!collapsed && accountActionsAvailable && (
 						<Icon name="more-horizontal" size={13} style={{ color: 'var(--n-fg-subtle)', flexShrink: 0 }} />
 					)}
-				</div>
+				</button>
 
 				{/* Popover menu — anchored above the footer */}
 				{menuOpen && (
@@ -147,7 +152,7 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
 						<div className="pt-1">
 							<Link
 								href="/profile"
-								onClick={() => setMenuOpen(false)}
+								onClick={() => { setMenuOpen(false); onNavigate?.(); }}
 								className="w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors"
 								style={{ color: 'var(--n-fg-subtle)' }}
 								onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--n-bg-hover)')}
@@ -198,51 +203,10 @@ function UserFooter({ collapsed }: { collapsed: boolean }) {
 
 function GlobalFySelect() {
 	const { fyStart, setFyStart, fyOptions } = useFiscalYear();
-	// fyStart is null until the client useEffect runs — render a disabled skeleton to avoid layout shift.
-	if (fyStart === null) {
-		return (
-			<label className="ml-auto flex items-center gap-1.5">
-				<span
-					className=" font-medium uppercase"
-
-					style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em', fontSize: 12 }}
-				>
-					Fiscal Year
-				</span>
-				<select
-					style={{ fontSize: 12 }}
-					disabled className="h-7 rounded px-2 pr-7 opacity-40 bg-[var(--n-bg-soft)] border border-[var(--n-border)]" />
-			</label>
-		);
-	}
-	return (
-		<label className="ml-auto flex items-center gap-1.5">
-			<span
-				className=" font-medium uppercase"
-				style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em', fontSize: 12 }}
-			>
-				Fiscal Year
-			</span>
-			<select
-				className="h-7 rounded px-2 pr-7 appearance-none bg-no-repeat bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] hover:border-[var(--n-border-strong)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
-				style={{
-					backgroundImage:
-						"url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2337352f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>\")",
-					backgroundPosition: 'right 6px center',
-					backgroundSize: '12px 12px',
-					fontSize: 12
-				}}
-				value={fyStart}
-				onChange={(e) => setFyStart(Number(e.target.value))}
-			>
-				{fyOptions.map((y) => (
-					<option key={y} value={y}>
-						{fyLabel(y)}
-					</option>
-				))}
-			</select>
-		</label>
-	);
+	return <select aria-label="Fiscal year" className="header-year" disabled={fyStart === null} value={fyStart ?? ''} onChange={e => setFyStart(Number(e.target.value))}>
+		{fyStart === null && <option value="">Fiscal year</option>}
+		{fyOptions.map(year => <option key={year} value={year}>{fyLabel(year)}</option>)}
+	</select>;
 }
 
 const NAV = [
@@ -251,7 +215,7 @@ const NAV = [
 	{ href: '/payments', label: 'Payments', icon: 'credit-card' },
 	{ href: '/creators', label: 'Creators', icon: 'users' },
 	{ href: '/alerts', label: 'Alerts', icon: 'bell' },
-	{ href: '/employees', label: 'Employees', icon: 'user-cog' },
+	{ href: '/employees', label: 'Team reports', icon: 'user-cog' },
 	{ href: '/entity-summary', label: 'Entity Summary', icon: 'layers' }
 ];
 
@@ -263,6 +227,8 @@ function isActiveHref(pathname: string, href: string) {
 export function Sidebar({ children }: { children: React.ReactNode }) {
 	const pathname = usePathname() ?? '/';
 	const [collapsed, setCollapsed] = React.useState(false);
+	const [mobileOpen, setMobileOpen] = React.useState(false);
+	const mobileTrigger = React.useRef<HTMLButtonElement>(null);
 	const { role } = useAuth();
 
 	const filteredNav = React.useMemo(() => {
@@ -284,66 +250,12 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 	}, [role]);
 
 	const current = filteredNav.find((n) => isActiveHref(pathname, n.href));
-	const currentLabel = current?.label ?? 'TCH';
+	const currentLabel = pathname.startsWith('/campaigns/') ? 'Campaigns' : current?.label ?? 'TCH';
 
-	return (
-		<FiscalYearProvider>
-			<div className="flex min-h-screen" style={{ background: 'var(--n-bg)' }}>
-				<aside
-					className="app-sidebar sticky top-0 self-start h-screen flex flex-col shrink-0 overflow-hidden transition-[width] duration-150 ease-out z-30"
-					style={{
-						background: 'var(--n-bg-sidebar)',
-						borderRight: '1px solid var(--n-border)',
-						width: collapsed ? '52px' : '240px'
-					}}
-				>
-					<div
-						className="flex items-center justify-between px-3 h-11 shrink-0"
-						style={{ borderBottom: '1px solid var(--n-border)' }}
-					>
-						{!collapsed ? (
-							<div className="flex items-center gap-2 min-w-0">
-								<div
-									className="h-6 w-6 rounded flex items-center justify-center text-[12px] font-semibold shadow-sm"
-									style={{ background: 'var(--n-fg)', color: 'var(--n-bg)', boxShadow: '0 2px 4px rgba(0,0,0,0.12)' }}
-								>
-									T
-								</div>
-								<div className="flex flex-col min-w-0 leading-none">
-									<span className="text-[12px] font-bold truncate" style={{ color: 'var(--n-fg)' }}>
-										{role === 'super_admin' ? 'TCH MIS' : role === 'accounts' ? 'TCH Financials' : 'TCH Commercial'}
-									</span>
-									<span className="text-[9px] font-semibold uppercase tracking-wider mt-0.5" style={{ color: 'var(--n-fg-subtle)' }}>
-										{role === 'super_admin' ? 'Super Admin' : role === 'accounts' ? 'Accounts & Ledger' : 'Operations'}
-									</span>
-								</div>
-							</div>
-						) : (
-							<div
-								className="h-6 w-6 shrink-0 rounded flex items-center justify-center text-[12px] font-semibold leading-none shadow-sm"
-								style={{ background: 'var(--n-fg)', color: 'var(--n-bg)', boxShadow: '0 2px 4px rgba(0,0,0,0.12)' }}
-							>
-								T
-							</div>
-						)}
-						<button
-							type="button"
-							className="h-6 w-6 inline-flex items-center justify-center rounded transition-colors"
-							style={{ color: 'var(--n-fg-subtle)' }}
-							aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-							onClick={() => setCollapsed((c) => !c)}
-							onMouseEnter={(e) =>
-								(e.currentTarget.style.background = 'var(--n-bg-hover)')
-							}
-							onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-						>
-							<Icon name={collapsed ? 'chevron-right' : 'chevrons-left'} size={14} />
-						</button>
-					</div>
-
-					<nav className="flex-1 overflow-y-auto py-2">
+	const renderNavigation = (expanded: boolean) => (
+					<nav aria-label="Main navigation" className="flex-1 overflow-y-auto py-4">
 						<div className="px-2 pb-1">
-							{!collapsed && (
+							{expanded && (
 								<div
 									className="text-[11px] font-medium uppercase tracking-wider px-2 pb-1.5 pt-1"
 									style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.06em' }}
@@ -357,22 +269,77 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 									<Link
 										key={item.href}
 										href={item.href}
+										onClick={() => setMobileOpen(false)}
 										className={cn(
 											'nav-item',
 											active && 'active',
-											collapsed && 'justify-center'
+											!expanded && 'justify-center'
 										)}
-										title={collapsed ? item.label : undefined}
+										aria-label={item.label}
+										aria-current={active ? 'page' : undefined}
+										title={item.label}
 									>
 										<span className="nav-icon">
 											<Icon name={item.icon} />
 										</span>
-										{!collapsed && <span className="truncate">{item.label}</span>}
+										{expanded && <span className="truncate">{item.label}</span>}
 									</Link>
 								);
 							})}
 						</div>
 					</nav>
+	);
+
+	return (
+		<FiscalYearProvider>
+			<div className="flex min-h-screen" style={{ background: 'var(--n-bg)' }}>
+				<aside
+					className="app-sidebar sticky top-0 self-start h-screen flex flex-col shrink-0 overflow-visible transition-[width] duration-150 ease-out z-30"
+					style={{
+						background: 'var(--n-bg-sidebar)',
+						borderRight: '1px solid var(--n-border)',
+						width: collapsed ? '64px' : '240px'
+					}}
+				>
+					<div
+						className={cn("sidebar-brand-row flex items-center justify-between h-11 shrink-0", collapsed ? "px-1 justify-center" : "px-3")}
+						style={{ borderBottom: '1px solid var(--n-border)' }}
+					>
+						{!collapsed ? (
+							<div className="flex items-center gap-2 min-w-0">
+								<div
+									className="sidebar-mark h-6 w-6 rounded flex items-center justify-center text-[12px] font-semibold"
+									style={{ background: '#6554c0', color: '#ffffff' }}
+								>
+									T
+								</div>
+								<div className="flex flex-col min-w-0 leading-none">
+									<span className="text-[12px] font-bold truncate" style={{ color: 'var(--n-fg)' }}>
+										TCH Financials
+									</span>
+
+								</div>
+							</div>
+						) : (
+							<div
+								className="sidebar-mark h-6 w-6 shrink-0 rounded flex items-center justify-center text-[12px] font-semibold leading-none"
+								style={{ background: '#6554c0', color: '#ffffff' }}
+							>
+								T
+							</div>
+						)}
+						<button
+							type="button"
+							className="sidebar-collapse inline-flex items-center justify-center transition-colors"
+							style={{ color: 'var(--n-fg-subtle)' }}
+							aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+							onClick={() => setCollapsed((c) => !c)}
+						>
+							<Icon name={collapsed ? 'chevron-right' : 'chevron-left'} size={14} />
+						</button>
+					</div>
+
+					{renderNavigation(!collapsed)}
 
 					<UserFooter collapsed={collapsed} />
 				</aside>
@@ -385,15 +352,8 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 							borderBottom: '1px solid var(--n-border)'
 						}}
 					>
-						<span className="inline-flex items-center" style={{ color: 'var(--n-fg-subtle)' }}>
-							<Icon name="home" size={14} />
-						</span>
-						<span className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
-							/
-						</span>
-						<span className="text-[12px] font-medium" style={{ color: 'var(--n-fg)' }}>
-							{currentLabel}
-						</span>
+						<button ref={mobileTrigger} className="mobile-menu-trigger" type="button" aria-label="Open navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}><Icon name="menu" size={20} /></button>
+						<span className="header-page-name">{currentLabel}</span>
 						<GlobalFySelect />
 					</header>
 
@@ -402,6 +362,10 @@ export function Sidebar({ children }: { children: React.ReactNode }) {
 					</main>
 				</div>
 			</div>
+			<Dialog open={mobileOpen} onOpenChange={setMobileOpen} title="TCH Financials" className="mobile-navigation-dialog app-sidebar" onCloseAutoFocus={event => { event.preventDefault(); mobileTrigger.current?.focus(); }}>
+				{renderNavigation(true)}
+				<UserFooter collapsed={false} onNavigate={() => setMobileOpen(false)} />
+			</Dialog>
 		</FiscalYearProvider>
 	);
 }
