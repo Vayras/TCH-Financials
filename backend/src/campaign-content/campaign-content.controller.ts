@@ -42,6 +42,8 @@ export class CreatorCampaignBriefController {
   constructor(private readonly service:CampaignContentService) {}
   @Get() @Header('Cache-Control','private, no-store')
   list(@Req() r:ActorRequest,@Query('page') page?:string,@Query('page_size') size?:string) {return this.service.listCreatorBriefs(r.user,...pagination(page,size));}
+  @Get('home') @Header('Cache-Control','private, no-store')
+  home(@Req() r:ActorRequest) {return this.service.creatorHome(r.user);}
   @Get(':id') @Header('Cache-Control','private, no-store')
   get(@Req() r:ActorRequest,@Param('id') id:string) {return this.service.getCreatorBrief(r.user,id);}
   @Get(':id/content-references') references(@Req() r:ActorRequest,@Param('id') id:string) {return this.service.listCreatorReferences(r.user,id);}

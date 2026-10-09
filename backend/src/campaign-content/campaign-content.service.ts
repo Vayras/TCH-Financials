@@ -112,6 +112,17 @@ export class CampaignContentService {
     const items=await this.db.query(`SELECT c.id::text,c.name,c.brand,r.draft_version AS shared_version,r.shared_at FROM tch_campaign_brief_creator a JOIN tch_campaign c ON c.id=a.campaign_id JOIN tch_campaign_brief b ON b.campaign_id=c.id JOIN tch_campaign_brief_revision r ON r.id=b.shared_revision_id WHERE a.creator_id=$1 ORDER BY r.shared_at DESC,c.id LIMIT $2 OFFSET $3`,[creator,pageSize+1,(page-1)*pageSize]);
     return {items:items.slice(0,pageSize),has_more:items.length>pageSize,page};
   }
+  async creatorHome(actor: CampaignActor) {
+    const creator=await this.policy.requireCreator(this.db.manager,actor);
+    const items=await this.db.query(`SELECT c.id::text,c.name,c.brand,r.shared_at,r.content->'deliverables' AS deliverables,
+      COALESCE((SELECT jsonb_agg(jsonb_build_object('id',x.id,'state',x.state,'title',cr.content->>'title'))
+      FROM tch_content_concept x LEFT JOIN tch_content_concept_revision cr ON cr.id=x.current_revision
+      WHERE x.campaign_id=c.id AND x.creator_id=$1),'[]'::jsonb) AS concepts
+      FROM tch_campaign_brief_creator a JOIN tch_campaign c ON c.id=a.campaign_id
+      JOIN tch_campaign_brief b ON b.campaign_id=c.id JOIN tch_campaign_brief_revision r ON r.id=b.shared_revision_id
+      WHERE a.creator_id=$1 ORDER BY r.shared_at DESC,c.id LIMIT 51`,[creator]);
+    return {items:items.slice(0,50),has_more:items.length>50};
+  }
   async getCreatorBrief(actor: CampaignActor,id: string) {
     campaignId(id);const creator=await this.policy.requireCreator(this.db.manager,actor);
     const [row]=await this.db.query(`SELECT c.id::text,c.name,c.brand,r.id AS shared_revision_id,r.draft_version AS shared_version,r.shared_at,r.content FROM tch_campaign_brief_creator a JOIN tch_campaign c ON c.id=a.campaign_id JOIN tch_campaign_brief b ON b.campaign_id=c.id JOIN tch_campaign_brief_revision r ON r.id=b.shared_revision_id WHERE a.creator_id=$1 AND c.id=$2`,[creator,id]);
