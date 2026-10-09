@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { toast } from 'sonner';
-import PageHeader from '@/components/PageHeader';
+import styles from './alerts.module.css';
 import { type AlertItem } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
@@ -14,7 +14,6 @@ import {
 import { type AlertsState, type AlertSectionKey, type AlertFilterKey } from '@/lib/types';
 import {
 	ORDER,
-	filterLabel,
 	AlertsDashboardView
 } from './components';
 
@@ -63,17 +62,6 @@ export default function AlertsPage() {
 
 	const alerts = pageState.kind === 'ok' ? pageState.data : null;
 
-	const totalCount = React.useMemo(() => {
-		if (!alerts) return 0;
-		return (
-			alerts.counts.urgent +
-			alerts.counts.payments +
-			alerts.counts.bd +
-			alerts.counts.health +
-			alerts.counts.docs +
-			alerts.counts.seasonal
-		);
-	}, [alerts]);
 
 	function listFor(key: AlertSectionKey): AlertItem[] {
 		if (!alerts) return [];
@@ -85,11 +73,8 @@ export default function AlertsPage() {
 	}
 
 	return (
-		<section className="space-y-6">
-			<PageHeader eyebrow="Workspace · Alerts" title="Intelligence Alerts" description={<span className="block max-w-2xl">
-					Formula-derived signals from Commercial Tracking, Creators, and Documents. No AI — just
-					thresholds applied to the live database, recomputed on every load.
-				</span>} />
+		<section className={styles.workspace}>
+			<header className={styles.header}><h1>Alerts & reminders</h1><p>Resolve outstanding issues and plan your next campaigns.</p></header>
 
 			<div
 				className="flex flex-wrap items-center gap-2 pb-3"
@@ -109,19 +94,19 @@ export default function AlertsPage() {
 					{alerts && (
 						<Button
 							variant="ghost"
-							disabled={busy}
+							disabled={busy || !ORDER.filter(k => (k === 'bd' || k === 'seasonal') && shouldShow(k)).some(k => listFor(k).length)}
 							onClick={() =>
 								dismiss(
-									ORDER.filter((k) => shouldShow(k))
+									ORDER.filter((k) => (k === 'bd' || k === 'seasonal') && shouldShow(k))
 										.flatMap((k) => listFor(k))
 										.map((it) => it.key)
 								)
 							}
 						>
-							<Icon name="x" size={14} /> Clear {activeSection === 'all' ? 'all' : filterLabel(activeSection)}
+							<Icon name="x" size={14} /> Dismiss opportunities
 						</Button>
 					)}
-					<Button variant="ghost" onClick={() => refetch()}>
+					<Button variant="outline" disabled={isLoading||busy} onClick={() => refetch()}>
 						<Icon name="refresh" size={14} /> Refresh
 					</Button>
 				</div>
@@ -141,13 +126,10 @@ export default function AlertsPage() {
 			) : (
 				<AlertsDashboardView
 					payload={pageState.data}
-					totalCount={totalCount}
 					activeSection={activeSection}
 					setActiveSection={setActiveSection}
 					busy={busy}
 					dismiss={dismiss}
-					listFor={listFor}
-					shouldShow={shouldShow}
 				/>
 			)}
 		</section>
