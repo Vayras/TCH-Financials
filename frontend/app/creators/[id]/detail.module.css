@@ -1,0 +1,66 @@
+.workspace { --n-accent:#6554c0; --n-accent-hover:#5545a8; --n-fg:#302a42; --n-fg-muted:#70677f; --n-border:#e9e4f0; --app-border:#e9e4f0; --app-muted:#81768e; --app-brand:#6554c0; --app-brand-soft:#efebfa; --chart-emw:#6554c0; --app-warning:#b88b45; font-family:'Host Grotesk Variable',system-ui,sans-serif; display:grid; gap:22px; min-width:0; }
+.profileHeader {display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:20px; border:1px solid #e9e4f0; border-radius:14px; padding:22px; background:#fff;}
+.profileIdentity {display:flex; align-items:center; gap:16px; min-width:0;}
+.avatar {width:56px; height:56px; display:grid; place-items:center; flex-shrink:0; border-radius:16px; background:#efebfa; color:#6554c0; font-size:18px; font-weight:600;}
+.profileHeader h1 {font-size:26px; font-weight:600; letter-spacing:-.6px; margin:0;}
+.profileNote {font-size:12px; color:#81768e; margin:10px 0 0;}
+.actions {display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+.workspace .actions button, .workspace .actions select {height:36px; font-size:12px; border-radius:8px; padding:0 12px; box-shadow:none;}
+.metrics {display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px;}
+.metrics > div {border-radius:12px; padding:16px;}
+.metrics > div > div:first-child {font-size:11px; text-transform:none; letter-spacing:0;}
+.metrics > div > div:last-child {font-size:22px; margin-top:10px;}
+.workspace h2 {font-size:16px; font-weight:600; line-height:1.4; letter-spacing:-.2px;}
+.workspace h3 {font-size:14px; font-weight:600; line-height:1.4;}
+.workspace section {border-radius:14px;}
+.workspace article {background:#faf9fd;}
+.profileDetails > div {background:#faf9fd; padding:14px;}
+.profileDetails > div > div:first-child {font-size:10px; text-transform:none; letter-spacing:0;}
+.profileDetails > div > div:last-child {font-size:12px;}
+@media(max-width:640px) { .workspace {gap:16px;} .profileHeader {padding:16px;} .profileIdentity {gap:12px;} .profileHeader h1 {font-size:23px;} .avatar {width:44px; height:44px; font-size:14px; border-radius:12px;} .metrics {grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px;} .metrics > div {padding:14px;} .metrics > div > div:last-child {font-size:20px;} .actions {width:100%;} .workspace .actions select {font-size:16px;} }
+
+.profileDetails {display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px;}
+@media(max-width:640px) { .profileDetails {grid-template-columns:repeat(2,minmax(0,1fr));} }
+
+.metrics > div > div:first-child div {text-transform:none; letter-spacing:0; font-size:11px;}
+.workspace .actions button,.workspace .actions select {height:34px;min-height:34px;line-height:18px;font-size:12px;padding:0 10px;}
+.workspace .actions select {padding-right:30px;background-repeat:no-repeat;}
+.workspace .actions button svg {width:14px;height:14px;flex-shrink:0;}
+.brandKit {border:1px solid #e9e4f0;padding:20px;background:white;}
+.brandKit > header {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;}
+.brandKit p {font-size:12px;line-height:1.6;color:#70677f;margin-top:5px;}
+.kitLink {display:inline-flex;align-items:center;min-height:34px;padding:6px 10px;border:1px solid #e9e4f0;border-radius:8px;font-size:12px;color:#6554c0;}
+.kitProfile {display:grid;grid-template-columns:minmax(0,1fr) minmax(180px,1fr);gap:24px;}
+.kitProfile small {display:block;font-size:11px;color:#81768e;margin-top:8px;}
+.biography {white-space:pre-wrap;max-width:640px;}
+.socials {display:flex;flex-wrap:wrap;gap:12px;}
+.socials article {border:1px solid #e9e4f0;border-radius:10px;padding:14px;flex:1;}
+.socials strong {display:block;font-size:24px;font-weight:600;}
+.socials span,.socials a {display:block;font-size:12px;margin-top:5px;}
+.socials a,.featured a {color:#6554c0;}
+.featured {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:20px;}
+.featured article {border:1px solid #e9e4f0;border-radius:10px;overflow:hidden;}
+.featured img,.postFallback {width:100%;height:180px;object-fit:cover;}
+.postFallback {display:grid;place-items:center;background:#efebfa;color:#6554c0;font-size:13px;}
+.featured article > div:last-child {padding:12px;font-size:12px;}
+.featured p {display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+.featured a {display:inline-block;margin-top:10px;}
+.kitEmpty {background:#faf9fd;border:1px solid #e9e4f0;border-radius:10px;padding:16px;font-size:13px;}
+@media(max-width:640px) {.brandKit {padding:16px;}.kitProfile {grid-template-columns:minmax(0,1fr);gap:16px;}.featured {grid-template-columns:repeat(2,minmax(0,1fr));}.workspace .actions select {font-size:16px;}}
+.activityHeader {display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:8px;border-top:1px solid #e9e4f0;}
+.activityHeader p {font-size:11px;color:#81768e;line-height:1.6;margin-top:5px;}
+.workDisclosure {margin-top:16px;border-top:1px solid #e9e4f0;padding-top:12px;}
+.workDisclosure summary {cursor:pointer;font-size:12px;font-weight:600;color:#6554c0;width:fit-content;}
+.workDisclosure summary span {margin-left:8px;font-size:11px;font-weight:400;color:#81768e;}
+.kitProfile {grid-template-columns:minmax(0,1.6fr) minmax(180px,1fr);gap:20px;}
+.socials article {flex:0 1 240px;}
+.thumbnail {height:140px;background:#efebfa;}
+.featured .thumbnail img {width:100%;height:100%;object-fit:cover;}
+.featured .postFallback {height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:8px;}
+.postFallback strong {font-size:12px;}
+.postFallback span {font-size:11px;color:#81768e;}
+.featured article > div:last-child {padding:12px;}
+.workspace .biography {display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+@media(max-width:640px) {.kitProfile {grid-template-columns:minmax(0,1fr);}.socials article {flex:1;}.featured {grid-template-columns:minmax(0,1fr);}.activityHeader .actions {width:auto;}}
+.workspace .profileDetails > div {border:0;background:transparent;padding:0 16px 0 0;}
+.profileDetails {gap:12px;padding:0 4px;}
