@@ -3,12 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/components/AuthGuard';
 import { api } from '@/lib/api';
 
-export function useBriefQuery<T>(path: string, enabled = true) {
+export function useBriefQuery<T>(path: string, enabled = true, refetchInterval: number | false = false) {
   const { email, role, creatorId } = useAuth();
   return useQuery<T>({
     queryKey: ['campaign-content', email, role, creatorId, path],
     queryFn: () => api.get<T>(path),
     enabled: enabled && Boolean(email),
+    refetchInterval,
     retry: false,
     staleTime: 0,
     gcTime: 0,

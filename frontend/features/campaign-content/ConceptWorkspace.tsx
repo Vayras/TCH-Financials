@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/components/AuthGuard';
 import Button from '@/components/ui/Button';
+import styles from './ConceptWorkspace.module.css';
 import { api } from '@/lib/api';
 import { useGenerateAiIdeasMutation, useExpandAiIdeaMutation, useBriefQuery, useCampaignReferences } from './queries';
 import { useSavedSnapshots, useSocialAccounts } from '@/app/creator-portal/kit-queries';
@@ -20,6 +21,7 @@ type Content = Record<(typeof fields)[number], string>;
 type Concept = {
   id: string;
   creator_id: string;
+  creator_name?: string;
   state: string;
   version: number;
   revision_id: string;
@@ -37,7 +39,7 @@ type History = {
   has_more: boolean;
   revisions: { id: string; content: Content; submitted_at: string | null; created_at: string }[];
   reviews: { revision_id: string; decision: string; message: string }[];
-  comments: { id: string; revision_id: string; section: string; message: string; visibility: string }[];
+  comments: { id: string; revision_id: string; section: string; message: string; visibility: string; created_at: string; author_name?: string }[];
 };
 const empty: Content = { title: '', hook: '', outline: '', script: '', cta: '', requirements: '' };
 
@@ -51,17 +53,19 @@ export default function ConceptWorkspace({
   displayedBriefId,
   mode = 'ideas',
   onGoToIdeas,
+  onGoToBrief,
 }: {
   campaignId: string;
   displayedBriefId?: string;
   mode?: 'ideas' | 'feedback';
   onGoToIdeas?: () => void;
+  onGoToBrief?: () => void;
 }) {
   const { email } = useAuth();
-  return <Workspace key={`${email}:${campaignId}:${mode}`} campaignId={campaignId} displayedBriefId={displayedBriefId} mode={mode} onGoToIdeas={onGoToIdeas} />;
+  return <Workspace key={`${email}:${campaignId}:${mode}`} campaignId={campaignId} displayedBriefId={displayedBriefId} mode={mode} onGoToIdeas={onGoToIdeas} onGoToBrief={onGoToBrief} />;
 }
 
-function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas }: { campaignId: string; displayedBriefId?: string; mode: 'ideas' | 'feedback'; onGoToIdeas?: () => void }) {
+function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas, onGoToBrief }: { campaignId: string; displayedBriefId?: string; mode: 'ideas' | 'feedback'; onGoToIdeas?: () => void; onGoToBrief?: () => void }) {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<Concept | 'new' | null>(null);
   const [selected, setSelected] = useState<Concept | null>(null);
@@ -118,6 +122,12 @@ function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas }: { campai
       setAiError(errorMessage(e));
     }
   };
+
+  useEffect(() => {
+    const conceptId=new URLSearchParams(window.location.search).get('concept');
+    const target=query.data?.items.find(item=>item.id===conceptId);
+    if(target) setSelected(target);
+  },[query.data]);
 
   if (query.isError)
     return (
@@ -190,7 +200,7 @@ function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas }: { campai
         </div>
       </div> : null}
 
-      {!data.brief_revision_id && <p className="text-sm">Share the campaign brief to start creating concepts.</p>}
+      {!data.brief_revision_id && (data.creator || visibleItems.length > 0) && <p className="text-sm">Share the campaign brief to start creating concepts.</p>}
       {editing ? (
         <ConceptEditor
           key={editing === 'new' ? 'new' : editing.id}
@@ -202,13 +212,13 @@ function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas }: { campai
         />
       ) : (
         <>
-          {!visibleItems.length && !(mode === 'ideas' && data.creator) ? (
+          {selected ? <Button onClick={()=>setSelected(null)}>← All concepts</Button> : !visibleItems.length && !(mode === 'ideas' && data.creator) ? (
             <div className="py-6 text-sm">
               {mode === 'feedback'
                 ? <><p className="font-medium">No feedback yet</p><p className="mt-1 text-[var(--n-fg-muted)]">Submit a concept to start a review.</p>{onGoToIdeas && <Button className="mt-3" onClick={onGoToIdeas}>Go to ideas</Button>}</>
                 : data.creator
                   ? 'No concepts yet. Write your own idea or get three starting points from this brief.'
-                  : 'Submitted concepts will appear here for review.'}
+                  : <><p className="font-medium">{data.brief_revision_id?'No concepts submitted yet':'Share a brief to get started'}</p><p className="mt-1 text-[var(--n-fg-muted)]">{data.brief_revision_id?'Creator submissions will appear here for review.':'Assign creators and share the saved brief so they can prepare their concepts.'}</p>{onGoToBrief&&<Button variant="outline" className="mt-3" onClick={onGoToBrief}>Go to brief</Button>}</>}
             </div>
           ) : mode === 'ideas' && data.creator ? null : (
             <ul className="divide-y">
@@ -218,7 +228,7 @@ function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas }: { campai
                     <p className="font-medium">{item.content.title || 'Untitled concept'}</p>
                     <p className="text-sm text-[var(--n-fg-muted)]">
                       {item.state === 'draft' ? 'Private draft' : item.state === 'submitted' ? 'Waiting for review' : item.state === 'changes_requested' ? 'Changes requested' : 'Approved for production'}
-                      {!data.creator ? ` · Creator ${item.creator_id}` : ''}
+                      {!data.creator ? ` · ${item.creator_name || 'Creator'}` : ''}
                       {item.stale_brief ? ' · Brief updated' : ''}
                     </p>
                   </div>
@@ -239,7 +249,7 @@ function Workspace({ campaignId, displayedBriefId, mode, onGoToIdeas }: { campai
               ))}
             </ul>
           )}
-          {!(mode === 'ideas' && data.creator) && (data.has_more || page > 1) && <div className="flex items-center gap-3">
+          {!selected && !(mode === 'ideas' && data.creator) && (data.has_more || page > 1) && <div className="flex items-center gap-3">
             <Button
               disabled={page === 1}
               onClick={() => {
@@ -450,21 +460,54 @@ function ConceptEditor({
   );
 }
 
-function ConceptDetail({item,creator,canApprove,path,onDone}:{item:Concept;creator:boolean;canApprove:boolean;path:string;onDone:()=>Promise<void>}){
+function ConceptDetail({item,creator,canApprove,path,onDone}:{item:Concept;creator:boolean;canApprove:boolean;path:string;onDone:()=>Promise<void>}) {
  const [historyPage,setHistoryPage]=useState(1);
- const history=useBriefQuery<History>(`${path}/${item.id}/history?page=${historyPage}`);
- const [message,setMessage]=useState(''),[section,setSection]=useState('general'),[internal,setInternal]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
- const perform=async(action:string)=>{setBusy(true);setError('');try{if(action==='comment'){await api.post(`${path}/${item.id}/comments`,{revision_id:item.revision_id,section,message,visibility:internal?'internal':'shared'});setMessage('');await history.refetch();}else{await api.post(`${path}/${item.id}/actions`,{version:item.version,revision_id:item.revision_id,action,message});await onDone();}}catch(e){setError(errorMessage(e));}finally{setBusy(false);}};
- return <div className="space-y-4 border-t pt-5"><h3 className="text-lg font-medium">{item.content.title||'Concept details'}</h3>{item.stale_brief&&<p className="rounded-lg bg-amber-50 p-3 text-sm">The campaign brief has changed. Update this concept before submitting or approving it.</p>}{!creator&&item.state==='draft'&&<p className="text-sm">The creator is preparing a new draft. This is their previous submission.</p>}
-  <dl className="space-y-3">{fields.filter(f=>item.content[f]).map(f=><div key={f}><dt className="text-sm text-[var(--n-fg-muted)]">{labels[f]}</dt><dd className="mt-1 whitespace-pre-wrap text-sm">{item.content[f]}</dd></div>)}</dl>
-  <label className="block text-sm">Feedback or review note<textarea value={message} onChange={e=>setMessage(e.target.value)} maxLength={4000} className="mt-1 w-full rounded-lg border p-3" rows={3}/></label>
-  <div className="flex flex-wrap items-center gap-3"><label className="text-sm">Section <select className="rounded border p-1" value={section} onChange={e=>setSection(e.target.value)}><option value="general">General</option>{fields.map(f=><option key={f} value={f}>{labels[f]}</option>)}</select></label>{!creator&&<label className="flex gap-2 text-sm"><input type="checkbox" checked={internal} onChange={e=>setInternal(e.target.checked)}/>Agency-only comment</label>}<Button disabled={busy||!message.trim()} onClick={()=>void perform('comment')}>Add comment</Button></div>
-  <div className="flex flex-wrap gap-2">{creator&&item.state==='draft'&&<Button disabled={busy||item.stale_brief} onClick={()=>void perform('submit')}>Submit for review</Button>}{!creator&&item.state==='submitted'&&<><Button disabled={busy||!message.trim()||internal} onClick={()=>void perform('changes_requested')}>Request changes</Button>{canApprove&&<Button disabled={busy||item.stale_brief||internal} onClick={()=>void perform('approved')}>Approve this revision</Button>}<p className="w-full text-xs">Review notes are shared with the creator.</p></>}</div>
-  {error&&<p role="alert" className="text-sm text-red-700">{error}</p>}
-  <details><summary className="cursor-pointer text-sm">Revision history & discussion</summary>{history.isError?<p role="alert">Could not load history.</p>:!history.data?<p>Loading history…</p>:<div className="mt-3 space-y-4">
-   {history.data.revisions.map(r=><article key={r.id} className="rounded-lg border p-3 text-sm"><p>{r.created_at.replace('T',' ').slice(0,19)} · {r.submitted_at?'Submitted':'Private draft'} · {r.id.slice(0,8)}</p><details className="mt-2"><summary>Read revision</summary>{fields.map(f=><p key={f} className="mt-2 whitespace-pre-wrap"><span className="font-medium">{labels[f]}: </span>{r.content[f]||'—'}</p>)}</details>{history.data!.reviews.filter(v=>v.revision_id===r.id).map(v=><p key={v.revision_id} className="mt-2">{v.decision.replaceAll('_',' ')} · {v.message}</p>)}</article>)}
-   <h4 className="text-sm font-medium">Comments</h4>{history.data.comments.map(c=><p key={c.id} className="rounded-lg border p-3 text-sm whitespace-pre-wrap">{c.visibility==='internal'?'Agency only · ':''}Revision {c.revision_id.slice(0,8)} · {c.section}: {c.message}</p>)}
-   <div className="flex gap-2"><Button disabled={historyPage===1} onClick={()=>setHistoryPage(historyPage-1)}>Newer history</Button><Button disabled={!history.data.has_more} onClick={()=>setHistoryPage(historyPage+1)}>Older history</Button></div>
-  </div>}</details>
+ const history=useBriefQuery<History>(`${path}/${item.id}/history?page=${historyPage}`,true,15000);
+ const [message,setMessage]=useState(''),[reviewNote,setReviewNote]=useState('');
+ const [section,setSection]=useState('general'),[internal,setInternal]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const perform=async(action:string)=>{
+  setBusy(true);setError('');
+  try {
+   if(action==='comment') {
+    await api.post(`${path}/${item.id}/comments`,{revision_id:item.revision_id,section,message,visibility:internal?'internal':'shared'});
+    setMessage('');setHistoryPage(1);await history.refetch();
+   } else {
+    await api.post(`${path}/${item.id}/actions`,{version:item.version,revision_id:item.revision_id,action,message:reviewNote});
+    await onDone();
+   }
+  } catch(e) {setError(errorMessage(e));} finally {setBusy(false);}
+ };
+ return <div className={styles.review}>
+  <header className={styles.header}><div><h3>{item.content.title||'Concept details'}</h3><p>{item.creator_name||'Creator'} · {item.state==='submitted'?'Waiting for review':item.state.replaceAll('_',' ')} · Current revision</p></div></header>
+  {item.stale_brief&&<p className={styles.notice}>The campaign brief has changed. Update this concept before submitting or approving it.</p>}
+  {!creator&&item.state==='draft'&&<p className={styles.notice}>The creator is preparing a new draft. You are viewing their previous submission.</p>}
+  <div className={styles.columns}>
+   <section className={styles.concept} aria-label="Concept content">
+    <dl>{fields.filter(f=>f!=='title'&&item.content[f]).map(f=><div key={f}><dt>{labels[f]}</dt><dd>{item.content[f]}</dd></div>)}</dl>
+    <details className={styles.revisions}><summary>Revision history</summary>
+     {history.isError?<p role="alert">Could not load revisions.</p>:!history.data?<p>Loading revisions…</p>:<>
+      {history.data.revisions.map(r=><article key={r.id}><p>{new Date(r.created_at).toLocaleString()} · {r.submitted_at?'Submitted':'Private draft'}</p><details><summary>Read revision</summary>{fields.map(f=><p key={f}><strong>{labels[f]}: </strong>{r.content[f]||'—'}</p>)}</details>{history.data!.reviews.filter(v=>v.revision_id===r.id).map(v=><p key={v.revision_id}>{v.decision.replaceAll('_',' ')} · {v.message}</p>)}</article>)}
+     </>}
+    </details>
+    <section className={styles.decision} aria-label="Review decision">
+     {creator&&item.state==='draft'&&<Button disabled={busy||item.stale_brief} onClick={()=>void perform('submit')}>Submit for review</Button>}
+     {!creator&&item.state==='submitted'&&<><h4>Review decision</h4><label>Note shared with the creator<textarea value={reviewNote} onChange={e=>setReviewNote(e.target.value)} maxLength={4000} rows={3} placeholder="Explain the changes needed, or leave an approval note."/></label><div className={styles.actions}><Button disabled={busy||!reviewNote.trim()} onClick={()=>void perform('changes_requested')}>Request changes</Button>{canApprove&&<Button disabled={busy||item.stale_brief} onClick={()=>void perform('approved')}>Approve this revision</Button>}</div><p>Decisions apply to this revision and are shared with the creator.</p></>}
+    </section>
+   </section>
+   <aside className={styles.discussion} aria-label="Concept discussion">
+    <div className={styles.discussionHeader}><h4>Discussion</h4><p>Keep feedback beside the concept.</p></div>
+    <div className={styles.messages} aria-live="polite">
+     {history.isError?<div role="alert">Could not load discussion. <Button onClick={()=>void history.refetch()}>Retry</Button></div>:!history.data?<p>Loading discussion…</p>:history.data.comments.length===0?<p className={styles.empty}>No messages yet. Start with a question or feedback for the creator.</p>:[...history.data.comments].reverse().map(c=><article key={c.id} className={c.visibility==='internal'?styles.internal:styles.message}><header><strong>{c.author_name||'Member'}</strong><time dateTime={c.created_at}>{new Date(c.created_at).toLocaleString()}</time></header><p className={styles.context}>{c.visibility==='internal'?'Agency only':'Shared with creator'} · {c.section==='general'?'General':labels[c.section as keyof Content]||c.section}{c.revision_id!==item.revision_id?' · Earlier revision':''}</p><p className={styles.messageText}>{c.message}</p></article>)}
+    </div>
+    {(history.data?.has_more||historyPage>1)&&<div className={styles.actions}><Button disabled={historyPage===1} onClick={()=>setHistoryPage(historyPage-1)}>Newer history</Button><Button disabled={!history.data?.has_more} onClick={()=>setHistoryPage(historyPage+1)}>Older history</Button></div>}
+    <div className={styles.composer}>
+     {!creator&&<label>Visibility<select value={internal?'internal':'shared'} onChange={e=>setInternal(e.target.value==='internal')}><option value="shared">Shared with creator</option><option value="internal">Agency only</option></select></label>}
+     <label>About<select value={section} onChange={e=>setSection(e.target.value)}><option value="general">General</option>{fields.filter(f=>f!=='title').map(f=><option key={f} value={f}>{labels[f]}</option>)}</select></label>
+     <label className={styles.write}>Message<textarea value={message} onChange={e=>setMessage(e.target.value)} maxLength={4000} rows={3} placeholder={internal?'Write a private agency note…':'Write to the creator…'}/></label>
+     <p>{internal?'Only agency members can see this note.':'This message is visible to the creator.'}</p><Button disabled={busy||!message.trim()} onClick={()=>void perform('comment')}>{busy?'Saving…':internal?'Add agency note':'Send message'}</Button>
+    </div>
+   </aside>
+  </div>
+  {error&&<p role="alert" className={styles.error}>{error}</p>}
  </div>;
 }
