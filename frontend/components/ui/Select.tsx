@@ -33,6 +33,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(function 
 			)}
 			style={{
 				backgroundImage: chevron,
+				backgroundRepeat: 'no-repeat',
 				backgroundPosition: 'right 8px center',
 				backgroundSize: '12px 12px',
 				...style
