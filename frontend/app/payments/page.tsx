@@ -143,24 +143,30 @@ export default function PaymentsPage() {
 	const loading = dealsLoading || docsLoading || creatorInvoicesLoading || (activeTab === 'utr' && utrLoading) || (activeTab === 'tds' && tdsLoading);
 	const error = dealsError ? dealsError.message : null;
 
-	const scoped = React.useMemo(() => rows.filter((r) => r.campaign_over === 'Y'), [rows]);
+	const safeRows = React.useMemo(() => (Array.isArray(rows) ? rows : []), [rows]);
+	const safeDocs = React.useMemo(() => (Array.isArray(docs) ? docs : []), [docs]);
+	const safeCreatorInvoices = React.useMemo(() => (Array.isArray(creatorInvoices) ? creatorInvoices : []), [creatorInvoices]);
+	const safeCreators = React.useMemo(() => (Array.isArray(creators) ? creators : []), [creators]);
+	const safeTdsData = React.useMemo(() => (Array.isArray(tdsData) ? tdsData : []), [tdsData]);
+
+	const scoped = React.useMemo(() => safeRows.filter((r) => r.campaign_over === 'Y'), [safeRows]);
 	const today = React.useMemo(() => new Date().toISOString().slice(0, 10), []);
 
 	const docsByDeal = React.useMemo(() => {
 		const map = new Map<number, DealDocument[]>();
-		for (const d of docs) {
+		for (const d of safeDocs) {
 			const list = map.get(d.deal) ?? [];
 			list.push(d);
 			map.set(d.deal, list);
 		}
 		return map;
-	}, [docs]);
+	}, [safeDocs]);
 
 	const creatorInvoicesByDeal = React.useMemo(() => {
 		const map = new Map<number, CreatorInvoice[]>();
-		for (const invoice of creatorInvoices) map.set(invoice.deal, [...(map.get(invoice.deal) ?? []), invoice]);
+		for (const invoice of safeCreatorInvoices) map.set(invoice.deal, [...(map.get(invoice.deal) ?? []), invoice]);
 		return map;
-	}, [creatorInvoices]);
+	}, [safeCreatorInvoices]);
 
 	const statusOf = React.useCallback(
 		(deal: Deal): PaymentStatus => {
@@ -204,7 +210,7 @@ export default function PaymentsPage() {
 	const filtered = React.useMemo(() => {
 		let result = scoped;
 		if (activeTab === 'payables') {
-			result = result.filter(r => r.creator || (r.creator_shares && r.creator_shares.length > 0) || Number(r.creator_fee) > 0);
+			result = result.filter(r => r.creator || (r.creator_shares && Array.isArray(r.creator_shares) && r.creator_shares.length > 0) || Number(r.creator_fee) > 0);
 		}
 		if (statusFilter !== 'all') {
 			result = result.filter((r) => statusOf(r) === statusFilter);

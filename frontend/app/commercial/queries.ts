@@ -64,7 +64,11 @@ export function useCommercialGroupPageQuery(params: DealPageParams) {
 		queryKey: ['deal-groups-page', params],
 		enabled: params.fyStart !== null && !!params.groupBy && (params.enabled ?? true),
 		queryFn: () => api.get<CommercialGroupPage>(`/deals/?${dealPageQuery(params)}`),
-		placeholderData: (previous) => previous
+		// Campaign and creator groups have different shapes; never mix them while loading.
+		placeholderData: (previous, previousQuery) =>
+			(previousQuery?.queryKey[1] as DealPageParams | undefined)?.groupBy === params.groupBy
+				? previous
+				: undefined
 	});
 }
 

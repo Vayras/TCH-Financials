@@ -87,7 +87,7 @@ export function InvoicesTab({
 					})}
 				</div>
 				<div className="text-[12px] pr-2" style={{ color: 'var(--n-fg-muted)' }}>
-					{filtered.length} {filtered.length === 1 ? 'payment' : 'payments'}
+					{(filtered || []).length} {(filtered || []).length === 1 ? 'payment' : 'payments'}
 				</div>
 			</div>
 

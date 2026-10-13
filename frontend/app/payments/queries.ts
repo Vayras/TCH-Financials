@@ -118,10 +118,21 @@ export const PAYMENT_TRANSACTIONS_QUERY_KEY = (page: number, search: string) =>
 export function usePaymentTransactionsQuery(page: number, search: string) {
 	return useQuery<PaymentTransactionResponse>({
 		queryKey: PAYMENT_TRANSACTIONS_QUERY_KEY(page, search),
-		queryFn: () => {
+		queryFn: async () => {
 			const params = new URLSearchParams({ page: String(page) });
 			if (search.trim()) params.set('search', search.trim());
-			return api.get<PaymentTransactionResponse>(`/payment-transactions?${params.toString()}`);
+			const res = await api.get<PaymentTransactionResponse>(`/payment-transactions?${params.toString()}`);
+			return {
+				items: Array.isArray(res?.items) ? res.items : [],
+				page: res?.page || page,
+				page_size: res?.page_size || 50,
+				total: res?.total || 0,
+				total_pages: res?.total_pages || 1,
+				summary: {
+					total_debit: res?.summary?.total_debit || '0.00',
+					total_credit: res?.summary?.total_credit || '0.00',
+				},
+			};
 		}
 	});
 }
