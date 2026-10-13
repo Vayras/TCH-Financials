@@ -6,7 +6,7 @@ export default function BriefView({ content }: { content: BriefContent }) {
       {/* Overview Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {content.objective && (
-          <div className="rounded-xl bg-[#FAF9F5] p-4 border border-[var(--n-border)]">
+          <div className="rounded-xl bg-[var(--n-bg-soft)] p-4 border border-[var(--n-border)]">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Objective</h3>
             <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed font-medium text-gray-900">
               {content.objective}
@@ -15,7 +15,7 @@ export default function BriefView({ content }: { content: BriefContent }) {
         )}
 
         {content.audience && (
-          <div className="rounded-xl bg-[#FAF9F5] p-4 border border-[var(--n-border)]">
+          <div className="rounded-xl bg-[var(--n-bg-soft)] p-4 border border-[var(--n-border)]">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Target Audience</h3>
             <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
               {content.audience}
@@ -24,7 +24,7 @@ export default function BriefView({ content }: { content: BriefContent }) {
         )}
 
         {content.product_context && (
-          <div className="rounded-xl bg-[#FAF9F5] p-4 border border-[var(--n-border)] md:col-span-2">
+          <div className="rounded-xl bg-[var(--n-bg-soft)] p-4 border border-[var(--n-border)] md:col-span-2">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">About the Product</h3>
             <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
               {content.product_context}
@@ -33,7 +33,7 @@ export default function BriefView({ content }: { content: BriefContent }) {
         )}
 
         {content.creative_direction && (
-          <div className="rounded-xl bg-[#FAF9F5] p-4 border border-[var(--n-border)]">
+          <div className="rounded-xl bg-[var(--n-bg-soft)] p-4 border border-[var(--n-border)]">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Creative Direction</h3>
             <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-gray-800">
               {content.creative_direction}
@@ -42,7 +42,7 @@ export default function BriefView({ content }: { content: BriefContent }) {
         )}
 
         {content.call_to_action && (
-          <div className="rounded-xl bg-[#FAF9F5] p-4 border border-[var(--n-border)]">
+          <div className="rounded-xl bg-[var(--n-bg-soft)] p-4 border border-[var(--n-border)]">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Call to Action</h3>
             <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-gray-800 font-medium">
               {content.call_to_action}
@@ -62,7 +62,7 @@ export default function BriefView({ content }: { content: BriefContent }) {
                   <span className="font-semibold text-gray-900">
                     {d.quantity} × {d.format || 'Deliverable'}
                   </span>
-                  <span className="text-xs bg-amber-100 text-amber-900 font-medium px-2.5 py-0.5 rounded-full">
+                  <span className="text-xs bg-[var(--n-accent-soft)] text-[var(--n-accent)] font-medium px-2.5 py-0.5 rounded-full">
                     {d.platform}
                   </span>
                 </div>
@@ -120,7 +120,7 @@ export default function BriefView({ content }: { content: BriefContent }) {
               href={r.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="bg-amber-50 text-amber-800 hover:underline px-2.5 py-1 rounded-md"
+              className="bg-[var(--n-accent-soft)] text-[var(--n-accent)] hover:underline px-2.5 py-1 rounded-md"
             >
               🔗 {r.label || 'Reference'} ↗
             </a>

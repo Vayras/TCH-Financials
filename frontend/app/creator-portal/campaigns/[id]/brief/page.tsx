@@ -26,7 +26,7 @@ export default function CreatorBrief() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4">
+    <div className="creator-campaign-workspace mx-auto max-w-7xl space-y-4">
       {/* Top Header Navigation */}
       <div className="flex items-center justify-between">
         <Link
@@ -46,9 +46,9 @@ export default function CreatorBrief() {
       ) : (
         <>
           {/* Campaign Header Banner */}
-          <header className="rounded-2xl border border-[var(--n-border)] bg-white p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
+          <header className="creator-campaign-heading rounded-2xl border border-[var(--n-border)] bg-white p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
             <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-amber-800 bg-amber-100 px-2.5 py-1 rounded-full">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--n-accent)] bg-[var(--n-accent-soft)] px-2.5 py-1 rounded-full">
                 {query.data.brand || 'Brand Campaign'}
               </span>
               <h1 className="mt-2 text-2xl font-bold text-gray-900">{query.data.name}</h1>
@@ -72,7 +72,7 @@ export default function CreatorBrief() {
           </div>
 
           {tab === 'brief' && (
-            <div id="campaign-panel-brief" role="tabpanel" aria-labelledby="campaign-tab-brief" className="max-w-5xl">
+            <div id="campaign-panel-brief" role="tabpanel" aria-labelledby="campaign-tab-brief">
               <BriefView content={query.data.content} />
             </div>
           )}

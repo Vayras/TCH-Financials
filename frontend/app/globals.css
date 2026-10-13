@@ -4,17 +4,17 @@
 
 :root {
 	--n-bg: #ffffff;
-	--n-bg-sidebar: #f7f7f5;
-	--n-bg-soft: #fbfbfa;
-	--n-bg-hover: rgba(55, 53, 47, 0.06);
-	--n-bg-active: rgba(55, 53, 47, 0.1);
-	--n-fg: #37352f;
-	--n-fg-muted: rgba(55, 53, 47, 0.65);
-	--n-fg-subtle: rgba(55, 53, 47, 0.45);
-	--n-border: rgba(55, 53, 47, 0.09);
-	--n-border-strong: rgba(55, 53, 47, 0.16);
-	--n-accent: #441151;
-	--n-accent-soft: rgba(68, 17, 81, 0.14);
+	--n-bg-sidebar: var(--app-surface);
+	--n-bg-soft: var(--app-surface-muted);
+	--n-bg-hover: #f6f3fb;
+	--n-bg-active: var(--app-brand-soft);
+	--n-fg: var(--app-fg);
+	--n-fg-muted: var(--app-muted);
+	--n-fg-subtle: #887e99;
+	--n-border: var(--app-border);
+	--n-border-strong: #d8cfea;
+	--n-accent: var(--app-brand);
+	--n-accent-soft: var(--app-brand-soft);
 
 	/* ── Semantic colours ──────────────────────────────────────────────────── */
 

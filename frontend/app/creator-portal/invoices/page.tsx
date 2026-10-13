@@ -77,18 +77,13 @@ export default function CreatorInvoicesPage() {
 	}
 
 	return (
-		<div className="space-y-6">
-			<div className="flex flex-wrap items-center justify-between gap-4">
-				<PageHeader title="Invoices" description="Submit and track invoices for completed campaign work." />
-				<Button variant="primary" onClick={() => setOpen(true)} disabled={pendingDeals.length === 0}>
-					<span className="text-[12px]">Submit New Invoice</span>
-				</Button>
-			</div>
+		<div className="creator-finance space-y-6">
+			<PageHeader title="Invoices" description="Submit and track invoices for completed campaign work." actions={invoices.length>0&&<Button variant="primary" onClick={() => setOpen(true)} disabled={pendingDeals.length === 0}>Submit invoice</Button>} />
 
 			{invoices.length === 0 ? (
-				<EmptyState title="No invoices submitted yet" description="Upload an invoice when your campaign deliverables are complete." action={<Button variant="primary" onClick={() => setOpen(true)} disabled={pendingDeals.length === 0}>Submit New Invoice</Button>} />
+				<EmptyState className="creator-empty-state" title="Ready for your first invoice?" description={pendingDeals.length>0?'Once your campaign work is complete, upload its invoice here and track the payment.':'Your campaign invoices will appear here once you have work to invoice.'} action={pendingDeals.length>0&&<Button variant="primary" onClick={() => setOpen(true)}>Submit invoice</Button>} />
 			) : (
-				<div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+				<div className="bg-white border border-gray-200 rounded-xl overflow-x-auto shadow-sm">
 					<table className="w-full border-collapse text-[12px]">
 						<thead>
 							<tr className="border-b text-gray-400 bg-gray-50/50">

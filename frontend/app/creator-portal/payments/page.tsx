@@ -8,6 +8,7 @@ import Icon from '@/components/ui/Icon';
 import PageHeader from '@/components/PageHeader';
 import Card from '@/components/ui/Card';
 import QueryErrorState from '@/components/QueryErrorState';
+import EmptyState from '@/components/ui/EmptyState';
 
 export default function CreatorPaymentsPage() {
 	const { data: deals = [], isLoading: dealsLoading, error: dealsError, refetch: refetchDeals } = useCreatorPortalDealsQuery();
@@ -46,7 +47,7 @@ export default function CreatorPaymentsPage() {
 	}
 
 	return (
-		<div className="space-y-8">
+		<div className="creator-finance space-y-6">
 			<PageHeader title="Payments &amp; tax" description="Track payouts and tax documents from your campaign work." />
 
 			{/* Metric Cards Row */}
@@ -84,13 +85,7 @@ export default function CreatorPaymentsPage() {
 						<span>Payment history</span>
 					</h3>
 					{deals.length === 0 ? (
-						<div className="text-center py-12 bg-white shadow-sm rounded-xl" style={{ border: '1px solid var(--n-border)' }}>
-							<div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3 text-gray-400">
-								<Icon name="credit-card" size={18} />
-							</div>
-							<h4 className="text-[12px] font-bold text-gray-950">No payout statements</h4>
-							<p className="text-[11.5px] text-gray-500 mt-0.5">Your clearances ledger will display here once transactions are recorded.</p>
-						</div>
+						<EmptyState className="creator-empty-state" title="No payment records yet" description="Payments recorded by your agency will appear here." />
 					) : (
 						<div className="server-table-wrap">
 							<div className="tbl-card">
@@ -100,7 +95,7 @@ export default function CreatorPaymentsPage() {
 											<tr>
 												<th>Campaign</th>
 												<th>Payout Date</th>
-												<th className="num">Gross Fee</th>
+												<th className="num">Creator fee</th>
 												<th>Payout Status</th>
 											</tr>
 										</thead>
@@ -138,13 +133,7 @@ export default function CreatorPaymentsPage() {
 						<span>Statutory TDS (Tax Withholdings)</span>
 					</h3>
 					{tdsList.length === 0 ? (
-						<div className="text-center py-12 bg-white shadow-sm rounded-xl" style={{ border: '1px solid var(--n-border)' }}>
-							<div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3 text-gray-400">
-								<Icon name="tag" size={18} />
-							</div>
-							<h4 className="text-[12px] font-bold text-gray-950">No TDS entries</h4>
-							<p className="text-[11.5px] text-gray-500 mt-0.5">Quarterly tax withholding and challan details will display here.</p>
-						</div>
+						<EmptyState className="creator-empty-state" title="No tax records yet" description="Your quarterly TDS and challan details will appear here when the agency records them." />
 					) : (
 						<div className="server-table-wrap">
 							<div className="tbl-card">

@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Header, Param, Post, Put, Query, Req } f
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../auth/roles.decorator';
 import { CampaignContentService } from './campaign-content.service';
-import { CampaignActor, invalid } from './campaign-content.model';
+import { CampaignActor, invalid, object } from './campaign-content.model';
 type ActorRequest = {user:CampaignActor};
 function pagination(page='1',size='20') {
   if(!/^\d+$/.test(page)||!/^\d+$/.test(size)||Number(page)<1||Number(page)>100000||Number(size)<1||Number(size)>50) invalid('page','Use a positive page and page_size between 1 and 50.');
@@ -44,6 +44,13 @@ export class CreatorCampaignBriefController {
   list(@Req() r:ActorRequest,@Query('page') page?:string,@Query('page_size') size?:string) {return this.service.listCreatorBriefs(r.user,...pagination(page,size));}
   @Get('home') @Header('Cache-Control','private, no-store')
   home(@Req() r:ActorRequest) {return this.service.creatorHome(r.user);}
+  @Get('notifications') @Header('Cache-Control','private, no-store')
+  notifications(@Req() r:ActorRequest) {return this.service.creatorNotifications(r.user);}
+  @Post('notifications/read')
+  markNotificationsRead(@Req() r:ActorRequest,@Body() body:unknown) {
+    const row=object(body,['through']);
+    return this.service.markCreatorNotificationsSeen(r.user,row.through);
+  }
   @Get(':id') @Header('Cache-Control','private, no-store')
   get(@Req() r:ActorRequest,@Param('id') id:string) {return this.service.getCreatorBrief(r.user,id);}
   @Get(':id/content-references') references(@Req() r:ActorRequest,@Param('id') id:string) {return this.service.listCreatorReferences(r.user,id);}

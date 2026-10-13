@@ -123,6 +123,59 @@ export class CampaignContentService {
       WHERE a.creator_id=$1 ORDER BY r.shared_at DESC,c.id LIMIT 51`,[creator]);
     return {items:items.slice(0,50),has_more:items.length>50};
   }
+  async creatorNotifications(actor: CampaignActor) {
+    const creator=await this.policy.requireCreator(this.db.manager,actor);
+    await this.db.query(`INSERT INTO tch_creator_notification_read(user_id,last_seen_at)
+      VALUES($1,now()-interval '7 days') ON CONFLICT DO NOTHING`,[actor.id]);
+    const [state]=await this.db.query('SELECT last_seen_at FROM tch_creator_notification_read WHERE user_id=$1',[actor.id]);
+    const since=state.last_seen_at;
+    const [briefs,reviews,messages,deadlines]=await Promise.all([
+      this.db.query(`SELECT c.id::text AS campaign_id,c.name AS campaign_name,c.brand,r.shared_at AS occurred_at
+        FROM tch_campaign_brief_creator a JOIN tch_campaign c ON c.id=a.campaign_id
+        JOIN tch_campaign_brief_revision r ON r.campaign_id=c.id
+        WHERE a.creator_id=$1 AND r.shared_at>$2 ORDER BY r.shared_at DESC LIMIT 20`,[creator,since]),
+      this.db.query(`SELECT c.id::text AS campaign_id,c.name AS campaign_name,x.id AS concept_id,
+        cr.content->>'title' AS concept_title,v.decision,v.message,v.created_at AS occurred_at
+        FROM tch_content_concept_review v JOIN tch_content_concept x ON x.id=v.concept_id
+        JOIN tch_campaign c ON c.id=x.campaign_id JOIN tch_content_concept_revision cr ON cr.id=v.revision_id
+        WHERE x.creator_id=$1 AND v.created_at>$2 ORDER BY v.created_at DESC LIMIT 30`,[creator,since]),
+      this.db.query(`SELECT c.id::text AS campaign_id,c.name AS campaign_name,x.id AS concept_id,
+        cr.content->>'title' AS concept_title,f.message,f.created_at AS occurred_at
+        FROM tch_content_concept_feedback f JOIN tch_content_concept x ON x.id=f.concept_id
+        JOIN tch_campaign c ON c.id=x.campaign_id JOIN tch_content_concept_revision cr ON cr.id=f.revision_id
+        WHERE x.creator_id=$1 AND f.author_id<>$3 AND f.visibility='shared' AND cr.submitted_at IS NOT NULL
+          AND f.created_at>$2 ORDER BY f.created_at DESC LIMIT 30`,[creator,since,actor.id]),
+      this.db.query(`SELECT c.id::text AS campaign_id,c.name AS campaign_name,d->>'id' AS deliverable_id,
+        d->>'format' AS format,d->>'quantity' AS quantity,d->>'due_date' AS due_date,
+        ((d->>'due_date')::date - 7)::timestamptz AS occurred_at
+        FROM tch_campaign_brief_creator a JOIN tch_campaign c ON c.id=a.campaign_id
+        JOIN tch_campaign_brief b ON b.campaign_id=c.id JOIN tch_campaign_brief_revision r ON r.id=b.shared_revision_id
+        CROSS JOIN LATERAL jsonb_array_elements(COALESCE(r.content->'deliverables','[]'::jsonb)) d
+        WHERE a.creator_id=$1 AND (d->>'due_date')::date BETWEEN CURRENT_DATE AND CURRENT_DATE+7
+        ORDER BY (d->>'due_date')::date LIMIT 30`,[creator]),
+    ]);
+    const href=(campaignId:string,conceptId?:string)=>conceptId
+      ? `/creator-portal/campaigns/${campaignId}/brief?view=feedback&concept=${conceptId}`
+      : `/creator-portal/campaigns/${campaignId}/brief`;
+    const items=[
+      ...briefs.map((x:any)=>({id:`brief:${x.campaign_id}:${x.occurred_at}`,type:'campaign',title:'Campaign brief updated',detail:`${x.brand} · ${x.campaign_name}`,href:href(x.campaign_id),occurred_at:x.occurred_at})),
+      ...reviews.map((x:any)=>({id:`review:${x.concept_id}:${x.occurred_at}`,type:'review',title:x.decision==='changes_requested'?'Changes requested':'Concept approved',detail:`${x.campaign_name} · ${x.concept_title||'Concept'}${x.message?` · ${x.message}`:''}`,href:href(x.campaign_id,x.concept_id),occurred_at:x.occurred_at})),
+      ...messages.map((x:any)=>({id:`message:${x.concept_id}:${x.occurred_at}`,type:'message',title:'New concept discussion message',detail:`${x.campaign_name} · ${x.concept_title||'Concept'} · ${x.message}`,href:href(x.campaign_id,x.concept_id),occurred_at:x.occurred_at})),
+      ...deadlines.map((x:any)=>({id:`deadline:${x.campaign_id}:${x.deliverable_id}`,type:'deadline',title:'Deliverable due soon',detail:`${x.campaign_name} · ${x.quantity} ${x.format} · due ${x.due_date}`,href:href(x.campaign_id),occurred_at:x.occurred_at})),
+    ].sort((a,b)=>new Date(b.occurred_at).getTime()-new Date(a.occurred_at).getTime());
+    const lastSeen=new Date(since).getTime();
+    const asOf=new Date().toISOString();
+    const withReadState=items.map(item=>({...item,unread:new Date(item.occurred_at).getTime()>lastSeen}));
+    return {items:withReadState,unread_count:withReadState.filter(item=>item.unread).length,as_of:asOf};
+  }
+  async markCreatorNotificationsSeen(actor: CampaignActor,through: unknown) {
+    const creator=await this.policy.requireCreator(this.db.manager,actor);
+    if(typeof through!=='string'||!Number.isFinite(Date.parse(through))) invalid('through','A valid notification timestamp is required.');
+    await this.db.query(`INSERT INTO tch_creator_notification_read(user_id,last_seen_at)
+      VALUES($1,LEAST($2::timestamptz,now()))
+      ON CONFLICT(user_id) DO UPDATE SET last_seen_at=GREATEST(tch_creator_notification_read.last_seen_at,LEAST($2::timestamptz,now()))`,[actor.id,through]);
+    return {ok:true};
+  }
   async getCreatorBrief(actor: CampaignActor,id: string) {
     campaignId(id);const creator=await this.policy.requireCreator(this.db.manager,actor);
     const [row]=await this.db.query(`SELECT c.id::text,c.name,c.brand,r.id AS shared_revision_id,r.draft_version AS shared_version,r.shared_at,r.content FROM tch_campaign_brief_creator a JOIN tch_campaign c ON c.id=a.campaign_id JOIN tch_campaign_brief b ON b.campaign_id=c.id JOIN tch_campaign_brief_revision r ON r.id=b.shared_revision_id WHERE a.creator_id=$1 AND c.id=$2`,[creator,id]);

@@ -85,7 +85,7 @@ export const DEFAULT_CREATOR_WORKSPACE: CreatorWorkspace = {
 	mediaKit: {
 		slug: 'dev-creator',
 		status: 'Draft',
-		accent: '#441151',
+		accent: '#6554c0',
 		showAbout: true,
 		showSocials: true,
 		showPortfolio: true,
