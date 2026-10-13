@@ -1,12 +1,16 @@
 'use client';
 
 import * as React from 'react';
-import { getSupabase } from '@/lib/supabase';
+import { createPortal } from 'react-dom';
+import { useAuth } from '@/components/AuthGuard';
+import QueryErrorState from '@/components/QueryErrorState';
+import styles from './users.module.css';
+import formStyles from '@/components/CreatorFormModal.module.css';
 import Button from '@/components/ui/Button';
 import Dialog from '@/components/ui/Dialog';
 import Icon from '@/components/ui/Icon';
 import Tag from '@/components/ui/Tag';
-import PageHeader from '@/components/PageHeader';
+
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/utils';
 import {
@@ -49,10 +53,10 @@ function RoleBadge({ role }: { role: AppRole }) {
 
 export default function UsersPage() {
 	const [activeTab, setActiveTab] = React.useState<'users' | 'invitations'>('users');
-	const [currentUserEmail, setCurrentUserEmail] = React.useState<string>('');
+	const { email: currentUserEmail = '' } = useAuth();
 
 	// React Query hooks
-	const { data, isLoading } = useAdminUsersQuery();
+	const { data, isLoading, error, refetch } = useAdminUsersQuery();
 	const approveMutation = useApproveUserMutation();
 	const rejectMutation = useRejectUserMutation();
 	const revokeMutation = useRevokeAccessMutation();
@@ -75,22 +79,27 @@ export default function UsersPage() {
 
 	// Action dropdown state
 	const [openActionId, setOpenActionId] = React.useState<string | null>(null);
+	const [menuPosition, setMenuPosition] = React.useState({ top: 0, right: 0 });
 
-	React.useEffect(() => {
-		getSupabase().auth.getSession().then(({ data: { session } }) => {
-			if (session?.user?.email) {
-				setCurrentUserEmail(session.user.email);
-			}
-		});
-	}, []);
 
 	// Close action dropdown on outside click
 	React.useEffect(() => {
 		function handleClickOutside() {
 			setOpenActionId(null);
 		}
-		window.addEventListener('click', handleClickOutside);
-		return () => window.removeEventListener('click', handleClickOutside);
+		function handleKeyDown(event: KeyboardEvent) {
+            if (event.key === 'Escape') setOpenActionId(null);
+        }
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('click', handleClickOutside);
+		window.addEventListener('scroll', handleClickOutside, true);
+		window.addEventListener('resize', handleClickOutside);
+		return () => {
+			window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('click', handleClickOutside);
+			window.removeEventListener('scroll', handleClickOutside, true);
+			window.removeEventListener('resize', handleClickOutside);
+		};
 	}, []);
 
 	const invitedEmailSet = React.useMemo(
@@ -179,19 +188,20 @@ export default function UsersPage() {
 	}
 
 	return (
-		<div className="flex flex-col gap-6">
-			<div className="flex items-center justify-between">
-				<PageHeader title="User Management" description="Review signup requests and invite team members." />
+		<div className={styles.workspace}>
+			<div className={styles.header}>
+				<header><h1>Users &amp; access</h1><p>Review requests, manage roles and invite your team.</p></header>
 				<Button variant="primary" onClick={() => setInviteOpen(true)}>
 					<Icon name="plus" size={14} /> Invite User
 				</Button>
 			</div>
 
 			{/* ─── Tabs ─────────────────────────────────────────────────────── */}
-			<div className="flex gap-4 border-b border-[var(--n-border)] pb-px">
+			<div className={styles.tabs}>
 				{(['users', 'invitations'] as const).map((tab) => (
 					<button
 						key={tab}
+                        aria-pressed={activeTab === tab}
 						type="button"
 						onClick={() => setActiveTab(tab)}
 						className="pb-2 text-[14px] font-medium transition-colors border-b-2 capitalize"
@@ -214,8 +224,8 @@ export default function UsersPage() {
 					</svg>
 					<span className="text-[14px]">Loading user directory…</span>
 				</div>
-			) : (
-				<div className="bg-white border border-[var(--n-border)] rounded-xl overflow-hidden shadow-sm anim-fade-up">
+			) : error ? <QueryErrorState description="The user directory could not be loaded." onRetry={() => refetch()} /> : (
+				<div className="bg-white border border-[var(--n-border)] rounded-xl overflow-x-auto shadow-sm anim-fade-up">
 					{activeTab === 'users' ? (
 						<table className="w-full text-left border-collapse text-[12px]">
 							<thead>
@@ -261,11 +271,12 @@ export default function UsersPage() {
 												</td>
 												{/* Role Selector / Display */}
 												<td className="p-3">
-													{isSelf ? (
+													{isSelf || p.role === 'creator' ? (
 														<RoleBadge role={p.role} />
 													) : (
 														<select
 															value={p.role}
+                                                    aria-label={`Role for ${p.email}`}
 															disabled={updateRoleMutation.isPending}
 															onChange={(e) => handleRoleChange(p.id, e.target.value as AppRole)}
 															className="h-7 rounded px-2 text-[12px] font-medium bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] cursor-pointer transition-colors"
@@ -286,23 +297,31 @@ export default function UsersPage() {
 												</td>
 												{/* Action Menu Dropdown */}
 												<td className="p-3 text-right relative">
-													<div className="relative inline-block text-left">
+													{isSelf ? (
+                                                    <span className={styles.selfAccount}>Your account</span>
+                                                ) : <div className="relative inline-block text-left">
 														<button
 															type="button"
 															onClick={(e) => {
 																e.stopPropagation();
-																setOpenActionId(isMenuOpen ? null : p.id);
+																const rect = e.currentTarget.getBoundingClientRect();
+                                                        setMenuPosition({ top: Math.min(rect.bottom + 6, window.innerHeight - 150), right: Math.max(12, window.innerWidth - rect.right) });
+                                                        setOpenActionId(isMenuOpen ? null : p.id);
 															}}
-															className="h-7 w-7 rounded flex items-center justify-center border border-[var(--n-border)] hover:bg-[var(--n-bg-soft)] transition-colors font-bold text-[14px] leading-none select-none"
+															aria-label={`Actions for ${p.email}`}
+                                                    aria-expanded={isMenuOpen}
+                                                    className="h-7 w-7 rounded flex items-center justify-center border border-[var(--n-border)] hover:bg-[var(--n-bg-soft)] transition-colors font-bold text-[14px] leading-none select-none"
 															style={{ color: 'var(--n-fg-subtle)' }}
 														>
-															⋮
+															Actions
 														</button>
 
-														{isMenuOpen && (
+														{isMenuOpen && createPortal(
 															<div
 																onClick={(e) => e.stopPropagation()}
-																className="absolute right-0 mt-1 w-44 rounded-md shadow-lg bg-[var(--n-bg-soft)] border border-[var(--n-border)] z-50 py-1 text-left text-[12.5px]"
+																className={styles.actionMenu}
+                                                        style={menuPosition}
+                                                        onKeyDown={(e) => { if (e.key === 'Escape') setOpenActionId(null); }}
 															>
 																{p.status !== 'approved' && (
 																	<button
@@ -358,9 +377,8 @@ export default function UsersPage() {
 																		</button>
 																	</>
 																)}
-															</div>
-														)}
-													</div>
+															</div> , document.body)}
+													</div>}
 												</td>
 											</tr>
 										);
@@ -431,7 +449,7 @@ export default function UsersPage() {
 			)}
 
 			{/* ─── Invite User Dialog ──────────────────────────────────────── */}
-			<Dialog open={inviteOpen} onOpenChange={setInviteOpen} title="Invite New User" description="Invite team members to access the workspace.">
+			<Dialog className={formStyles.dialog} open={inviteOpen} onOpenChange={setInviteOpen} title="Invite New User" description="Invite team members to access the workspace.">
 				<form onSubmit={submitInvite} className="flex flex-col gap-4">
 					<label className="block">
 						<span className="block text-[12px] font-medium mb-1" style={{ color: 'var(--n-fg-subtle)' }}>
@@ -470,7 +488,7 @@ export default function UsersPage() {
 			</Dialog>
 
 			{/* ─── Revoke Access Confirmation ──────────────────────────────── */}
-			<Dialog open={!!revokeTarget} onOpenChange={(o) => { if (!o) setRevokeTarget(null); }} title="Revoke Access?" description="">
+			<Dialog className={formStyles.dialog} open={!!revokeTarget} onOpenChange={(o) => { if (!o) setRevokeTarget(null); }} title="Revoke Access?" description="">
 				<div className="flex flex-col gap-5">
 					<div className="rounded-lg p-4 text-[12px] leading-relaxed border"
 						style={{ background: 'var(--n-bg)', borderColor: '#f59e0b44' }}>
@@ -492,7 +510,7 @@ export default function UsersPage() {
 			</Dialog>
 
 			{/* ─── Delete User Confirmation ─────────────────────────────────── */}
-			<Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }} title="Delete User?" description="">
+			<Dialog className={formStyles.dialog} open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }} title="Delete User?" description="">
 				<div className="flex flex-col gap-5">
 					<div className="rounded-lg p-4 text-[12px] leading-relaxed border"
 						style={{ background: 'var(--n-bg)', borderColor: '#ef444444' }}>
@@ -514,7 +532,7 @@ export default function UsersPage() {
 			</Dialog>
 
 			{/* ─── Remove Invitation Confirmation ──────────────────────────── */}
-			<Dialog open={!!removeInviteTarget} onOpenChange={(o) => { if (!o) setRemoveInviteTarget(null); }} title="Remove Invitation?" description="">
+			<Dialog className={formStyles.dialog} open={!!removeInviteTarget} onOpenChange={(o) => { if (!o) setRemoveInviteTarget(null); }} title="Remove Invitation?" description="">
 				<div className="flex flex-col gap-5">
 					<div className="rounded-lg p-4 text-[12px] leading-relaxed border"
 						style={{ background: 'var(--n-bg)', borderColor: '#ef444433' }}>

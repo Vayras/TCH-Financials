@@ -3,12 +3,14 @@ import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from './roles.decorator';
 import { type AppRole } from '../entities/profile.entity';
 import { SKIP_AUTH_KEY } from './skip-auth.decorator';
+import { PUBLIC_ROUTE_KEY } from './public.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    if (this.reflector.getAllAndOverride<boolean>(PUBLIC_ROUTE_KEY, [context.getHandler(), context.getClass()])) return true;
     const skipAuth = this.reflector.getAllAndOverride<boolean>(SKIP_AUTH_KEY, [
       context.getHandler(),
       context.getClass(),

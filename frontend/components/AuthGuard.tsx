@@ -50,6 +50,12 @@ export function useAuth() {
 }
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
+	const pathname = usePathname() ?? '/';
+	if (pathname.startsWith('/k/')) return <>{children}</>;
+	return <AuthenticatedGuard>{children}</AuthenticatedGuard>;
+}
+
+function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
 	const rawPathname = usePathname() ?? '/';
 	const pathname = rawPathname.replace(/\/+$/, '') || '/';
 	const router = useRouter();

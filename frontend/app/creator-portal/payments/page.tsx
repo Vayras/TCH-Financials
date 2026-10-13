@@ -6,7 +6,9 @@ import { inr } from '@/lib/utils';
 import Tag from '@/components/ui/Tag';
 import Icon from '@/components/ui/Icon';
 import PageHeader from '@/components/PageHeader';
+import Card from '@/components/ui/Card';
 import QueryErrorState from '@/components/QueryErrorState';
+import EmptyState from '@/components/ui/EmptyState';
 
 export default function CreatorPaymentsPage() {
 	const { data: deals = [], isLoading: dealsLoading, error: dealsError, refetch: refetchDeals } = useCreatorPortalDealsQuery();
@@ -45,14 +47,14 @@ export default function CreatorPaymentsPage() {
 	}
 
 	return (
-		<div className="space-y-8">
-			<PageHeader title="Payments &amp; TDS" description="Track payment clearances and statutory withholdings." />
+		<div className="creator-finance space-y-6">
+			<PageHeader title="Payments &amp; tax" description="Track payouts and tax documents from your campaign work." />
 
 			{/* Metric Cards Row */}
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-				<div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
+				<Card className="flex items-center justify-between p-5">
 					<div className="space-y-1">
-						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-455">Total Received Payouts</span>
+						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-455">Amount received</span>
 						<div className="text-[22px] font-extrabold text-gray-900 tracking-tight tabular-nums">
 							₹{paymentSummary.totalPaid > 0 ? inr(paymentSummary.totalPaid) : '0'}
 						</div>
@@ -60,11 +62,11 @@ export default function CreatorPaymentsPage() {
 					<div className="h-10 w-10 rounded-lg bg-green-50 flex items-center justify-center text-green-600">
 						<Icon name="check" size={20} />
 					</div>
-				</div>
+				</Card>
 
-				<div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm flex items-center justify-between">
+				<Card className="flex items-center justify-between p-5">
 					<div className="space-y-1">
-						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-455">Pending / Upcoming Payouts</span>
+						<span className="text-[11px] font-bold uppercase tracking-wider text-gray-455">Expected payments</span>
 						<div className="text-[22px] font-extrabold text-gray-900 tracking-tight tabular-nums">
 							₹{paymentSummary.totalPending > 0 ? inr(paymentSummary.totalPending) : '0'}
 						</div>
@@ -72,7 +74,7 @@ export default function CreatorPaymentsPage() {
 					<div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
 						<Icon name="clock" size={20} />
 					</div>
-				</div>
+				</Card>
 			</div>
 
 			<div className="space-y-8">
@@ -80,16 +82,10 @@ export default function CreatorPaymentsPage() {
 				<div>
 					<h3 className="text-[14px] font-bold text-gray-900 mb-3 flex items-center gap-2">
 						<Icon name="list" size={15} className="text-gray-500" />
-						<span>Payout Ledger</span>
+						<span>Payment history</span>
 					</h3>
 					{deals.length === 0 ? (
-						<div className="text-center py-12 bg-white shadow-sm rounded-xl" style={{ border: '1px solid var(--n-border)' }}>
-							<div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3 text-gray-400">
-								<Icon name="credit-card" size={18} />
-							</div>
-							<h4 className="text-[12px] font-bold text-gray-950">No payout statements</h4>
-							<p className="text-[11.5px] text-gray-500 mt-0.5">Your clearances ledger will display here once transactions are recorded.</p>
-						</div>
+						<EmptyState className="creator-empty-state" title="No payment records yet" description="Payments recorded by your agency will appear here." />
 					) : (
 						<div className="server-table-wrap">
 							<div className="tbl-card">
@@ -99,7 +95,7 @@ export default function CreatorPaymentsPage() {
 											<tr>
 												<th>Campaign</th>
 												<th>Payout Date</th>
-												<th className="num">Gross Fee</th>
+												<th className="num">Creator fee</th>
 												<th>Payout Status</th>
 											</tr>
 										</thead>
@@ -137,13 +133,7 @@ export default function CreatorPaymentsPage() {
 						<span>Statutory TDS (Tax Withholdings)</span>
 					</h3>
 					{tdsList.length === 0 ? (
-						<div className="text-center py-12 bg-white shadow-sm rounded-xl" style={{ border: '1px solid var(--n-border)' }}>
-							<div className="h-10 w-10 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3 text-gray-400">
-								<Icon name="tag" size={18} />
-							</div>
-							<h4 className="text-[12px] font-bold text-gray-950">No TDS entries</h4>
-							<p className="text-[11.5px] text-gray-500 mt-0.5">Quarterly tax withholding and challan details will display here.</p>
-						</div>
+						<EmptyState className="creator-empty-state" title="No tax records yet" description="Your quarterly TDS and challan details will appear here when the agency records them." />
 					) : (
 						<div className="server-table-wrap">
 							<div className="tbl-card">

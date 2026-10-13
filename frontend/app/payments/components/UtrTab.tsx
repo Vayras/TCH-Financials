@@ -1,4 +1,5 @@
 import React, { type Dispatch, type SetStateAction } from 'react';
+import styles from '../payments.module.css';
 import type { ColumnDef } from '@tanstack/react-table';
 import Icon from '@/components/ui/Icon';
 import Button from '@/components/ui/Button';
@@ -42,6 +43,7 @@ export function UtrTab({
 						<Icon name="search" size={13} />
 					</span>
 					<input
+						aria-label="Search payment transactions"
 						value={utrSearch}
 						onChange={(e) => { setUtrSearch(e.target.value); setUtrPage(1); }}
 						placeholder="Search by vendor, UTR, or notes…"
@@ -50,7 +52,7 @@ export function UtrTab({
 					/>
 				</div>
 
-				<div className="flex items-center gap-2">
+				<div className={styles.actions}>
 					<Button variant="outline" onClick={() => setImportOpen(true)}>
 						<Icon name="upload" size={14} /> Import Excel
 					</Button>
@@ -61,8 +63,8 @@ export function UtrTab({
 			</div>
 
 			<div className="grid grid-cols-2 gap-3 mb-2">
-				<MetricCard label="Total Outflows (Debits)" value={`₹${inr(Number(utrData?.summary.total_debit || 0))}`} />
-				<MetricCard label="Total Inflows (Credits)" value={`₹${inr(Number(utrData?.summary.total_credit || 0))}`} />
+				<MetricCard label="Total Outflows (Debits)" value={`₹${inr(Number(utrData?.summary.total_debit || 0)) || '0'}`} />
+				<MetricCard label="Total Inflows (Credits)" value={`₹${inr(Number(utrData?.summary.total_credit || 0)) || '0'}`} />
 			</div>
 
 			<DataTable

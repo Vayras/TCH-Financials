@@ -7,12 +7,13 @@ import Tag from '@/components/ui/Tag';
 import Button from '@/components/ui/Button';
 import Label from '@/components/ui/Label';
 import Dialog from '@/components/ui/Dialog';
-import Icon from '@/components/ui/Icon';
 import PageHeader from '@/components/PageHeader';
 import QueryErrorState from '@/components/QueryErrorState';
 import { toast } from 'sonner';
 import { errorMessage } from '@/lib/utils';
 import { downloadAuthenticatedFile } from '@/lib/download';
+import EmptyState from '@/components/ui/EmptyState';
+import Skeleton from '@/components/ui/Skeleton';
 
 export default function CreatorInvoicesPage() {
 	const { data: invoices = [], isLoading: invLoading, error: invError, refetch: refetchInvoices } = useCreatorPortalInvoicesQuery();
@@ -67,13 +68,7 @@ export default function CreatorInvoicesPage() {
 
 	if (loading) {
 		return (
-			<div className="flex items-center justify-center gap-3 py-16 text-gray-500">
-				<svg className="animate-spin h-5 w-5" style={{ willChange: 'transform' }} viewBox="0 0 24 24" fill="none">
-					<circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-					<path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-				</svg>
-				<span className="text-[14px]">Loading invoices…</span>
-			</div>
+			<div className="space-y-3 py-8"><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /><Skeleton className="h-12 w-full" /></div>
 		);
 	}
 
@@ -82,29 +77,13 @@ export default function CreatorInvoicesPage() {
 	}
 
 	return (
-		<div className="space-y-6">
-			<div className="flex flex-wrap items-center justify-between gap-4">
-				<PageHeader title="My Invoices" description="Submit and track your campaign billing invoices." />
-				<Button variant="primary" onClick={() => setOpen(true)} disabled={pendingDeals.length === 0}>
-					<span className="text-[12px]">Submit New Invoice</span>
-				</Button>
-			</div>
+		<div className="creator-finance space-y-6">
+			<PageHeader title="Invoices" description="Submit and track invoices for completed campaign work." actions={invoices.length>0&&<Button variant="primary" onClick={() => setOpen(true)} disabled={pendingDeals.length === 0}>Submit invoice</Button>} />
 
 			{invoices.length === 0 ? (
-				<div className="text-center py-20 rounded-xl bg-white" style={{ border: '1px solid var(--n-border)' }}>
-					<div className="h-12 w-12 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-4 text-gray-400">
-						<Icon name="file-text" size={20} />
-					</div>
-					<h3 className="text-[15px] font-bold text-gray-950 mb-1">No invoices yet</h3>
-					<p className="text-[12px] text-gray-500 max-w-[280px] mx-auto">
-						Your submitted invoices will appear here once you upload them.
-					</p>
-					<p className="text-[11.5px] text-gray-400 mt-3 max-w-[240px] mx-auto">
-						Use the <strong className="font-semibold text-gray-500">Submit New Invoice</strong> button above to get started.
-					</p>
-				</div>
+				<EmptyState className="creator-empty-state" title="Ready for your first invoice?" description={pendingDeals.length>0?'Once your campaign work is complete, upload its invoice here and track the payment.':'Your campaign invoices will appear here once you have work to invoice.'} action={pendingDeals.length>0&&<Button variant="primary" onClick={() => setOpen(true)}>Submit invoice</Button>} />
 			) : (
-				<div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+				<div className="bg-white border border-gray-200 rounded-xl overflow-x-auto shadow-sm">
 					<table className="w-full border-collapse text-[12px]">
 						<thead>
 							<tr className="border-b text-gray-400 bg-gray-50/50">

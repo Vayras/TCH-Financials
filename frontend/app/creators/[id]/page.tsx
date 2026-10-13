@@ -1,6 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import type {PublishedKit, KitContent} from '@/lib/creator-kit';
+import {metric, importedDate} from '@/lib/creator-kit';
+import styles from './detail.module.css';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -38,6 +41,7 @@ export default function CreatorDetailPage() {
 	const documentsQuery = useQuery<CreatorDocument[]>({ queryKey: ['creator-documents', { creator: id }], queryFn: () => api.get(`/creator-documents/?creator=${id}`), enabled: id !== null && !isAccounts });
 	const dashboardQuery = useQuery<CreatorDashboard>({ queryKey: ['creator-dashboard', id, fyStart, selectedMonth], queryFn: () => api.get(`/creators/${id}/dashboard?fy=${fyStart}${selectedMonth ? `&month=${selectedMonth}` : ''}`), enabled: id !== null && fyStart !== null });
 
+	const kitQuery = useQuery<{status:'not_started'|'private_draft'|'published';kit:PublishedKit|null}>({queryKey:['creator-published-kit',id],queryFn:()=>api.get(`/creators/${id}/brand-kit`),enabled:id!==null});
 	const initial = React.useMemo<CreatorForm>(() => creator ? {
 		name: creator.name, niche: creator.category, relation: creator.relationship,
 		status: creator.status, doj: creator.doj ? new Date(creator.doj) : EMPTY_FORM.doj,
@@ -71,32 +75,54 @@ export default function CreatorDetailPage() {
 	const dashboard = dashboardQuery.data;
 	const campaigns = dashboard?.campaigns ?? [];
 	return (
-		<section className="space-y-6">
+		<section className={styles.workspace}>
 			<div className="text-[12px] text-[var(--n-fg-muted)]"><Link className="hover:underline" href="/creators">Creators</Link> <span className="mx-2">/</span> {creator.name}</div>
-			<div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
-				<div className="xl:col-span-2 min-w-0 space-y-6">
-					<header className="flex flex-wrap items-center justify-between gap-4">
-						<div><h1 className="text-[26px] font-bold">{creator.name}</h1><div className="mt-2 flex gap-2"><Tag tone={relTone(creator.relationship)}>{creator.relationship}</Tag><Tag tone={statusTone(creator.status)}>{creator.status}</Tag></div></div>
-						<div className="flex items-center gap-3">
-							<select
+					<header className={styles.profileHeader}>
+						<div className={styles.profileIdentity}><span className={styles.avatar}>{creator.name.split(' ').filter(Boolean).slice(0,2).map(part => part[0]).join('')}</span><div><h1 className="text-[26px] font-bold">{creator.name}</h1><div className="mt-2 flex gap-2"><Tag tone={relTone(creator.relationship)}>{creator.relationship}</Tag><Tag tone={statusTone(creator.status)}>{creator.status}</Tag></div><p className={styles.profileNote}>{[creator.category, creator.location].filter(Boolean).join(' · ') || 'Creator profile'}</p></div></div>
+						<div className={styles.actions}>
+
+							{!isAccounts && <Button variant="primary" onClick={() => setEditConfirmOpen(true)}><Icon name="edit" size={14} className="mr-1" />Edit creator</Button>}
+						</div>
+					</header>
+					<div className={styles.profileDetails}>
+						{[['Niche', creator.category || '—'], ['Talent manager', creator.ops_manager || '—'], ['Location', creator.location || '—'], ['Joined', formatDoj(creator.doj)]].map(([label, value]) => <div key={label} className="rounded-xl border p-4" style={{ borderColor: 'var(--n-border)' }}><div className="text-[12px] font-medium uppercase tracking-wide text-[var(--n-fg-muted)]">{label}</div><div className="mt-1.5 text-[14px] font-medium">{value}</div></div>)}
+					</div>
+{links.length>0&&<> 					<div className="rounded-xl border p-5 space-y-3" style={{ borderColor: 'var(--n-border)' }}>
+						<div className="flex items-center justify-between"><div><h2 className="text-[19px] font-semibold">Additional profile links</h2><p className="mt-1.5 text-[12px] text-[var(--n-fg-muted)]">Creator profiles, portfolios, and social channels.</p></div><Tag tone="neutral">{links.length}</Tag></div>
+						{links.length ? <div className="flex flex-wrap gap-2">{links.map((link, index) => {
+							let label = `Link ${index + 1}`;
+							try { label = new URL(link).hostname.replace(/^www\./, '') || label; } catch { /* retain the safe fallback */ }
+							return <a key={`${link}-${index}`} href={link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px] font-medium hover:bg-[var(--n-bg-hover)]" style={{ borderColor: 'var(--n-border)' }}><Icon name="external-link" size={13} />{label}</a>;
+						})}</div> : <p className="text-[12px] text-[var(--n-fg-muted)]">{isAccounts ? 'No creator links are on file.' : 'No creator links added yet. Use Edit creator to add one.'}</p>}
+					</div></>}
+
+			<section className={styles.brandKit} aria-label="Creator brand kit">
+                <header><div><h2>Creator brand kit</h2><p>The creator’s profile, audience and selected work.</p></div>{kitQuery.data?.kit&&<Link href={`/k/${kitQuery.data.kit.slug}`} target="_blank" rel="noopener noreferrer" className={styles.kitLink}>View full kit ↗</Link>}</header>
+                {kitQuery.isLoading?<p>Loading brand kit…</p>:kitQuery.isError?<QueryErrorState description="Brand kit could not be loaded." onRetry={()=>kitQuery.refetch()}/>:kitQuery.data?.kit?<>
+                    <div className={styles.kitProfile}><div><h3>{kitQuery.data.kit.content.profile.display_name||creator.name}</h3>{kitQuery.data.kit.content.profile.headline&&<p>{kitQuery.data.kit.content.profile.headline}</p>}<small>{[kitQuery.data.kit.content.profile.niche,kitQuery.data.kit.content.profile.location,kitQuery.data.kit.content.profile.languages].filter(Boolean).join(' · ')}</small>{kitQuery.data.kit.content.profile.biography&&<p className={styles.biography}>{kitQuery.data.kit.content.profile.biography}</p>}</div><div className={styles.socials}>{kitQuery.data.kit.content.socials.map(s=><article key={s.username}><strong>{metric(s.followers)}</strong><span>Instagram followers</span>{s.url?<a href={s.url} target="_blank" rel="noopener noreferrer">@{s.username} ↗</a>:<span>@{s.username}</span>}<small>Snapshot {importedDate(s.imported_at)}</small></article>)}</div></div>
+                    {kitQuery.data.kit.content.posts.length>0&&<details className={styles.workDisclosure}><summary>Selected work <span>{kitQuery.data.kit.content.posts.length} posts</span></summary><div className={styles.featured}>{kitQuery.data.kit.content.posts.map(post=><article key={`${post.username}:${post.id}`}><FeaturedThumbnail post={post}/><div><strong>{post.format}</strong><p>{post.caption||'Featured work'}</p>{post.url&&<a href={post.url} target="_blank" rel="noopener noreferrer">View post ↗</a>}</div></article>)}</div></details>}
+                </>:<div className={styles.kitEmpty}><strong>{kitQuery.data?.status==='private_draft'?'Brand kit is a private draft':'No brand kit published yet'}</strong><p>{kitQuery.data?.status==='private_draft'?'This creator has started a kit. Their profile and selected work will appear here once they publish it.':'When the creator publishes their kit, their profile, audience and featured work will appear here.'}</p></div>}
+            </section>
+<header className={styles.activityHeader}><div><h2>Campaigns & financial activity</h2><p>{dashboard?.fy||'Selected fiscal year'} · The month filter applies to financial metrics and campaigns.</p></div><div className={styles.actions}>							<select
 								className="form-select h-8 text-[12px] rounded-md py-1 px-3 border outline-none cursor-pointer focus:border-[var(--n-accent)] focus:ring-1 focus:ring-[var(--n-accent)]"
 								style={{ borderColor: 'var(--n-border)', background: 'var(--n-bg)', color: 'var(--n-fg)' }}
-								value={selectedMonth}
+								aria-label="Filter financial activity by month"
+                                value={selectedMonth}
 								onChange={(e) => setSelectedMonth(e.target.value)}
 							>
 								<option value="">All months</option>
 								{dashboard?.months?.map((m) => (
 									<option key={m.key} value={m.key}>{m.label}</option>
 								))}
-							</select>
-							{!isAccounts && <Button variant="primary" onClick={() => setEditConfirmOpen(true)}><Icon name="edit" size={14} className="mr-1" />Edit creator</Button>}
-						</div>
-					</header>
+							</select></div></header>
+			<div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+				<div className="xl:col-span-2 min-w-0 space-y-6">
+
 					{dashboardQuery.isLoading && <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" aria-label="Loading creator metrics">{Array.from({ length: 8 }, (_, index) => <div key={index} className="h-[74px] animate-pulse rounded border bg-gray-50" style={{ borderColor: 'var(--n-border)' }} />)}</div>}
 					{dashboardQuery.error && <QueryErrorState description="Creator financial metrics are temporarily unavailable." onRetry={() => dashboardQuery.refetch()} />}
-					{dashboard && <><div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+					{dashboard && <><div className={styles.metrics}>
 						<MetricCard label="Campaigns" value={dashboard.metrics.campaign_count} />
-						<MetricCard label="Total billing" value={`₹${inr(dashboard.metrics.total_billing) || '0'}`} dotColor="#2563eb" />
+						<MetricCard label="Total bookings" value={`₹${inr(dashboard.metrics.total_billing) || '0'}`} dotColor="#2563eb" />
 						<MetricCard label="Creator fees" value={`₹${inr(dashboard.metrics.creator_fees) || '0'}`} dotColor="#d97706" />
 						<MetricCard label="Agency margin" value={`₹${inr(dashboard.metrics.agency_margin) || '0'}`} dotColor="#0d9070" />
 						<MetricCard label="Amount paid" value={`₹${inr(dashboard.metrics.amount_paid) || '0'}`} />
@@ -104,17 +130,7 @@ export default function CreatorDetailPage() {
 						<MetricCard label="Average deal" value={`₹${inr(dashboard.metrics.average_deal_value) || '0'}`} />
 						<MetricCard label="Active campaigns" value={dashboard.metrics.active_campaigns} />
 					</div><div className="grid grid-cols-1 xl:grid-cols-3 gap-5"><div className="xl:col-span-2"><CreatorFinancialTrend months={dashboard.months} /></div><CreatorPaymentChart rows={dashboard.payment_statuses} /></div></>}
-					<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-						{[['Niche', creator.category || '—'], ['Talent manager', creator.ops_manager || '—'], ['Location', creator.location || '—'], ['Joined', formatDoj(creator.doj)]].map(([label, value]) => <div key={label} className="rounded-xl border p-4" style={{ borderColor: 'var(--n-border)' }}><div className="text-[12px] font-medium uppercase tracking-wide text-[var(--n-fg-muted)]">{label}</div><div className="mt-1.5 text-[14px] font-medium">{value}</div></div>)}
-					</div>
-					<div className="rounded-xl border p-5 space-y-3" style={{ borderColor: 'var(--n-border)' }}>
-						<div className="flex items-center justify-between"><div><h2 className="text-[19px] font-semibold">Links</h2><p className="mt-1.5 text-[12px] text-[var(--n-fg-muted)]">Creator profiles, portfolios, and social channels.</p></div><Tag tone="neutral">{links.length}</Tag></div>
-						{links.length ? <div className="flex flex-wrap gap-2">{links.map((link, index) => {
-							let label = `Link ${index + 1}`;
-							try { label = new URL(link).hostname.replace(/^www\./, '') || label; } catch { /* retain the safe fallback */ }
-							return <a key={`${link}-${index}`} href={link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-[12px] font-medium hover:bg-[var(--n-bg-hover)]" style={{ borderColor: 'var(--n-border)' }}><Icon name="external-link" size={13} />{label}</a>;
-						})}</div> : <p className="text-[12px] text-[var(--n-fg-muted)]">{isAccounts ? 'No creator links are on file.' : 'No creator links added yet. Use Edit creator to add one.'}</p>}
-					</div>
+
 				</div>
 				<div className="xl:col-span-1 min-w-0">
 					<CreatorBrandChart rows={dashboard?.brands ?? []} />
@@ -131,4 +147,9 @@ export default function CreatorDetailPage() {
 			{!isAccounts && <CreatorFormModal open={editOpen} onOpenChange={setEditOpen} title="Edit Creator" submitLabel="Save changes" initial={initial} onSubmit={save} creatorId={creator.id} />}
 		</section>
 	);
+}
+
+function FeaturedThumbnail({post}:{post:KitContent['posts'][number]}) {
+ const [failed,setFailed]=React.useState(false);
+ return <div className={styles.thumbnail}>{post.image_url&&!failed?<img src={post.image_url} alt="" loading="lazy" onError={()=>setFailed(true)}/>:<div className={styles.postFallback}><strong>{post.format}</strong><span>Preview unavailable</span></div>}</div>;
 }

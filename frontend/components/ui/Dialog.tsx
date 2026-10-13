@@ -13,6 +13,7 @@ export interface DialogProps {
 	children?: React.ReactNode;
 	footer?: React.ReactNode;
 	className?: string;
+	onCloseAutoFocus?: React.ComponentProps<typeof DialogPrimitive.Content>['onCloseAutoFocus'];
 }
 
 export function Dialog({
@@ -22,13 +23,15 @@ export function Dialog({
 	description,
 	children,
 	footer,
-	className
+	className,
+	onCloseAutoFocus
 }: DialogProps) {
 	return (
 		<DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
 			<DialogPrimitive.Portal>
 				<DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]" />
 				<DialogPrimitive.Content
+					onCloseAutoFocus={onCloseAutoFocus}
 					className={cn(
 						'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
 						'w-full max-w-2xl rounded-lg p-5',

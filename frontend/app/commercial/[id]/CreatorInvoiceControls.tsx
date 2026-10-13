@@ -6,6 +6,7 @@ import { formatDocDate } from '@/lib/utils';
 import Button from '@/components/ui/Button';
 import Icon from '@/components/ui/Icon';
 import Tag from '@/components/ui/Tag';
+import styles from './detail.module.css';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 import {
@@ -20,9 +21,9 @@ export function InvoiceReadinessSummary({ dealId, creatorCount, documents }: { d
 	const clientReceived = documents.some((document) => document.doc_type === 'ClientInvoice');
 	return (
 		<div className="flex flex-wrap items-center gap-2 text-[12px]">
-			<Tag tone={clientReceived ? 'yes' : 'neutral'}>Client {clientReceived ? 'received' : 'missing'}</Tag>
-			<Tag tone={invoices.length >= creatorCount ? 'yes' : 'neutral'}>
-				Creator invoices {isLoading ? '…' : `${invoices.length}/${creatorCount}`}
+			<Tag className={styles.badge} tone={clientReceived ? 'yes' : 'neutral'}>Client invoice {clientReceived ? 'received' : 'missing'}</Tag>
+			<Tag className={styles.badge} tone={creatorCount > 0 && invoices.length >= creatorCount && !isError ? 'yes' : 'neutral'}>
+				{creatorCount === 0 ? 'Select a creator first' : `Creator invoices ${isLoading ? '…' : `${invoices.length}/${creatorCount}`}`}
 			</Tag>
 			{isError && <span className="text-amber-700">Status temporarily unavailable</span>}
 		</div>
@@ -67,16 +68,17 @@ export default function CreatorInvoiceControls({ dealId, creatorId, pendingAssig
 			<div>
 				<div className="flex items-center gap-2 text-[12px] font-medium">
 					Creator invoice
-					<Tag tone={invoice ? 'yes' : 'neutral'}>{isLoading ? 'Loading…' : invoice ? 'Received' : 'Required'}</Tag>
+					<Tag className={styles.badge} tone={invoice ? 'yes' : 'neutral'}>{isLoading ? 'Loading…' : invoice ? 'Received' : 'Required'}</Tag>
 				</div>
 				{invoice && <p className="mt-1 text-[11px]" style={{ color: 'var(--n-fg-subtle)' }}>Uploaded {formatDocDate(invoice.uploaded_at)}</p>}
-				{pendingAssignment && <p className="mt-1 text-[11px] text-amber-700">Save this creator assignment before uploading an invoice.</p>}
+				{!creatorId && <p className="mt-1 text-[11px]" style={{color:'var(--n-fg-subtle)'}}>Select and save a creator before uploading.</p>}
+                {pendingAssignment && <p className="mt-1 text-[11px] text-amber-700">Save this creator assignment before uploading an invoice.</p>}
 				{isError && <p className="mt-1 text-[11px] text-amber-700">Status temporarily unavailable</p>}
 				{message && <p className="mt-1 text-[11px] text-red-700">{message}</p>}
 			</div>
 			<div className="flex items-center gap-2">
 				{invoice?.file && <Button type="button" variant="outline" onClick={() => void downloadAuthenticatedFile(invoice.file, invoice.label || 'creator-invoice')}><Icon name="external-link" size={12} className="mr-1" />View</Button>}
-				<label className={`inline-flex h-9 cursor-pointer items-center rounded-md px-3 text-[12px] font-medium text-white ${busy || !creatorId || pendingAssignment ? 'pointer-events-none opacity-50' : ''}`} style={{ background: 'var(--n-accent)' }}>
+				<label className={`inline-flex h-9 cursor-pointer items-center rounded-md px-3 text-[12px] font-medium text-white ${busy || !creatorId || pendingAssignment ? 'pointer-events-none opacity-50' : ''}`} style={{ background: busy || !creatorId || pendingAssignment ? '#efedf3' : 'var(--n-accent)', color: busy || !creatorId || pendingAssignment ? '#70677f' : '#fff', opacity: 1 }}>
 					{busy ? 'Working…' : invoice ? 'Replace' : 'Upload'}
 					<input className="sr-only" type="file" accept="application/pdf,image/*" disabled={busy || !creatorId || pendingAssignment} onChange={(event) => {
 						const file = event.target.files?.[0];

@@ -2,6 +2,7 @@
 
 import Dialog from './Dialog';
 import Button from './Button';
+import styles from './ConfirmDialog.module.css';
 
 export default function ConfirmDialog({
 	open,
@@ -28,7 +29,7 @@ export default function ConfirmDialog({
 			onOpenChange={onOpenChange}
 			title={title}
 			description={description}
-			className="max-w-md"
+			className={`max-w-md ${styles.dialog}`}
 			footer={
 				<>
 					<Button type="button" variant="outline" disabled={pending} onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -38,7 +39,6 @@ export default function ConfirmDialog({
 				</>
 			}
 		>
-			<p className="text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>This confirmation helps prevent accidental changes.</p>
 		</Dialog>
 	);
 }

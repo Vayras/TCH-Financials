@@ -33,6 +33,16 @@ services:
       SUPABASE_JWT_SECRET: ""
       SUPABASE_SERVICE_ROLE_KEY: ""
       RESEND_API_KEY: ""
+      BRIGHTDATA_IMPORTS_ENABLED: ${BRIGHTDATA_IMPORTS_ENABLED:-false}
+      BRIGHTDATA_API_KEY: ${BRIGHTDATA_API_KEY:-}
+      BRIGHTDATA_IG_DATASET_ID: ${BRIGHTDATA_IG_DATASET_ID:-}
+      BRIGHTDATA_IG_POSTS_DATASET_ID: ${BRIGHTDATA_IG_POSTS_DATASET_ID:-}
+      SOCIAL_REFRESH_COOLDOWN_SECONDS: ${SOCIAL_REFRESH_COOLDOWN_SECONDS:-3600}
+      SOCIAL_CREATOR_DAILY_LIMIT: ${SOCIAL_CREATOR_DAILY_LIMIT:-3}
+      SOCIAL_GLOBAL_DAILY_LIMIT: ${SOCIAL_GLOBAL_DAILY_LIMIT:-100}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_SEARCH_MODEL: ${OPENAI_SEARCH_MODEL:-}
     depends_on:
       db:
         condition: service_healthy
@@ -61,6 +71,22 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
+    restart: unless-stopped
+
+  social-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    environment: *backend-environment
+    volumes:
+      - ./backend:/app
+      - backend_node_modules:/app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["npm", "run", "worker:social:dev"]
     restart: unless-stopped
 
   frontend:

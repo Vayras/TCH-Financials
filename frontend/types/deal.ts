@@ -6,6 +6,7 @@ export type DealForm = {
 	e_invoice_date: string;
 	creator: string;
 	tch_poc: string;
+	responsible_member_id?: string | null;
 	direction: string;
 	total_fee: string;
 	agency_fee_pct: string;

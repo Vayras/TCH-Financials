@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import styles from './CreatorFormModal.module.css';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { api, type CreatorDocument } from '@/lib/api';
 import Dialog from '@/components/ui/Dialog';
@@ -158,6 +159,7 @@ export function CreatorFormModal({
 			open={open}
 			onOpenChange={onOpenChange}
 			title={title}
+            className={styles.dialog}
 			footer={
 				<>
 					<Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -179,12 +181,14 @@ export function CreatorFormModal({
 					setUrlError(null);
 					await onSubmit(fromValues(v));
 				})}
-				className="grid grid-cols-2 gap-3"
+				className={styles.fields}
 			>
+                <h3 className={styles.sectionTitle}>Profile</h3>
 				<div>
 					<Label>Name</Label>
 					<Input
-						{...register('name', { required: 'Name is required' })}
+						aria-label="Creator name"
+                        {...register('name', { required: 'Name is required' })}
 						placeholder="Saili Satwe"
 					/>
 					{errors.name && (
@@ -197,14 +201,16 @@ export function CreatorFormModal({
 					<Label>Email Address</Label>
 					<Input
 						type="email"
-						{...register('email')}
+						aria-label="Email address"
+                        {...register('email')}
 						placeholder="e.g. saili@example.com"
 					/>
 				</div>
 				<div>
 					<Label>Niche</Label>
 					<Input
-						{...register('niche', { required: 'Niche is required' })}
+						aria-label="Niche"
+                        {...register('niche', { required: 'Niche is required' })}
 						placeholder="Lifestyle / Fashion"
 					/>
 					{errors.niche && (
@@ -213,10 +219,12 @@ export function CreatorFormModal({
 						</div>
 					)}
 				</div>
+                <h3 className={styles.sectionTitle}>Management</h3>
 				<div>
-					<Label>Relation</Label>
+					<Label>Relationship</Label>
 					<Select
-						{...register('relation', { required: 'Relation is required' })}
+						aria-label="Relationship"
+                        {...register('relation', { required: 'Relation is required' })}
 						options={REL}
 						placeholder="Select relation…"
 					/>
@@ -230,7 +238,8 @@ export function CreatorFormModal({
 					<div>
 						<Label>Status</Label>
 						<Select
-							{...register('status', {
+							aria-label="Status"
+                        {...register('status', {
 								required: relation !== 'Non-Exclusive' ? 'Status is required' : false
 							})}
 							options={STATUS}
@@ -245,11 +254,12 @@ export function CreatorFormModal({
 				)}
 				{relation !== 'Non-Exclusive' && (
 					<div>
-						<Label>DOJ</Label>
+						<Label>Joined date</Label>
 						<Input
 							type="date"
-							{...register('doj', {
-								required: relation !== 'Non-Exclusive' ? 'DOJ is required' : false
+							aria-label="Joined date"
+                        {...register('doj', {
+								required: relation !== 'Non-Exclusive' ? 'Joined date is required' : false
 							})}
 						/>
 						{errors.doj && (
@@ -262,7 +272,8 @@ export function CreatorFormModal({
 				<div>
 					<Label>Location</Label>
 					<Input
-						{...register('location', { required: 'Location is required' })}
+						aria-label="Location"
+                        {...register('location', { required: 'Location is required' })}
 						placeholder="Mumbai"
 					/>
 					{errors.location && (
@@ -274,7 +285,8 @@ export function CreatorFormModal({
 				<div>
 					<Label>Talent Manager</Label>
 					<Input
-						{...register('talent_manager', { required: 'Talent Manager is required' })}
+						aria-label="Talent manager"
+                        {...register('talent_manager', { required: 'Talent Manager is required' })}
 						placeholder="Arzoo / Akshita"
 					/>
 					{errors.talent_manager && (
@@ -284,16 +296,18 @@ export function CreatorFormModal({
 					)}
 				</div>
 				<div className="col-span-2">
-					<Label>URLs</Label>
+					<h3 className={styles.sectionTitle}>Links</h3>
+                    <p className={styles.hint}>Add at least one social or portfolio link.</p>
 					<div className="space-y-2">
 						{urls.fields.map((field, i) => (
 							<div key={field.id} className="flex gap-1">
 								<Input
 									type="url"
+                                    aria-label={`Profile link ${i + 1}`}
 									{...register(`url.${i}.value`, { required: 'URL cannot be empty' })}
 									placeholder="https://www.instagram.com/…"
 								/>
-								<Button variant="ghost" onClick={() => urls.remove(i)}>
+								<Button aria-label={`Remove link ${i + 1}`} variant="ghost" onClick={() => urls.remove(i)}>
 									✕
 								</Button>
 							</div>
@@ -363,7 +377,7 @@ export function CreatorFormModal({
 						className="text-[11.5px] font-medium uppercase mb-2"
 						style={{ color: 'var(--n-fg-subtle)', letterSpacing: '0.04em' }}
 					>
-						{requireAttachments && relation !== 'Non-Exclusive' ? 'Attachments (required)' : 'Upload / replace documents'}
+						{requireAttachments && relation !== 'Non-Exclusive' ? 'Documents (required)' : 'Upload / replace documents'}
 					</div>
 					<div className="grid grid-cols-2 gap-3">
 						{slots.map((slot) => (
@@ -379,6 +393,7 @@ export function CreatorFormModal({
 								</Label>
 								<input
 									type="file"
+                                    aria-label={slot.label}
 									accept="image/*,application/pdf"
 									{...register(`attachments.${slot.key}`, {
 										validate: (v) => {

@@ -41,6 +41,9 @@ export class CommercialDeal {
   @Column({ name: 'creator_name_raw', length: 200, default: '' })
   creatorNameRaw: string;
 
+  @Column({ name: 'responsible_member_id', type: 'uuid', nullable: true })
+  responsibleMemberId: string | null;
+
   @Column({ name: 'tch_poc', length: 120, default: '' })
   tchPoc: string;
 

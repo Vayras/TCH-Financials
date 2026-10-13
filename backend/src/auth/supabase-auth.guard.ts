@@ -8,6 +8,7 @@ import { DataSource } from 'typeorm';
 import { env } from '../env';
 import { Profile } from '../entities/profile.entity';
 import { SKIP_AUTH_KEY } from './skip-auth.decorator';
+import { PUBLIC_ROUTE_KEY } from './public.decorator';
 
 type Jwks = ReturnType<typeof createRemoteJWKSet>;
 
@@ -30,6 +31,7 @@ export class SupabaseAuthGuard implements CanActivate {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    if (this.reflector.getAllAndOverride<boolean>(PUBLIC_ROUTE_KEY, [context.getHandler(), context.getClass()])) return true;
     const isSkipAuth = this.reflector.getAllAndOverride<boolean>(SKIP_AUTH_KEY, [
       context.getHandler(),
       context.getClass(),

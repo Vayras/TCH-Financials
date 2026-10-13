@@ -5,8 +5,10 @@ import { useForm, type FieldErrors, type RegisterOptions, type Path } from 'reac
 import type { DealForm, ShareForm } from '@/types/deal';
 import { DIRECTION, MONTH_NAMES } from '@/lib/deals';
 import Dialog from '@/components/ui/Dialog';
+import formStyles from './CreatorFormModal.module.css';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import ResponsibleMemberSelect from '@/components/ResponsibleMemberSelect';
 import Select from '@/components/ui/Select';
 import Label from '@/components/ui/Label';
 import Icon from '@/components/ui/Icon';
@@ -122,7 +124,7 @@ export function CampaignFormModal({
 			open={open}
 			onOpenChange={onOpenChange}
 			title={title}
-			className="max-w-2xl"
+			className={formStyles.dialog}
 			footer={
 				<>
 					<Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
@@ -137,7 +139,7 @@ export function CampaignFormModal({
 							</span>
 						) : (
 							<span className="flex items-center gap-1.5">
-								<Icon name="zap" size={13} />
+
 								{submitLabel}
 							</span>
 						)}
@@ -163,12 +165,12 @@ export function CampaignFormModal({
 				</div>
 			)}
 
-			<form id="campaign-form" onSubmit={submitHandler}>
+			<form className={formStyles.campaignFields} id="campaign-form" onSubmit={submitHandler}>
 				{/* Section: Campaign & Brand */}
 				<div className="mb-5">
 					<div className="flex items-center gap-2 mb-4">
 						<div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ background: 'var(--n-accent)' }}>1</div>
-						<span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--n-fg-subtle)' }}>Campaign Info</span>
+						<span className={formStyles.sectionTitle}>Campaign info</span>
 					</div>
 					<div className="grid grid-cols-2 gap-4">
 						<div className="col-span-2">
@@ -223,7 +225,7 @@ export function CampaignFormModal({
 				<div>
 					<div className="flex items-center gap-2 mb-4">
 						<div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ background: 'var(--n-accent)' }}>2</div>
-						<span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--n-fg-subtle)' }}>Deal Details</span>
+						<span className={formStyles.sectionTitle}>Deal details</span>
 					</div>
 					<div className="grid grid-cols-2 gap-4">
 						<div>
@@ -237,8 +239,8 @@ export function CampaignFormModal({
 							{err('direction') && <p className="mt-1 text-[12px] text-red-500">{err('direction')}</p>}
 						</div>
 						<div>
-							<Label>TCH Point of Contact *</Label>
-							<Input placeholder="TCH person handling this deal" {...reg('tch_poc', required)} className={fieldCls('tch_poc')} />
+							<Label>Responsible team member</Label>
+							<ResponsibleMemberSelect {...reg('responsible_member_id')} />
 							{err('tch_poc') && <p className="mt-1 text-[12px] text-red-500">{err('tch_poc')}</p>}
 						</div>
 						<div>
