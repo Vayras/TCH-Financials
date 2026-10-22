@@ -1,42 +1,26 @@
-# sv
+# TCH Financials Frontend
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Next.js 15 (App Router) client application for TCH Financials.
 
-## Creating a project
+## Tech Stack
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Framework**: Next.js 15 + React 19
+- **Styling**: Tailwind CSS v4 + Vanilla CSS Modules
+- **State & Data Fetching**: TanStack Query v5 + Axios
+- **Components & Icons**: Lucide React, Radix UI Dialog primitives, Sonner (Toasts)
+- **Tables & Charts**: TanStack Table v8, Recharts
 
-```sh
-# create a new project
-npx sv create my-app
+## Local Development
+
+```bash
+npm install
+npm run dev      # http://localhost:5050
 ```
 
-To recreate this project with the same configuration:
+## Scripts
 
-```sh
-# recreate this project
-npx sv@0.15.1 create --template minimal --types ts --install npm frontend
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
-
-```sh
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+- `npm run dev`: Start Next.js dev server on port 5050 (`-p 5050 -H 0.0.0.0`)
+- `npm run build`: Production Next.js build
+- `npm run start`: Start production server on port 5050
+- `npm run lint`: Run ESLint
+- `npm run typecheck`: Run TypeScript type checking (`tsc --noEmit`)

@@ -1,148 +1,188 @@
 # TCH Financials
 
-Next.js + NestJS rebuild of the TCH MIS workbook. **Campaign-based**: campaigns
-are first-class records; deals belong to a campaign, and creators appear as a
-supporting dimension on each campaign.
+Financial operations, campaign tracking, and creator portal for The Creative Hook (TCH). Built with **Next.js 15 (App Router)**, **NestJS v11**, and **PostgreSQL 17 (Supabase)**.
 
-## What's automated
+---
 
-**Campaign Tracking (`/commercial`) is the single source of truth.** Add a deal
-and every derived view recomputes on the next GET:
+## Overview & Core Capabilities
 
-- **Current Overview (`/`)** — billing per campaign × month / quarter, campaign
-  status counts (Active / Over), plus EMW Billing, EMW %, Profits, Profit Ratio.
-- **Entity Summary** — billing / profit per billing entity, with the campaigns
-  and creators billed under each.
-- **Alerts** — overdue invoices / payments (campaign-first), inactive creators,
-  dormant / hot brands, renewals, seasonal moments.
+TCH Financials is designed around a **campaign-first architecture**: campaigns are the central operating unit, deals link to campaigns, and creators operate across campaigns, media kits, and financial workflows.
 
-A deal's fiscal year and month come from its **E-Invoice No**
-(`TCH/2526/Dec01` → Dec, FY 25-26). Agency Fee (INR) and Creator Fee
-auto-derive from Total Fee × % on save. A campaign's status flips to **Over**
-automatically once every deal on it is marked `campaign_over = Y`.
+### 1. Operations & Financial Management
+- **Campaign Tracking (`/commercial`)**: Single source of truth for all brand deals, agency fees, creator payouts, and campaign statuses (`Active` / `Over`).
+- **Overview Matrix (`/`)**: Real-time aggregation of billing per campaign across months and fiscal quarters, highlighting EMW Billing, EMW %, Gross Profits, and Profit Ratios.
+- **Billing Entity Summary (`/entity-summary`)**: Financial drill-down across legal billing entities, associated brands, and billed talent.
+- **Invoicing & Payments (`/payments`)**: Invoice generation, TDS calculation, UTR payment tracking, and status reconciliation.
+- **Health Signals & Alerts (`/alerts`)**: Automated detection of overdue invoices, overdue creator payments, dormant brands, hot brands (high deal velocity), and creator contract renewals.
+- **Team Weekly Reporting (`/employees`)**: Weekly Thursday reporting and notes for team operational visibility.
 
-## Stack
+### 2. Creator Portal (`/creator-portal`)
+- **Creator Workspace**: Role-scoped dashboard for creators to track earnings, active campaigns, deliverables, and payment histories.
+- **Brand & Media Kit (`/creator-portal/media-kit`)**: Media kit builder allowing creators to showcase verified metrics, curated content, and published kits with public vanity URLs (`/k/:slug`).
+- **Creator Invoices & Deals (`/creator-portal/invoices`, `/creator-portal/deals`)**: Self-serve invoice submission and tracking.
+- **Instagram Insights Integration**: Connect Instagram handles and import verified audience insights and recent posts via the background worker.
 
-| Layer    | Tech                                                        |
-|----------|-------------------------------------------------------------|
-| DB       | PostgreSQL 17 — Supabase                                    |
-| Backend  | NestJS v11 + TypeORM                                        |
-| Frontend | Next.js 15 + React 19 + TypeScript + Tailwind v4 (:5050)    |
+### 3. Campaign Content & AI Ideation (`/campaigns/:id/brief`)
+- **Structured Campaign Briefs**: Collaborative briefing covering objectives, requirements, and creator allocations.
+- **AI Concept Ideation**: Generate and iterate on creative concepts powered by OpenAI with prompt contextualization from brand parameters and audience profiles.
+- **Concept Workspace**: Version-controlled pitch drafts, creator feedback loops, and submission workflows.
 
-## Layout
+---
+
+## Tech Stack
+
+| Layer | Technologies |
+|---|---|
+| **Frontend** | Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, TanStack Query v5, Lucide Icons, Sonner (:5050) |
+| **Backend** | NestJS v11, TypeORM, TypeScript, Swagger / OpenAPI docs (:8000) |
+| **Database** | PostgreSQL 17 (Supabase session pooler) with row-level safety and advisory admission locks |
+| **Worker** | Node.js TypeScript background worker (`src/social-worker.ts`) for asynchronous social imports |
+| **External APIs** | TrioSphere (Instagram profile/media lookups), OpenAI (Campaign brief concept ideation), Resend (Transactional emails) |
+| **Formatting** | Prettier + EditorConfig |
+
+---
+
+## Repository Layout
 
 ```
-frontend/             Next.js app
-  lib/api.ts                Typed API client + types
-  app/page.tsx              Current Overview (per-campaign billing)
-  app/commercial/           Campaign Tracking — deal CRUD, campaign picker
-  app/creators/             Creator Pipeline
-  app/entity-summary/       Billing Entity Summary
-  app/alerts/               Alerts & health signals
-  app/employees/            Employee weekly reports
-data/source.xlsx      Workbook used for first-boot seeding
-scripts/db_backup.sh  pg_dump snapshot of $DATABASE_URL → backups/
+.
+├── backend/                  # NestJS API backend
+│   ├── src/
+│   │   ├── auth/             # Supabase JWT & role-based access control (RBAC)
+│   │   ├── campaign-content/ # Campaign briefs, concepts, and AI ideation
+│   │   ├── creator-social/   # TrioSphere client, normalizers, and brand-kit services
+│   │   ├── migrations/       # TypeORM database migrations
+│   │   ├── resources/        # Deals, campaigns, payments, TDS, and reporting controllers
+│   │   ├── social-worker.ts  # Background worker for queued social imports
+│   │   └── data-source.ts    # TypeORM DataSource configuration
+│   └── test/                 # Test suites (unit and integration)
+├── frontend/                 # Next.js frontend application
+│   ├── app/                  # Next.js App Router pages and layouts
+│   │   ├── commercial/       # Deal & campaign tracking
+│   │   ├── creator-portal/   # Creator portal and self-service kit
+│   │   ├── payments/         # Invoice, TDS, and UTR workflows
+│   │   └── k/[slug]/         # Public published creator media kits
+│   ├── components/           # Shared UI components and layout wrappers
+│   ├── features/             # Feature-specific modules (e.g. campaign-content)
+│   └── lib/                  # Typed API clients, Supabase browser client, helpers
+├── docker/                   # Docker environment configurations
+├── docker-compose.dev.yml    # Local development stack (Postgres + Backend + Frontend + Worker)
+└── scripts/                  # Database backup and verification utilities
 ```
 
-## Configuration
+---
 
-Copy `.env.example` to `.env` at the repo root. The one variable that matters:
+## Getting Started
+
+### Prerequisites
+- Node.js ≥ 22.12
+- Docker & Docker Compose (for local containerized development)
+- PostgreSQL 17 (if running outside Docker)
+
+### 1. Local Development with Docker (Recommended)
+
+The easiest way to run the entire stack (PostgreSQL, NestJS API, Next.js frontend, and the social worker) is via Docker Compose:
 
 ```bash
-# Hosted Postgres (production). When set, it overrides the local PG* vars.
-DATABASE_URL=postgresql://postgres.<project-ref>:<password>@aws-1-<region>.pooler.supabase.com:5432/postgres?sslmode=require
-```
-
-Supabase notes:
-
-- Use the **session pooler** URI (port 5432) from *Project Settings → Database*,
-  username `postgres.<project-ref>`, and keep `sslmode=require`.
-- Do **not** use the direct host `db.<project-ref>.supabase.co` — it is
-  IPv6-only and unreachable from most networks.
-- Do **not** use the transaction pooler (port 6543) with Django.
-
-The frontend reads its Supabase credentials from `frontend/.env.local`:
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key>
-```
-
-## Production
-
-Build and serve with npm (Node ≥ 22.12):
-
-```bash
-npm run build               # installs frontend deps + next build
-npm run start               # http://localhost:5050
-```
-
-> Port 5050 (not 5000) because macOS AirPlay Receiver squats on :5000.
-
-`NEXT_PUBLIC_*` values are inlined into the client bundle at build time, so
-rebuild after changing `frontend/.env.local`.
-
-### Backups
-
-Supabase Pro has daily automatic backups. On the free tier, snapshot manually:
-
-```bash
-export DATABASE_URL=postgresql://...   # same pooler URI
-./scripts/db_backup.sh                 # → backups/tch_<timestamp>.sql.gz (keeps last 28)
-```
-
-## Local development
-
-### Isolated Docker setup (recommended)
-
-The Docker development stack uses its own local PostgreSQL database and media
-volumes and deliberately does not load production or Supabase credentials:
-
-```bash
+# Start all services with hot reload
 npm run docker:dev
+
+# View container logs
+npm run docker:dev:logs
+
+# Stop all services
+npm run docker:dev:down
+
+# Reset local dev database and volumes
+npm run docker:dev:reset
 ```
 
-Open http://localhost:5050. See [DOCKER_DEV.md](DOCKER_DEV.md) for the safety
-boundary, lifecycle commands, reset behavior, and troubleshooting checks.
-Phase 2 financial validation, database guards, and the production rollout
-safety gates are documented in [PHASE_2_DATA_INTEGRITY.md](PHASE_2_DATA_INTEGRITY.md).
-Staging rehearsal, verified backups, go/no-go gates, and rollback are documented
-in [PHASE_3_4_READINESS.md](PHASE_3_4_READINESS.md).
-System hierarchy, roles and data flows are in [ARCHITECTURE.md](ARCHITECTURE.md);
-health, logging, alerting and incident response are in [OPERATIONS.md](OPERATIONS.md).
+- **Frontend**: http://localhost:5050
+- **Backend API**: http://localhost:8000/api
+- **Swagger Documentation**: http://localhost:8000/docs
+- **Local Dev Database**: `localhost:5433` (database: `tch_financials_dev`, user: `tch_dev`)
 
-### Host Node.js setup
+### 2. Host Development (Manual)
 
-Node ≥ 22.12. From the repo root:
+If running without Docker:
 
 ```bash
+# 1. Install dependencies
+npm run install:backend
 npm run install:frontend
-npm run dev                       # http://localhost:5050
+
+# 2. Configure environment
+cp .env.example .env
+cp frontend/.env.local.example frontend/.env.local   # or configure Supabase keys
+
+# 3. Run database migrations
+npm run migrate
+
+# 4. Start backend and frontend
+npm run dev
+# Or run individually:
+# npm run dev:backend   # NestJS on :8000
+# npm run dev:frontend  # Next.js on :5050
 ```
 
-(or run the same scripts from inside `frontend/`). `npm run typecheck` runs
-`tsc --noEmit`, `npm run lint` runs `next lint`.
+---
 
-## API surface
+## Configuration & Environment Variables
 
-- `GET /api/overview/?fy=2025` — per-campaign billing matrix + totals
-- `GET /api/entity-summary/?fy=2025&entity=&quarter=&month=`
-- `GET /api/alerts/`
-- CRUD: `/api/campaigns/`, `/api/deals/` (`?campaign=<id>` filter),
-  `/api/creators/`, `/api/contracting/`, `/api/employee-reports/`,
-  `/api/creator-documents/`, `/api/social-snapshots/`, `/api/event-invites/`
+Copy `.env.example` to `.env` at the repository root:
 
-Deals are written with `campaign` as a **name string** — the backend matches it
-to an existing campaign (case-insensitively) or creates one on first use, and
-reads back `campaign`, `campaign_id`, and `campaign_status`.
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string (Supabase session pooler port 5432 with `sslmode=require`) |
+| `APP_ENV` | Application environment (`development`, `staging`, `production`) |
+| `CREATOR_SOCIAL_IMPORTS_PAUSED` | Kill-switch to pause social import jobs (`true` or `false`) |
+| `TRIOSPHERE_IMPORTS_ENABLED` | Enable Instagram data imports via TrioSphere (`true` or `false`) |
+| `TRIOSPHERE_API_TOKEN` | Bearer token for TrioSphere profile/media lookups |
+| `SOCIAL_GLOBAL_HOURLY_LIMIT` | Global rate limit cap per hour (default: `20`, provider cap: `30`) |
+| `SOCIAL_GLOBAL_DAILY_LIMIT` | Global rate limit cap per day (default: `100`) |
+| `OPENAI_API_KEY` | OpenAI API key for brief concept ideation |
+| `OPENAI_SEARCH_MODEL` | OpenAI model identifier (default: `gpt-4o-mini`) |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_JWT_SECRET` | Secret key used to verify Supabase Auth tokens |
 
-## Importing / re-importing
+---
+
+## Testing & Code Quality
+
+### Code Formatting
+Prettier and EditorConfig enforce a consistent 2-space indentation style across the repository:
 
 ```bash
-python manage.py import_excel data/source.xlsx          # upsert creators, append deals
-python manage.py import_excel data/source.xlsx --wipe   # DESTRUCTIVE: truncate, then re-seed
+# Check code formatting
+npm run format:check
+
+# Auto-format all frontend and backend files
+npm run format
 ```
 
-`--wipe` deletes all campaigns, deals, creators, contracting rows, employee
-reports and drop-offs first. It is never run automatically — only pass it when
-you intentionally want a from-scratch re-seed.
+### Type Checking & Linting
+```bash
+# Frontend
+npm run typecheck       # tsc --noEmit in frontend
+npm run lint            # eslint in frontend
+
+# Backend
+cd backend && npm run typecheck
+```
+
+### Running Tests
+```bash
+# Run backend test suite
+npm run test:backend
+```
+
+---
+
+## Database Backups & Maintenance
+
+Automated daily backups are configured on Supabase. Manual snapshot backups can be created via:
+
+```bash
+./scripts/db_backup.sh        # Generates compressed SQL backup in backups/
+npm run backup:verify         # Verifies backup integrity against test container
+```
