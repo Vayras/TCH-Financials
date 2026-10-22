@@ -40,10 +40,12 @@ test('skip-auth endpoints bypass role enforcement', () => {
 });
 
 test('accounts deal patches are limited to finance fields', () => {
-  assert.doesNotThrow(() => assertDealPatchAllowed('accounts', {
-    version: 1,
-    creator_payment_status: 'Paid',
-  }));
+  assert.doesNotThrow(() =>
+    assertDealPatchAllowed('accounts', {
+      version: 1,
+      creator_payment_status: 'Paid',
+    }),
+  );
   assert.throws(
     () => assertDealPatchAllowed('accounts', { version: 1, total_fee: '1.00' }),
     ForbiddenException,
@@ -52,13 +54,27 @@ test('accounts deal patches are limited to finance fields', () => {
 });
 
 test('creator deal responses omit client billing and agency profit fields', () => {
-  const dto = creatorPortalDealDto({
-    id: '9', brand: 'Brand', campaignId: '4', campaign: { name: 'Campaign', status: 'Active' },
-    deliverables: 'One reel', creatorFee: '800.00', creatorPaymentStatus: 'Pending',
-    creatorPaymentCycle: 'Net30', creatorPaymentDate: null, campaignOver: '',
-    confirmationDate: '2026-08-01', creatorId: '3', creatorShares: [],
-    totalFee: '1000.00', agencyFeeInr: '200.00', clientInvoiceAmount: '1000.00',
-  } as never, '3') as Record<string, unknown>;
+  const dto = creatorPortalDealDto(
+    {
+      id: '9',
+      brand: 'Brand',
+      campaignId: '4',
+      campaign: { name: 'Campaign', status: 'Active' },
+      deliverables: 'One reel',
+      creatorFee: '800.00',
+      creatorPaymentStatus: 'Pending',
+      creatorPaymentCycle: 'Net30',
+      creatorPaymentDate: null,
+      campaignOver: '',
+      confirmationDate: '2026-08-01',
+      creatorId: '3',
+      creatorShares: [],
+      totalFee: '1000.00',
+      agencyFeeInr: '200.00',
+      clientInvoiceAmount: '1000.00',
+    } as never,
+    '3',
+  ) as Record<string, unknown>;
   assert.equal(dto.creator_fee, '800.00');
   assert.equal('total_fee' in dto, false);
   assert.equal('agency_fee_inr' in dto, false);

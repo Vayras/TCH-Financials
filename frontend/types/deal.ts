@@ -1,41 +1,42 @@
 import type { Deal } from '@/lib/api';
 
 export type DealForm = {
-	confirmation_date: string;
-	e_invoice_number: string;
-	e_invoice_date: string;
-	creator: string;
-	tch_poc: string;
-	direction: string;
-	total_fee: string;
-	agency_fee_pct: string;
-	agency_fee_inr: string;
-	creator_fee: string;
-	billing_entity: string;
-	brand: string;
-	brand_poc: string;
-	campaign: string;
-	deliverables: string;
-	ro_number: string;
-	comments: string;
+  confirmation_date: string;
+  e_invoice_number: string;
+  e_invoice_date: string;
+  creator: string;
+  tch_poc: string;
+  responsible_member_id?: string | null;
+  direction: string;
+  total_fee: string;
+  agency_fee_pct: string;
+  agency_fee_inr: string;
+  creator_fee: string;
+  billing_entity: string;
+  brand: string;
+  brand_poc: string;
+  campaign: string;
+  deliverables: string;
+  ro_number: string;
+  comments: string;
 };
 
 // One extra creator on a multi-creator campaign. The first/primary creator
 // lives in the main form fields; these are the additional split rows.
 export type ShareForm = {
-	creator: string;
-	total_fee: string;
-	agency_fee_pct: string;
-	creator_fee?: string;
-	ro_number?: string;
+  creator: string;
+  total_fee: string;
+  agency_fee_pct: string;
+  creator_fee?: string;
+  ro_number?: string;
 };
 
 export const EMPTY_SHARE: ShareForm = {
-	creator: '',
-	total_fee: '',
-	agency_fee_pct: '',
-	creator_fee: '',
-	ro_number: ''
+  creator: '',
+  total_fee: '',
+  agency_fee_pct: '',
+  creator_fee: '',
+  ro_number: '',
 };
 
 export type DirFilter = 'All' | 'Inbound' | 'Outbound';
@@ -44,24 +45,24 @@ export type DirFilter = 'All' | 'Inbound' | 'Outbound';
 export type CardGroupBy = 'campaign' | 'creator';
 
 export type CampaignGroup = {
-	key: string;
-	name: string;
-	brand: string;
-	status: '' | 'Active' | 'Over';
-	invoices_uploaded: boolean;
-	creatorNames: string[];
-	deals: Deal[];
-	total: number;
-	costToClient?: number;
-	costToUs?: number;
+  key: string;
+  name: string;
+  brand: string;
+  status: '' | 'Active' | 'Over';
+  invoices_uploaded: boolean;
+  creatorNames: string[];
+  deals: Deal[];
+  total: number;
+  costToClient?: number;
+  costToUs?: number;
 };
 
 export type CreatorGroup = {
-	key: string;
-	name: string;
-	relationship?: string;
-	invoices_uploaded: boolean;
-	deals: Deal[];
-	dealCount?: number;
-	total: number;
+  key: string;
+  name: string;
+  relationship?: string;
+  invoices_uploaded: boolean;
+  deals: Deal[];
+  dealCount?: number;
+  total: number;
 };

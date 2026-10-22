@@ -92,10 +92,10 @@ export class AddProfilesAndInvitations1752300000000 implements MigrationInterfac
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Drop triggers
     await queryRunner.query(`DROP TRIGGER IF EXISTS on_auth_user_synced ON auth.users`);
-    
+
     // Drop trigger functions
     await queryRunner.query(`DROP FUNCTION IF EXISTS public.tch_sync_user_profile()`);
-    
+
     // Drop tables
     await queryRunner.query(`DROP TABLE IF EXISTS tch_invitation`);
     await queryRunner.query(`DROP TABLE IF EXISTS tch_profile`);

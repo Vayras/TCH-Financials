@@ -21,14 +21,21 @@ import { TdsController } from './resources/tds.controller';
 import { HealthController } from './health.controller';
 import { AuditController } from './resources/audit.controller';
 import { AuditInterceptor } from './common/audit.interceptor';
+import { CreatorSocialModule } from './creator-social/creator-social.module';
+import { CampaignContentModule } from './campaign-content/campaign-content.module';
 import {
-  ContractingController, DropOffsController, EmployeeReportsController,
-  EventInvitesController, SocialSnapshotsController,
+  ContractingController,
+  DropOffsController,
+  EmployeeReportsController,
+  EventInvitesController,
+  SocialSnapshotsController,
 } from './resources/simple-resources.controllers';
 
 @Module({
   imports: [
     TypeOrmModule.forRoot(AppDataSource.options),
+    CreatorSocialModule,
+    CampaignContentModule,
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 300 }]),
   ],
   controllers: [

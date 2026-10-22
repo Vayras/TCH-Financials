@@ -23,7 +23,9 @@ export class AddCreatorInvoices1752200000000 implements MigrationInterface {
         CONSTRAINT uq_creatorinvoice_deal_creator UNIQUE (deal_id, creator_id)
       )
     `);
-    await queryRunner.query(`CREATE INDEX idx_creatorinvoice_creator ON tch_creatorinvoice (creator_id, uploaded_at DESC)`);
+    await queryRunner.query(
+      `CREATE INDEX idx_creatorinvoice_creator ON tch_creatorinvoice (creator_id, uploaded_at DESC)`,
+    );
     await queryRunner.query(`CREATE INDEX idx_creatorinvoice_deal ON tch_creatorinvoice (deal_id)`);
 
     // Move only unambiguous legacy invoices. A split campaign is safe when it

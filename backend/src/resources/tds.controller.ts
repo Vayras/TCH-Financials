@@ -1,9 +1,20 @@
-import { Controller, Get, Post, Patch, Body, Query, Param, BadRequestException, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Query,
+  Param,
+  BadRequestException,
+  Req,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Roles } from '../auth/roles.decorator';
 import { TdsEntry } from '../entities/tds-entry.entity';
 import { CommercialDeal, Creator } from '../entities';
 import { optionalDate, optionalEnum, requiredText, strictDecimal } from '../common/integrity';
+import { creatorPaginationParams } from '../common/pagination';
 
 @Controller('tds')
 export class TdsController {
@@ -11,33 +22,47 @@ export class TdsController {
 
   @Roles('creator')
   @Get('creator-portal')
-  async creatorPortalList(@Req() req: any) {
+  async creatorPortalList(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('page_size') pageSize?: string,
+  ) {
     const creatorId = req.user?.creatorId;
     if (!creatorId) {
       throw new BadRequestException('Your profile is not linked to any creator record.');
     }
     const repo = this.dataSource.getRepository(TdsEntry);
-    const qb = repo.createQueryBuilder('tds')
+    const pagination = creatorPaginationParams(page, pageSize);
+    const qb = repo
+      .createQueryBuilder('tds')
       .leftJoinAndSelect('tds.creator', 'creator')
       .leftJoinAndSelect('tds.deal', 'deal')
       .andWhere('tds.creatorId = :creatorId', { creatorId })
-      .orderBy('tds.createdAt', 'DESC');
+      .orderBy('tds.createdAt', 'DESC')
+      .addOrderBy('tds.id', 'DESC')
+      .skip((pagination.page - 1) * pagination.pageSize)
+      .take(pagination.pageSize + 1);
     const rows = await qb.getMany();
-    return rows.map((row) => ({
-      id: Number(row.id),
-      creatorId: Number(row.creatorId),
-      dealId: row.dealId ? Number(row.dealId) : null,
-      quarter: row.quarter,
-      tdsRate: row.tdsRate,
-      grossAmount: row.grossAmount,
-      tdsAmount: row.tdsAmount,
-      netPayable: row.netPayable,
-      remittanceDate: row.remittanceDate,
-      challanNumber: row.challanNumber,
-      status: row.status,
-      notes: row.notes,
-      createdAt: row.createdAt,
-    }));
+    return {
+      items: rows.slice(0, pagination.pageSize).map((row) => ({
+        id: Number(row.id),
+        creatorId: Number(row.creatorId),
+        dealId: row.dealId ? Number(row.dealId) : null,
+        quarter: row.quarter,
+        tdsRate: row.tdsRate,
+        grossAmount: row.grossAmount,
+        tdsAmount: row.tdsAmount,
+        netPayable: row.netPayable,
+        remittanceDate: row.remittanceDate,
+        challanNumber: row.challanNumber,
+        status: row.status,
+        notes: row.notes,
+        createdAt: row.createdAt,
+      })),
+      page: pagination.page,
+      page_size: pagination.pageSize,
+      has_more: rows.length > pagination.pageSize,
+    };
   }
 
   @Roles('super_admin', 'accounts')
@@ -47,7 +72,8 @@ export class TdsController {
     @Query('status') status?: 'Pending' | 'Remitted',
   ) {
     const repo = this.dataSource.getRepository(TdsEntry);
-    const qb = repo.createQueryBuilder('tds')
+    const qb = repo
+      .createQueryBuilder('tds')
       .leftJoinAndSelect('tds.creator', 'creator')
       .leftJoinAndSelect('tds.deal', 'deal')
       .orderBy('tds.createdAt', 'DESC');
@@ -65,14 +91,15 @@ export class TdsController {
   @Roles('super_admin', 'accounts')
   @Post()
   async create(
-    @Body() body: {
+    @Body()
+    body: {
       creatorId: string;
       dealId?: string | null;
       quarter: string;
       tdsRate: number; // e.g. 0.1000 for 10%
       grossAmount: number;
       notes?: string;
-    }
+    },
   ) {
     const { creatorId, quarter, tdsRate, grossAmount } = body;
     if (!creatorId || !quarter || tdsRate === undefined || grossAmount === undefined) {
@@ -90,12 +117,19 @@ export class TdsController {
     const gross = strictDecimal(grossAmount, 'grossAmount', { min: 0, scale: 2 });
     if (body.dealId) {
       const deal = await this.dataSource.getRepository(CommercialDeal).findOne({
-        where: { id: body.dealId }, relations: ['creatorShares'],
+        where: { id: body.dealId },
+        relations: ['creatorShares'],
       });
       if (!deal) throw new BadRequestException({ dealId: ['Deal not found.'] });
-      const assigned = new Set([deal.creatorId, ...(deal.creatorShares ?? []).map((share) => share.creatorId)].filter(Boolean));
+      const assigned = new Set(
+        [deal.creatorId, ...(deal.creatorShares ?? []).map((share) => share.creatorId)].filter(
+          Boolean,
+        ),
+      );
       if (!assigned.has(creatorId)) {
-        throw new BadRequestException({ dealId: ['The selected creator is not assigned to this deal.'] });
+        throw new BadRequestException({
+          dealId: ['The selected creator is not assigned to this deal.'],
+        });
       }
     }
 
@@ -123,11 +157,12 @@ export class TdsController {
   @Patch(':id')
   async updateRemittance(
     @Param('id') id: string,
-    @Body() body: {
+    @Body()
+    body: {
       remittanceDate: string;
       challanNumber: string;
       notes?: string;
-    }
+    },
   ) {
     const { remittanceDate, challanNumber } = body;
     if (!remittanceDate || !challanNumber) {

@@ -21,7 +21,8 @@ export function privateFile(storedPath: string, label?: string): StreamableFile 
     throw new NotFoundException({ detail: 'File not found.' });
   }
   const filename = path.basename(label || storedPath).replace(/[\r\n"]/g, '_');
-  const type = MIME_BY_EXTENSION[path.extname(absolute).toLowerCase()] ?? 'application/octet-stream';
+  const type =
+    MIME_BY_EXTENSION[path.extname(absolute).toLowerCase()] ?? 'application/octet-stream';
   return new StreamableFile(fs.createReadStream(absolute), {
     type,
     disposition: `attachment; filename="${filename}"`,

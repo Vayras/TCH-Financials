@@ -1,6 +1,4 @@
-import {
-  Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { CommercialDeal } from './commercial-deal.entity';
 import { Creator } from './creator.entity';
 

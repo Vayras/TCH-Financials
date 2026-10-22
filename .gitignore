@@ -22,9 +22,14 @@ yarn-error.log*
 pnpm-debug.log*
 *.tsbuildinfo
 
-# Env files (frontend)
+# Env files (frontend / root / backups)
 .env
 .env.*
+.env*
+.env *
+*.env
+*.env*
+*.env *
 !.env.example
 
 # ----------------------
@@ -90,3 +95,13 @@ backups/
 *.key
 *.p12
 *.pfx
+
+# ----------------------
+# Local Prompts, Audits & Docs
+# ----------------------
+AUTHENTICATION_ARCHITECTURE_AUDIT.md
+CILA_INSPIRATION_REPORT.md
+STITCH_*.md
+*_AUDIT.md
+docs/
+

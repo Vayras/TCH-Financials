@@ -1,5 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api, type Deal, type DealPage, type CommercialGroupPage, type Creator, type DealDocument, type CreatorInvoice, type Campaign, ConflictError } from '@/lib/api';
+import {
+  api,
+  type Deal,
+  type DealPage,
+  type CommercialGroupPage,
+  type Creator,
+  type DealDocument,
+  type CreatorInvoice,
+  type Campaign,
+  ConflictError,
+} from '@/lib/api';
 import { uploadDealInvoice } from '@/lib/payments';
 import { toast } from 'sonner';
 
@@ -10,228 +20,248 @@ export const COMMERCIAL_DOCS_KEY = ['deal-documents'] as const;
 export const CREATOR_INVOICES_KEY = ['creator-invoices'] as const;
 
 export function useCommercialDealsQuery(fyStart: number | null) {
-	return useQuery<Deal[]>({
-		queryKey: COMMERCIAL_DEALS_KEY(fyStart ?? 0),
-		enabled: fyStart !== null,
-		queryFn: () => api.get<Deal[]>(`/deals/?fy=${fyStart!}`)
-	});
+  return useQuery<Deal[]>({
+    queryKey: COMMERCIAL_DEALS_KEY(fyStart ?? 0),
+    enabled: fyStart !== null,
+    queryFn: () => api.get<Deal[]>(`/deals/?fy=${fyStart!}`),
+  });
 }
 
 export interface DealPageParams {
-	fyStart: number | null;
-	page: number;
-	pageSize: number;
-	search?: string;
-	direction?: string;
-	status?: string;
-	creator?: number;
-	months?: number[];
-	sortBy?: 'billing_period' | 'confirmation_date' | 'total_fee' | 'brand' | 'created_at';
-	sortOrder?: 'asc' | 'desc';
-	groupBy?: 'campaign' | 'creator';
-	enabled?: boolean;
-	periodOnly?: boolean;
+  fyStart: number | null;
+  page: number;
+  pageSize: number;
+  search?: string;
+  direction?: string;
+  status?: string;
+  creator?: number;
+  months?: number[];
+  sortBy?: 'billing_period' | 'confirmation_date' | 'total_fee' | 'brand' | 'created_at';
+  sortOrder?: 'asc' | 'desc';
+  groupBy?: 'campaign' | 'creator';
+  enabled?: boolean;
+  periodOnly?: boolean;
 }
 
 function dealPageQuery(params: DealPageParams): URLSearchParams {
-	const query = new URLSearchParams({
-		fy: String(params.fyStart), page: String(params.page), page_size: String(params.pageSize)
-	});
-	if (params.search) query.set('search', params.search);
-	if (params.direction) query.set('direction', params.direction);
-	if (params.status) query.set('status', params.status);
-	if (params.creator) query.set('creator', String(params.creator));
-	if (params.months?.length) query.set('months', params.months.join(','));
-	if (params.sortBy) query.set('sort_by', params.sortBy);
-	if (params.sortOrder) query.set('sort_order', params.sortOrder);
-	if (params.groupBy) query.set('group_by', params.groupBy);
-	if (params.periodOnly) query.set('period_only', '1');
-	return query;
+  const query = new URLSearchParams({
+    fy: String(params.fyStart),
+    page: String(params.page),
+    page_size: String(params.pageSize),
+  });
+  if (params.search) query.set('search', params.search);
+  if (params.direction) query.set('direction', params.direction);
+  if (params.status) query.set('status', params.status);
+  if (params.creator) query.set('creator', String(params.creator));
+  if (params.months?.length) query.set('months', params.months.join(','));
+  if (params.sortBy) query.set('sort_by', params.sortBy);
+  if (params.sortOrder) query.set('sort_order', params.sortOrder);
+  if (params.groupBy) query.set('group_by', params.groupBy);
+  if (params.periodOnly) query.set('period_only', '1');
+  return query;
 }
 
 // Ready for server-driven tables. Campaign cards intentionally use the full
 // FY query for now because their 12-item pages are grouped campaigns, not deals.
 export function useCommercialDealsPageQuery(params: DealPageParams) {
-	return useQuery<DealPage>({
-		queryKey: ['deals-page', params],
-		enabled: params.fyStart !== null && (params.enabled ?? true),
-		queryFn: () => api.get<DealPage>(`/deals/?${dealPageQuery(params)}`)
-	});
+  return useQuery<DealPage>({
+    queryKey: ['deals-page', params],
+    enabled: params.fyStart !== null && (params.enabled ?? true),
+    queryFn: () => api.get<DealPage>(`/deals/?${dealPageQuery(params)}`),
+  });
 }
 
 export function useCommercialGroupPageQuery(params: DealPageParams) {
-	return useQuery<CommercialGroupPage>({
-		queryKey: ['deal-groups-page', params],
-		enabled: params.fyStart !== null && !!params.groupBy && (params.enabled ?? true),
-		queryFn: () => api.get<CommercialGroupPage>(`/deals/?${dealPageQuery(params)}`),
-		// Campaign and creator groups have different shapes; never mix them while loading.
-		placeholderData: (previous, previousQuery) =>
-			(previousQuery?.queryKey[1] as DealPageParams | undefined)?.groupBy === params.groupBy
-				? previous
-				: undefined
-	});
+  return useQuery<CommercialGroupPage>({
+    queryKey: ['deal-groups-page', params],
+    enabled: params.fyStart !== null && !!params.groupBy && (params.enabled ?? true),
+    queryFn: () => api.get<CommercialGroupPage>(`/deals/?${dealPageQuery(params)}`),
+    // Campaign and creator groups have different shapes; never mix them while loading.
+    placeholderData: (previous, previousQuery) =>
+      (previousQuery?.queryKey[1] as DealPageParams | undefined)?.groupBy === params.groupBy
+        ? previous
+        : undefined,
+  });
 }
 
 export function useCommercialDealQuery(id: number | null) {
-	return useQuery<Deal>({
-		queryKey: ['deal', id],
-		queryFn: () => api.get<Deal>(`/deals/${id}/`),
-		enabled: id !== null
-	});
+  return useQuery<Deal>({
+    queryKey: ['deal', id],
+    queryFn: () => api.get<Deal>(`/deals/${id}/`),
+    enabled: id !== null,
+  });
 }
 
 export function useCommercialCreatorsQuery() {
-	return useQuery<Creator[]>({
-		queryKey: COMMERCIAL_CREATORS_KEY,
-		queryFn: () => api.get<Creator[]>('/creators/')
-	});
+  return useQuery<Creator[]>({
+    queryKey: COMMERCIAL_CREATORS_KEY,
+    queryFn: () => api.get<Creator[]>('/creators/'),
+  });
 }
 
 export function useCommercialCampaignsQuery() {
-	return useQuery<Campaign[]>({
-		queryKey: COMMERCIAL_CAMPAIGNS_KEY,
-		queryFn: () => api.get<Campaign[]>('/campaigns/')
-	});
+  return useQuery<Campaign[]>({
+    queryKey: COMMERCIAL_CAMPAIGNS_KEY,
+    queryFn: () => api.get<Campaign[]>('/campaigns/'),
+  });
 }
 
 export function useCommercialDocsQuery(dealId?: number | null) {
-	return useQuery<DealDocument[]>({
-		queryKey: [...COMMERCIAL_DOCS_KEY, { deal: dealId ?? 'all' }],
-		queryFn: () => api.get<DealDocument[]>(`/deal-documents/${dealId ? `?deal=${dealId}` : ''}`)
-	});
+  return useQuery<DealDocument[]>({
+    queryKey: [...COMMERCIAL_DOCS_KEY, { deal: dealId ?? 'all' }],
+    queryFn: () => api.get<DealDocument[]>(`/deal-documents/${dealId ? `?deal=${dealId}` : ''}`),
+  });
 }
 
 export function useCreatorInvoicesQuery(dealId?: number | null) {
-	return useQuery<CreatorInvoice[]>({
-		queryKey: [...CREATOR_INVOICES_KEY, { deal: dealId ?? 'all' }],
-		queryFn: () => api.get<CreatorInvoice[]>(`/creator-invoices/${dealId ? `?deal=${dealId}` : ''}`),
-		enabled: dealId !== null
-	});
+  return useQuery<CreatorInvoice[]>({
+    queryKey: [...CREATOR_INVOICES_KEY, { deal: dealId ?? 'all' }],
+    queryFn: () =>
+      api.get<CreatorInvoice[]>(`/creator-invoices/${dealId ? `?deal=${dealId}` : ''}`),
+    enabled: dealId !== null,
+  });
 }
 
 export function useSaveCreatorInvoiceMutation() {
-	const queryClient = useQueryClient();
-	return useMutation<CreatorInvoice, Error, { dealId: number; creatorId: number; file: File; existing?: CreatorInvoice }>({
-		mutationFn: ({ dealId, creatorId, file, existing }) => {
-			const form = new FormData();
-			form.append('file', file);
-			form.append('label', `Creator Invoice — ${file.name}`);
-			if (existing) {
-				form.append('version', String(existing.version));
-				return api.upload<CreatorInvoice>(`/creator-invoices/${existing.id}/`, form, 'PATCH');
-			}
-			form.append('deal', String(dealId));
-			form.append('creator', String(creatorId));
-			return api.upload<CreatorInvoice>('/creator-invoices/', form);
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: CREATOR_INVOICES_KEY });
-			queryClient.invalidateQueries({ queryKey: ['deals'] });
-			queryClient.invalidateQueries({ queryKey: ['deal'] });
-			queryClient.invalidateQueries({ queryKey: ['overview'] });
-		}
-	});
+  const queryClient = useQueryClient();
+  return useMutation<
+    CreatorInvoice,
+    Error,
+    { dealId: number; creatorId: number; file: File; existing?: CreatorInvoice }
+  >({
+    mutationFn: ({ dealId, creatorId, file, existing }) => {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('label', `Creator Invoice — ${file.name}`);
+      if (existing) {
+        form.append('version', String(existing.version));
+        return api.upload<CreatorInvoice>(`/creator-invoices/${existing.id}/`, form, 'PATCH');
+      }
+      form.append('deal', String(dealId));
+      form.append('creator', String(creatorId));
+      return api.upload<CreatorInvoice>('/creator-invoices/', form);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CREATOR_INVOICES_KEY });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+  });
 }
 
 export function useDeleteCreatorInvoiceMutation() {
-	const queryClient = useQueryClient();
-	return useMutation<void, Error, CreatorInvoice>({
-		mutationFn: (invoice) => api.del(`/creator-invoices/${invoice.id}/?version=${invoice.version}`),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: CREATOR_INVOICES_KEY });
-			queryClient.invalidateQueries({ queryKey: ['deals'] });
-			queryClient.invalidateQueries({ queryKey: ['deal'] });
-			queryClient.invalidateQueries({ queryKey: ['overview'] });
-		}
-	});
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, CreatorInvoice>({
+    mutationFn: (invoice) => api.del(`/creator-invoices/${invoice.id}/?version=${invoice.version}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: CREATOR_INVOICES_KEY });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deal'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+  });
 }
 
 interface SaveDealParams {
-	editingId?: number;
-	editingVersion?: number;
-	payload: unknown;
-	clientInvoiceFile: File | null;
-	creatorInvoiceFile: File | null;
+  editingId?: number;
+  editingVersion?: number;
+  payload: unknown;
+  clientInvoiceFile: File | null;
+  creatorInvoiceFile: File | null;
 }
 
 export function useSaveDealMutation(fyStart: number | null) {
-	const queryClient = useQueryClient();
-	return useMutation<Deal, Error, SaveDealParams>({
-		mutationFn: async ({ editingId, editingVersion, payload, clientInvoiceFile, creatorInvoiceFile }) => {
-			let deal: Deal;
-			if (editingId) {
-				const buildBody = (ver?: number) => ({
-					...(payload as Record<string, unknown>),
-					...(ver !== undefined && ver !== null ? { version: ver } : {})
-				});
+  const queryClient = useQueryClient();
+  return useMutation<Deal, Error, SaveDealParams>({
+    mutationFn: async ({
+      editingId,
+      editingVersion,
+      payload,
+      clientInvoiceFile,
+      creatorInvoiceFile,
+    }) => {
+      let deal: Deal;
+      if (editingId) {
+        const buildBody = (ver?: number) => ({
+          ...(payload as Record<string, unknown>),
+          ...(ver !== undefined && ver !== null ? { version: ver } : {}),
+        });
 
-				try {
-					deal = await api.patch<Deal>(`/deals/${editingId}/`, buildBody(editingVersion));
-				} catch (err) {
-					if (err instanceof ConflictError && err.current && typeof (err.current as { version?: unknown }).version === 'number') {
-						// Server version was updated by an automatic action (e.g. invoice status update). Retry once with latest version.
-						const latestVersion = (err.current as { version: number }).version;
-						deal = await api.patch<Deal>(`/deals/${editingId}/`, buildBody(latestVersion));
-					} else {
-						throw err;
-					}
-				}
-			} else {
-				deal = await api.post<Deal>('/deals/', payload);
-			}
+        try {
+          deal = await api.patch<Deal>(`/deals/${editingId}/`, buildBody(editingVersion));
+        } catch (err) {
+          if (
+            err instanceof ConflictError &&
+            err.current &&
+            typeof (err.current as { version?: unknown }).version === 'number'
+          ) {
+            // Server version was updated by an automatic action (e.g. invoice status update). Retry once with latest version.
+            const latestVersion = (err.current as { version: number }).version;
+            deal = await api.patch<Deal>(`/deals/${editingId}/`, buildBody(latestVersion));
+          } else {
+            throw err;
+          }
+        }
+      } else {
+        deal = await api.post<Deal>('/deals/', payload);
+      }
 
-			if (deal && deal.id) {
-				const uploads: [File | null, 'ClientInvoice' | 'CreatorInvoice'][] = [
-					[clientInvoiceFile, 'ClientInvoice'],
-					[creatorInvoiceFile, 'CreatorInvoice']
-				];
-				await Promise.all(
-					uploads.map(async ([file, docType]) => {
-						if (!file) return;
-						try {
-							await uploadDealInvoice(deal.id, docType, file);
-						} catch {
-							toast.error(`${docType === 'ClientInvoice' ? 'Client' : 'Creator'} invoice failed to upload.`, { description: 'The campaign was saved successfully.' });
-						}
-					})
-				);
-			}
-			return deal;
-		},
-		onSuccess: (updatedDeal) => {
-			if (fyStart !== null) {
-				queryClient.setQueryData<Deal[]>(COMMERCIAL_DEALS_KEY(fyStart), (old) => {
-					if (!old) return old;
-					const exists = old.some((d) => d.id === updatedDeal.id);
-					if (exists) {
-						return old.map((d) => (d.id === updatedDeal.id ? updatedDeal : d));
-					}
-					return [updatedDeal, ...old];
-				});
-			}
-			queryClient.setQueryData(['deal', updatedDeal.id], updatedDeal);
-			queryClient.invalidateQueries({ queryKey: ['deal', updatedDeal.id] });
-			queryClient.invalidateQueries({ queryKey: ['deal'] });
-			queryClient.invalidateQueries({ queryKey: ['deals'] });
-			queryClient.invalidateQueries({ queryKey: COMMERCIAL_CREATORS_KEY });
-			queryClient.invalidateQueries({ queryKey: ['deals-page'] });
-			queryClient.invalidateQueries({ queryKey: ['deal-groups-page'] });
-			queryClient.invalidateQueries({ queryKey: COMMERCIAL_CAMPAIGNS_KEY });
-			queryClient.invalidateQueries({ queryKey: COMMERCIAL_DOCS_KEY });
-			queryClient.invalidateQueries({ queryKey: ['overview'] });
-		}
-	});
+      if (deal && deal.id) {
+        const uploads: [File | null, 'ClientInvoice' | 'CreatorInvoice'][] = [
+          [clientInvoiceFile, 'ClientInvoice'],
+          [creatorInvoiceFile, 'CreatorInvoice'],
+        ];
+        await Promise.all(
+          uploads.map(async ([file, docType]) => {
+            if (!file) return;
+            try {
+              await uploadDealInvoice(deal.id, docType, file);
+            } catch {
+              toast.error(
+                `${docType === 'ClientInvoice' ? 'Client' : 'Creator'} invoice failed to upload.`,
+                { description: 'The campaign was saved successfully.' },
+              );
+            }
+          }),
+        );
+      }
+      return deal;
+    },
+    onSuccess: (updatedDeal) => {
+      if (fyStart !== null) {
+        queryClient.setQueryData<Deal[]>(COMMERCIAL_DEALS_KEY(fyStart), (old) => {
+          if (!old) return old;
+          const exists = old.some((d) => d.id === updatedDeal.id);
+          if (exists) {
+            return old.map((d) => (d.id === updatedDeal.id ? updatedDeal : d));
+          }
+          return [updatedDeal, ...old];
+        });
+      }
+      queryClient.setQueryData(['deal', updatedDeal.id], updatedDeal);
+      queryClient.invalidateQueries({ queryKey: ['deal', updatedDeal.id] });
+      queryClient.invalidateQueries({ queryKey: ['deal'] });
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: COMMERCIAL_CREATORS_KEY });
+      queryClient.invalidateQueries({ queryKey: ['deals-page'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-groups-page'] });
+      queryClient.invalidateQueries({ queryKey: COMMERCIAL_CAMPAIGNS_KEY });
+      queryClient.invalidateQueries({ queryKey: COMMERCIAL_DOCS_KEY });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+  });
 }
 
 export function useDeleteDealMutation() {
-	const queryClient = useQueryClient();
-	return useMutation<void, Error, number>({
-		mutationFn: (id) => api.del(`/deals/${id}/`),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['deals'] });
-			queryClient.invalidateQueries({ queryKey: ['deals-page'] });
-			queryClient.invalidateQueries({ queryKey: ['deal-groups-page'] });
-			queryClient.invalidateQueries({ queryKey: ['overview'] });
-		}
-	});
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, number>({
+    mutationFn: (id) => api.del(`/deals/${id}/`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['deals-page'] });
+      queryClient.invalidateQueries({ queryKey: ['deal-groups-page'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+  });
 }

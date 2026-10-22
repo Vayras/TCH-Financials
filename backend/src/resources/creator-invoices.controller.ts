@@ -1,9 +1,22 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  BadRequestException, ConflictException, Controller, Delete, Get, HttpCode,
-  NotFoundException, Param, Patch, Post, Put, Query, Body, UploadedFile,
-  UseInterceptors, Req,
+  BadRequestException,
+  ConflictException,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Body,
+  UploadedFile,
+  UseInterceptors,
+  Req,
 } from '@nestjs/common';
 import { Roles } from '../auth/roles.decorator';
 import { D } from '../common/decimal';
@@ -17,6 +30,7 @@ import { CommercialDeal, Creator, CreatorInvoice, DealDocument } from '../entiti
 import { privateFile, removePrivateFile } from '../common/private-file';
 import { UPLOAD_LIMITS, validateUpload } from '../common/uploads';
 import { optionalDate, optionalEnum, optionalMoney } from '../common/integrity';
+import { creatorPaginationParams } from '../common/pagination';
 
 const PAYMENT_STATUSES = ['', 'Pending', 'Scheduled', 'Paid', 'Overdue'];
 const PAYMENT_CYCLES = ['', 'Immediate', 'Net15', 'Net30', 'Net45', 'Net60'];
@@ -66,8 +80,12 @@ function applyMetadata(invoice: CreatorInvoice, body: Record<string, string>): v
 export class CreatorInvoicesController {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
-  private repo() { return this.dataSource.getRepository(CreatorInvoice); }
-  private dealRepo() { return this.dataSource.getRepository(CommercialDeal); }
+  private repo() {
+    return this.dataSource.getRepository(CreatorInvoice);
+  }
+  private dealRepo() {
+    return this.dataSource.getRepository(CommercialDeal);
+  }
 
   private async serialize(id: string) {
     const row = await this.repo().findOne({ where: { id }, relations: RELATIONS });
@@ -92,7 +110,8 @@ export class CreatorInvoicesController {
 
   @Get()
   async list(@Query('deal') deal?: string, @Query('creator') creator?: string) {
-    const qb = this.repo().createQueryBuilder('invoice')
+    const qb = this.repo()
+      .createQueryBuilder('invoice')
       .leftJoinAndSelect('invoice.creator', 'creatorRow')
       .leftJoinAndSelect('invoice.deal', 'dealRow')
       .leftJoinAndSelect('dealRow.campaign', 'campaign')
@@ -104,25 +123,73 @@ export class CreatorInvoicesController {
 
   @Roles('creator')
   @Get('creator-portal')
-  async creatorPortalList(@Req() req: any) {
+  async creatorPortalList(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('page_size') pageSize?: string,
+  ) {
     const creatorId = req.user?.creatorId;
     if (!creatorId) {
       throw new BadRequestException('Your profile is not linked to any creator record.');
     }
-    const qb = this.repo().createQueryBuilder('invoice')
+    const pagination = creatorPaginationParams(page, pageSize);
+    const qb = this.repo()
+      .createQueryBuilder('invoice')
       .leftJoinAndSelect('invoice.creator', 'creatorRow')
       .leftJoinAndSelect('invoice.deal', 'dealRow')
       .leftJoinAndSelect('dealRow.campaign', 'campaign')
       .andWhere('invoice.creatorId = :creatorId', { creatorId })
-      .orderBy('invoice.uploadedAt', 'DESC');
-    return (await qb.getMany()).map(creatorInvoiceDto);
+      .orderBy('invoice.uploadedAt', 'DESC')
+      .addOrderBy('invoice.id', 'DESC')
+      .skip((pagination.page - 1) * pagination.pageSize)
+      .take(pagination.pageSize + 1);
+    const rows = await qb.getMany();
+    return {
+      items: rows.slice(0, pagination.pageSize).map(creatorInvoiceDto),
+      page: pagination.page,
+      page_size: pagination.pageSize,
+      has_more: rows.length > pagination.pageSize,
+    };
+  }
+
+  @Roles('creator')
+  @Get('creator-portal/eligible-deals')
+  async eligibleCreatorDeals(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('page_size') pageSize?: string,
+  ) {
+    const creatorId = req.user?.creatorId;
+    if (!creatorId)
+      throw new BadRequestException('Your profile is not linked to any creator record.');
+    const pagination = creatorPaginationParams(page, pageSize);
+    const rows = await this.dataSource.query(
+      `SELECT d.id,d.brand,c.name AS campaign,
+      CASE WHEN d.creator_id=$1 THEN d.creator_fee ELSE s.creator_fee END AS creator_fee
+      FROM tch_commercialdeal d LEFT JOIN tch_campaign c ON c.id=d.campaign_id
+      LEFT JOIN tch_dealcreatorshare s ON s.deal_id=d.id AND s.creator_id=$1
+      WHERE (d.creator_id=$1 OR s.creator_id=$1)
+        AND NOT EXISTS (SELECT 1 FROM tch_creatorinvoice i WHERE i.deal_id=d.id AND i.creator_id=$1)
+      ORDER BY d.confirmation_date DESC NULLS LAST,d.id DESC OFFSET $2 LIMIT $3`,
+      [creatorId, (pagination.page - 1) * pagination.pageSize, pagination.pageSize + 1],
+    );
+    return {
+      items: rows.slice(0, pagination.pageSize),
+      page: pagination.page,
+      page_size: pagination.pageSize,
+      has_more: rows.length > pagination.pageSize,
+    };
   }
 
   @Roles('creator')
   @Post('creator-portal')
   @HttpCode(201)
   @UseInterceptors(FileInterceptor('file', { limits: UPLOAD_LIMITS }))
-  async creatorPortalCreate(@Req() req: any, @Body() body: Record<string, string>, @UploadedFile() file?: Express.Multer.File) {
+  async creatorPortalCreate(
+    @Req() req: any,
+    @Body() body: Record<string, string>,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
     const creatorId = req.user?.creatorId;
     if (!creatorId) {
       throw new BadRequestException('Your profile is not linked to any creator record.');
@@ -135,7 +202,9 @@ export class CreatorInvoicesController {
 
     const existing = await this.repo().findOneBy({ dealId: body.deal, creatorId });
     if (existing) {
-      throw new ConflictException({ detail: 'You have already submitted an invoice for this campaign.' });
+      throw new ConflictException({
+        detail: 'You have already submitted an invoice for this campaign.',
+      });
     }
 
     const row = this.repo().create({
@@ -160,14 +229,19 @@ export class CreatorInvoicesController {
   }
 
   @Get(':id')
-  retrieve(@Param('id') id: string) { return this.serialize(id); }
+  retrieve(@Param('id') id: string) {
+    return this.serialize(id);
+  }
 
   @Roles('super_admin', 'accounts', 'tch_member', 'creator')
   @Get(':id/download')
   async download(@Param('id') id: string, @Req() req: any) {
     const row = await this.repo().findOneBy({ id });
     if (!row) throw new NotFoundException({ detail: 'Creator invoice not found.' });
-    if (req.user?.role === 'creator' && String(req.user?.creatorId ?? '') !== String(row.creatorId)) {
+    if (
+      req.user?.role === 'creator' &&
+      String(req.user?.creatorId ?? '') !== String(row.creatorId)
+    ) {
       throw new NotFoundException({ detail: 'Creator invoice not found.' });
     }
     return privateFile(row.file, row.label || path.basename(row.file));
@@ -182,7 +256,9 @@ export class CreatorInvoicesController {
     validateUpload(file, 'Choose an invoice file to upload.');
     await this.requireAssignment(body.deal, body.creator);
     if (await this.repo().findOneBy({ dealId: body.deal, creatorId: body.creator })) {
-      throw new ConflictException({ detail: 'This creator already has an invoice for the campaign. Use Replace instead.' });
+      throw new ConflictException({
+        detail: 'This creator already has an invoice for the campaign. Use Replace instead.',
+      });
     }
     const row = this.repo().create({ dealId: body.deal, creatorId: body.creator });
     applyMetadata(row, body);
@@ -210,7 +286,9 @@ export class CreatorInvoicesController {
     if (!row) throw new NotFoundException({ detail: 'Creator invoice not found.' });
     const version = Number(body.version);
     if (!Number.isInteger(version) || version !== row.version) {
-      throw new ConflictException({ detail: 'This invoice changed since it was opened. Refresh and try again.' });
+      throw new ConflictException({
+        detail: 'This invoice changed since it was opened. Refresh and try again.',
+      });
     }
     if (file) validateUpload(file);
     applyMetadata(row, body);
@@ -245,7 +323,9 @@ export class CreatorInvoicesController {
     if (!row) throw new NotFoundException({ detail: 'Creator invoice not found.' });
     const version = Number(versionRaw);
     if (!Number.isInteger(version) || version !== row.version) {
-      throw new ConflictException({ detail: 'This invoice changed since it was opened. Refresh and try again.' });
+      throw new ConflictException({
+        detail: 'This invoice changed since it was opened. Refresh and try again.',
+      });
     }
     await this.repo().delete({ id });
     await refreshInvoiceCompletion(this.dataSource, row.dealId);

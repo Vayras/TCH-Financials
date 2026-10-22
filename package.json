@@ -22,9 +22,14 @@
     "start:backend": "cd backend && npm run start",
     "migrate": "cd backend && npm run migration:run",
     "lint": "cd frontend && npm run lint",
-    "typecheck": "cd frontend && npm run typecheck"
+    "typecheck": "cd frontend && npm run typecheck",
+    "format": "prettier --write \"{frontend,backend}/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"{frontend,backend}/**/*.{ts,tsx,js,jsx,json,css,md}\""
   },
   "dependencies": {
     "resend": "^6.18.0"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.10"
   }
 }

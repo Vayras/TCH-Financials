@@ -7,8 +7,18 @@ import { CommercialDeal } from '../entities';
 
 export const MONTHS_FY_ORDER = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
 export const MONTH_NAME: Record<number, string> = {
-  1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
-  7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec',
+  1: 'Jan',
+  2: 'Feb',
+  3: 'Mar',
+  4: 'Apr',
+  5: 'May',
+  6: 'Jun',
+  7: 'Jul',
+  8: 'Aug',
+  9: 'Sep',
+  10: 'Oct',
+  11: 'Nov',
+  12: 'Dec',
 };
 export const QUARTERS: Array<[string, number[]]> = [
   ['Q1', [4, 5, 6]],
@@ -31,8 +41,18 @@ export function fyLabel(fyStart: number): string {
 }
 
 const MONTH_NUM: Record<string, number> = {
-  jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
-  jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+  jan: 1,
+  feb: 2,
+  mar: 3,
+  apr: 4,
+  may: 5,
+  jun: 6,
+  jul: 7,
+  aug: 8,
+  sep: 9,
+  oct: 10,
+  nov: 11,
+  dec: 12,
 };
 // e.g. "TCH/2526/Dec01" -> fy token "2526", month token "Dec"
 const INVOICE_RE = /(\d{2})(\d{2})\s*\/\s*([A-Za-z]{3,9})/;
@@ -61,24 +81,24 @@ export function invoicePeriod(eInvoiceNumber: string | null | undefined): string
  * deal isn't invoiced yet and belongs to no fiscal year.
  */
 export function billingPeriod(deal: CommercialDeal): string | null {
-	if (deal.billingPeriod) return deal.billingPeriod;
+  if (deal.billingPeriod) return deal.billingPeriod;
   if (deal.eInvoiceDate) return `${deal.eInvoiceDate.slice(0, 7)}-01`;
   if (deal.confirmationDate) return `${deal.confirmationDate.slice(0, 7)}-01`;
   return null;
 }
 
 export function syncBillingPeriod(deal: CommercialDeal): void {
-	const source = deal.eInvoiceDate || deal.confirmationDate;
-	if (!source) {
-		deal.billingPeriod = null;
-		deal.billingFyStart = null;
-		deal.billingMonth = null;
-		return;
-	}
-	const period = `${source.slice(0, 7)}-01`;
-	deal.billingPeriod = period;
-	deal.billingFyStart = fiscalYearOf(period);
-	deal.billingMonth = Number(period.slice(5, 7));
+  const source = deal.eInvoiceDate || deal.confirmationDate;
+  if (!source) {
+    deal.billingPeriod = null;
+    deal.billingFyStart = null;
+    deal.billingMonth = null;
+    return;
+  }
+  const period = `${source.slice(0, 7)}-01`;
+  deal.billingPeriod = period;
+  deal.billingFyStart = fiscalYearOf(period);
+  deal.billingMonth = Number(period.slice(5, 7));
 }
 
 export function monthKey(iso: string): string {
@@ -138,25 +158,29 @@ export function creatorSplits(deal: CommercialDeal): CreatorSplit[] {
     );
   }
   if (deal.creatorId && deal.creator) {
-    return [{
-      creatorId: Number(deal.creatorId),
-      relationship: deal.creator.relationship || 'Friend',
-      name: deal.creator.name,
-      category: deal.creator.category || '',
-      opsManager: deal.creator.opsManager || '',
+    return [
+      {
+        creatorId: Number(deal.creatorId),
+        relationship: deal.creator.relationship || 'Friend',
+        name: deal.creator.name,
+        category: deal.creator.category || '',
+        opsManager: deal.creator.opsManager || '',
+        fee: D(deal.totalFee),
+        profit: D(deal.agencyFeeInr),
+        creatorFee: D(deal.creatorFee),
+      },
+    ];
+  }
+  return [
+    {
+      creatorId: null,
+      relationship: 'NonTCH',
+      name: (deal.creatorNameRaw || '').trim() || '(Unnamed)',
+      category: '',
+      opsManager: '',
       fee: D(deal.totalFee),
       profit: D(deal.agencyFeeInr),
       creatorFee: D(deal.creatorFee),
-    }];
-  }
-  return [{
-    creatorId: null,
-    relationship: 'NonTCH',
-    name: (deal.creatorNameRaw || '').trim() || '(Unnamed)',
-    category: '',
-    opsManager: '',
-    fee: D(deal.totalFee),
-    profit: D(deal.agencyFeeInr),
-    creatorFee: D(deal.creatorFee),
-  }];
+    },
+  ];
 }

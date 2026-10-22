@@ -18,8 +18,12 @@ export class AuditController {
       skip: (pagination.page - 1) * pagination.pageSize,
       take: pagination.pageSize,
     });
-    return { items, total, page: pagination.page, page_size: pagination.pageSize,
-      total_pages: Math.max(1, Math.ceil(total / pagination.pageSize)) };
+    return {
+      items,
+      total,
+      page: pagination.page,
+      page_size: pagination.pageSize,
+      total_pages: Math.max(1, Math.ceil(total / pagination.pageSize)),
+    };
   }
 }
-

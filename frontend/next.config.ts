@@ -6,14 +6,12 @@ import type { NextConfig } from 'next';
 const API_TARGET = process.env.API_PROXY_TARGET ?? 'http://localhost:8000';
 
 const config: NextConfig = {
-	// Pin tracing root to this directory so the parent monorepo lockfile is ignored.
-	outputFileTracingRoot: path.join(__dirname),
-	trailingSlash: true,
-	async rewrites() {
-		return [
-			{ source: '/api/:path*', destination: `${API_TARGET}/api/:path*` }
-		];
-	}
+  // Pin tracing root to this directory so the parent monorepo lockfile is ignored.
+  outputFileTracingRoot: path.join(__dirname),
+  trailingSlash: true,
+  async rewrites() {
+    return [{ source: '/api/:path*', destination: `${API_TARGET}/api/:path*` }];
+  },
 };
 
 export default config;

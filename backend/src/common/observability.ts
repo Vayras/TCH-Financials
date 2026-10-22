@@ -7,8 +7,14 @@ export type RequestWithContext = Request & {
   user?: { id?: string; email?: string; role?: string };
 };
 
-export function structuredLog(level: 'info' | 'warn' | 'error', event: string, fields: Record<string, unknown> = {}) {
-  process.stdout.write(`${JSON.stringify({ timestamp: new Date().toISOString(), level, event, ...fields })}\n`);
+export function structuredLog(
+  level: 'info' | 'warn' | 'error',
+  event: string,
+  fields: Record<string, unknown> = {},
+) {
+  process.stdout.write(
+    `${JSON.stringify({ timestamp: new Date().toISOString(), level, event, ...fields })}\n`,
+  );
 }
 
 async function notifyOperationalFailure(payload: Record<string, unknown>) {
@@ -27,9 +33,11 @@ async function notifyOperationalFailure(payload: Record<string, unknown>) {
 
 export function requestContext(req: RequestWithContext, res: Response, next: NextFunction) {
   const supplied = req.header('x-request-id');
-  req.requestId = supplied && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(supplied)
-    ? supplied
-    : randomUUID();
+  req.requestId =
+    supplied &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(supplied)
+      ? supplied
+      : randomUUID();
   res.setHeader('X-Request-ID', req.requestId);
   const startedAt = Date.now();
   res.on('finish', () => {
@@ -42,7 +50,11 @@ export function requestContext(req: RequestWithContext, res: Response, next: Nex
       actor_id: req.user?.id ?? null,
       actor_role: req.user?.role ?? null,
     };
-    structuredLog(res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info', 'http_request', fields);
+    structuredLog(
+      res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info',
+      'http_request',
+      fields,
+    );
     if (res.statusCode >= 500) {
       void notifyOperationalFailure({ event: 'tch_api_5xx', ...fields });
     }

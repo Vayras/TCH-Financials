@@ -18,7 +18,13 @@ export class AuthController {
   async getMe(@Req() req: Request & { user?: any }) {
     const user = req.user;
     if (!user || user.status === 'unknown') {
-      return { status: 'unknown', role: 'tch_member', passwordSet: true, displayName: '', creatorId: null };
+      return {
+        status: 'unknown',
+        role: 'tch_member',
+        passwordSet: true,
+        displayName: '',
+        creatorId: null,
+      };
     }
 
     // Fetch displayName from profile if available
@@ -38,7 +44,13 @@ export class AuthController {
   @SkipAuth()
   @Post('signup-profile')
   async signupProfile(
-    @Body() body: { userId: string; email: string; displayName: string; role: 'creator' | 'tch_member' }
+    @Body()
+    body: {
+      userId: string;
+      email: string;
+      displayName: string;
+      role: 'creator' | 'tch_member';
+    },
   ) {
     const { userId, email, displayName, role } = body;
     if (!userId || !email || !role) {
@@ -131,7 +143,7 @@ export class AuthController {
   @Roles('super_admin', 'accounts', 'tch_member', 'creator')
   async updateProfile(
     @Req() req: Request & { user?: any },
-    @Body() body: { displayName?: string; avatarUrl?: string }
+    @Body() body: { displayName?: string; avatarUrl?: string },
   ) {
     const userId = req.user?.id;
     if (!userId) {

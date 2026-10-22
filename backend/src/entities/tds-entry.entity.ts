@@ -1,5 +1,10 @@
 import {
-  Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn,
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { CommercialDeal } from './commercial-deal.entity';
 import { Creator } from './creator.entity';

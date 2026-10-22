@@ -19,12 +19,24 @@ export class AddAuditAndQueryIndexes1753000000000 implements MigrationInterface 
         created_at timestamptz NOT NULL DEFAULT now()
       )
     `);
-    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_audit_created ON tch_audit_log (created_at DESC, id DESC)`);
-    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_audit_actor ON tch_audit_log (actor_id, created_at DESC)`);
-    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_deal_fy_month ON tch_commercialdeal (billing_fy_start, billing_month)`);
-    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_deal_campaign_period ON tch_commercialdeal (campaign_id, billing_period)`);
-    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_payment_date ON tch_payment_transaction (transaction_date DESC, id DESC)`);
-    await queryRunner.query(`CREATE INDEX IF NOT EXISTS idx_tds_creator_status ON tch_tds_entry (creator_id, status, created_at DESC)`);
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS idx_audit_created ON tch_audit_log (created_at DESC, id DESC)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS idx_audit_actor ON tch_audit_log (actor_id, created_at DESC)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS idx_deal_fy_month ON tch_commercialdeal (billing_fy_start, billing_month)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS idx_deal_campaign_period ON tch_commercialdeal (campaign_id, billing_period)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS idx_payment_date ON tch_payment_transaction (transaction_date DESC, id DESC)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS idx_tds_creator_status ON tch_tds_entry (creator_id, status, created_at DESC)`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

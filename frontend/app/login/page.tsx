@@ -6,110 +6,126 @@ import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
 import Link from 'next/link';
 
 export default function LoginPage() {
-	const [email, setEmail] = React.useState('');
-	const [password, setPassword] = React.useState('');
-	const [error, setError] = React.useState<string | null>(null);
-	const [busy, setBusy] = React.useState(false);
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [error, setError] = React.useState<string | null>(null);
+  const [busy, setBusy] = React.useState(false);
 
-	async function submit(e: React.FormEvent) {
-		e.preventDefault();
-		setError(null);
-		setBusy(true);
-		try {
-			const { error } = await getSupabase().auth.signInWithPassword({ email, password });
-			if (error) {
-				setError(error.message);
-				return;
-			}
-			// AuthGuard's onAuthStateChange handles routing based on profile status.
-			// We do NOT redirect here to avoid a flicker for pending/rejected users.
-		} finally {
-			setBusy(false);
-		}
-	}
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      const { error } = await getSupabase().auth.signInWithPassword({ email, password });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      // AuthGuard's onAuthStateChange handles routing based on profile status.
+      // We do NOT redirect here to avoid a flicker for pending/rejected users.
+    } finally {
+      setBusy(false);
+    }
+  }
 
-	if (!isSupabaseConfigured()) {
-		return (
-			<div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--n-bg)' }}>
-				<p className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
-					Auth is not configured (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY missing).
-				</p>
-			</div>
-		);
-	}
+  if (!isSupabaseConfigured()) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: 'var(--n-bg)' }}
+      >
+        <p className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
+          Auth is not configured (NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY missing).
+        </p>
+      </div>
+    );
+  }
 
-	return (
-		<div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'var(--n-bg)' }}>
-			<form
-				onSubmit={submit}
-				className="filter-popover w-full max-w-[360px] rounded-xl p-8 shadow-lg anim-fade-up"
-			>
-				<div className="flex items-center gap-2.5 mb-6">
-					<div
-						className="h-8 w-8 rounded flex items-center justify-center text-[15px] font-semibold shadow-sm"
-						style={{ background: 'var(--n-fg)', color: 'var(--n-bg)', boxShadow: '0 2px 4px rgba(0,0,0,0.12)' }}
-					>
-						T
-					</div>
-					<div>
-						<div className="text-[15px] font-semibold leading-tight">TCH Financials</div>
-						<div className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
-							Sign in to continue
-						</div>
-					</div>
-				</div>
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center px-4"
+      style={{ background: 'var(--n-bg)' }}
+    >
+      <form
+        onSubmit={submit}
+        className="filter-popover w-full max-w-[360px] rounded-xl p-8 shadow-lg anim-fade-up"
+      >
+        <div className="flex items-center gap-2.5 mb-6">
+          <div
+            className="h-8 w-8 rounded flex items-center justify-center text-[15px] font-semibold shadow-sm"
+            style={{
+              background: 'var(--n-fg)',
+              color: 'var(--n-bg)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.12)',
+            }}
+          >
+            T
+          </div>
+          <div>
+            <div className="text-[15px] font-semibold leading-tight">TCH Financials</div>
+            <div className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
+              Sign in to continue
+            </div>
+          </div>
+        </div>
 
-				<label className="block mb-3">
-					<span className="block text-[12px] font-medium mb-1" style={{ color: 'var(--n-fg-subtle)' }}>
-						Email
-					</span>
-					<input
-						type="email"
-						required
-						autoFocus
-						autoComplete="email"
-						value={email}
-						onChange={(e) => setEmail(e.target.value)}
-						className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
-					/>
-				</label>
+        <label className="block mb-3">
+          <span
+            className="block text-[12px] font-medium mb-1"
+            style={{ color: 'var(--n-fg-subtle)' }}
+          >
+            Email
+          </span>
+          <input
+            type="email"
+            required
+            autoFocus
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+          />
+        </label>
 
-				<label className="block mb-5">
-					<span className="block text-[12px] font-medium mb-1" style={{ color: 'var(--n-fg-subtle)' }}>
-						Password
-					</span>
-					<input
-						type="password"
-						required
-						autoComplete="current-password"
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-						className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
-					/>
-				</label>
+        <label className="block mb-5">
+          <span
+            className="block text-[12px] font-medium mb-1"
+            style={{ color: 'var(--n-fg-subtle)' }}
+          >
+            Password
+          </span>
+          <input
+            type="password"
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
+          />
+        </label>
 
-				{error && (
-					<p className="mb-4 text-[12.5px]" style={{ color: 'var(--n-danger, #d1242f)' }}>
-						{error}
-					</p>
-				)}
+        {error && (
+          <p className="mb-4 text-[12.5px]" style={{ color: 'var(--n-danger, #d1242f)' }}>
+            {error}
+          </p>
+        )}
 
-				<button
-					type="submit"
-					disabled={busy}
-					className="w-full h-9 rounded text-[12px] font-medium transition-transform duration-100 active:scale-[0.985] disabled:opacity-60 cursor-pointer mb-4"
-					style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
-				>
-					{busy ? 'Signing in…' : 'Sign in'}
-				</button>
+        <button
+          type="submit"
+          disabled={busy}
+          className="w-full h-9 rounded text-[12px] font-medium transition-transform duration-100 active:scale-[0.985] disabled:opacity-60 cursor-pointer mb-4"
+          style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
+        >
+          {busy ? 'Signing in…' : 'Sign in'}
+        </button>
 
-				<div className="text-center text-[12px] mt-2">
-					<span style={{ color: 'var(--n-fg-subtle)' }}>New here? </span>
-					<Link href="/signup" className="font-medium underline hover:text-[var(--n-accent)]">
-						Request Access
-					</Link>
-				</div>
-			</form>
-		</div>
-	);
+        <div className="text-center text-[12px] mt-2">
+          <span style={{ color: 'var(--n-fg-subtle)' }}>New here? </span>
+          <Link href="/signup" className="font-medium underline hover:text-[var(--n-accent)]">
+            Request Access
+          </Link>
+        </div>
+      </form>
+    </div>
+  );
 }

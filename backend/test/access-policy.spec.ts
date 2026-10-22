@@ -4,6 +4,17 @@ import test from 'node:test';
 import { PATH_METADATA } from '@nestjs/common/constants';
 import { ROLES_KEY } from '../src/auth/roles.decorator';
 import { SKIP_AUTH_KEY } from '../src/auth/skip-auth.decorator';
+import { PUBLIC_ROUTE_KEY } from '../src/auth/public.decorator';
+import {
+  BrandKitController,
+  PublicBrandKitController,
+} from '../src/creator-social/brand-kit.controller';
+import {
+  CampaignContentController,
+  CreatorCampaignBriefController,
+} from '../src/campaign-content/campaign-content.controller';
+import { CampaignAIController } from '../src/campaign-content/campaign-ai.controller';
+import { ContentConceptController } from '../src/campaign-content/content-concept.controller';
 import { AnalyticsController } from '../src/analytics/analytics.controller';
 import { AuthController } from '../src/auth/auth.controller';
 import { CampaignsController } from '../src/resources/campaigns.controller';
@@ -16,37 +27,90 @@ import { PaymentTransactionsController } from '../src/resources/payment-transact
 import { TdsController } from '../src/resources/tds.controller';
 import { UsersController } from '../src/resources/users.controller';
 import {
-  ContractingController, DropOffsController, EmployeeReportsController,
-  EventInvitesController, SocialSnapshotsController,
+  ContractingController,
+  DropOffsController,
+  EmployeeReportsController,
+  EventInvitesController,
+  SocialSnapshotsController,
 } from '../src/resources/simple-resources.controllers';
 import { AuditController } from '../src/resources/audit.controller';
 import { HealthController } from '../src/health.controller';
+import { CreatorSocialController } from '../src/creator-social/creator-social.controller';
 
 const CONTROLLERS = [
-  AnalyticsController, AuthController, CampaignsController, CreatorInvoicesController,
-  CreatorsController, DealDocumentsController, DealsController, DocumentsController,
-  PaymentTransactionsController, TdsController, UsersController, ContractingController,
-  DropOffsController, EmployeeReportsController, EventInvitesController,
+  CampaignContentController,
+  CreatorCampaignBriefController,
+  CampaignAIController,
+  ContentConceptController,
+  AnalyticsController,
+  AuthController,
+  CampaignsController,
+  CreatorInvoicesController,
+  CreatorsController,
+  DealDocumentsController,
+  DealsController,
+  DocumentsController,
+  PaymentTransactionsController,
+  TdsController,
+  UsersController,
+  ContractingController,
+  DropOffsController,
+  EmployeeReportsController,
+  EventInvitesController,
   SocialSnapshotsController,
-  AuditController, HealthController,
+  AuditController,
+  HealthController,
+  CreatorSocialController,
+  BrandKitController,
+  PublicBrandKitController,
 ];
 
 test('every HTTP route declares roles or skip-auth metadata', () => {
   const missing: string[] = [];
   for (const Controller of CONTROLLERS) {
     const classRoles = Reflect.getMetadata(ROLES_KEY, Controller);
-    let prototype: Record<string, unknown> = Controller.prototype as unknown as Record<string, unknown>;
+    let prototype: Record<string, unknown> = Controller.prototype as unknown as Record<
+      string,
+      unknown
+    >;
     while (prototype && prototype !== Object.prototype) {
       for (const name of Object.getOwnPropertyNames(prototype)) {
         if (name === 'constructor') continue;
         const handler = prototype[name];
-        if (typeof handler !== 'function' || Reflect.getMetadata(PATH_METADATA, handler) === undefined) continue;
+        if (
+          typeof handler !== 'function' ||
+          Reflect.getMetadata(PATH_METADATA, handler) === undefined
+        )
+          continue;
         const roles = Reflect.getMetadata(ROLES_KEY, handler) ?? classRoles;
-        const skip = Reflect.getMetadata(SKIP_AUTH_KEY, handler) ?? Reflect.getMetadata(SKIP_AUTH_KEY, Controller);
-        if (!roles?.length && !skip) missing.push(`${Controller.name}.${name}`);
+        const skip =
+          Reflect.getMetadata(SKIP_AUTH_KEY, handler) ??
+          Reflect.getMetadata(SKIP_AUTH_KEY, Controller);
+        const publicRoute =
+          Reflect.getMetadata(PUBLIC_ROUTE_KEY, handler) ??
+          Reflect.getMetadata(PUBLIC_ROUTE_KEY, Controller);
+        if (!roles?.length && !skip && !publicRoute) missing.push(`${Controller.name}.${name}`);
       }
       prototype = Object.getPrototypeOf(prototype) as Record<string, unknown>;
     }
   }
   assert.deepEqual(missing, []);
+});
+
+test('creator social API exposes supported imports and omits unsupported load-more route', () => {
+  const prototype = CreatorSocialController.prototype as unknown as Record<string, unknown>;
+  const routes = Object.getOwnPropertyNames(prototype)
+    .map((name) => prototype[name])
+    .filter((handler): handler is Function => typeof handler === 'function')
+    .map((handler) => Reflect.getMetadata(PATH_METADATA, handler))
+    .filter((path): path is string => typeof path === 'string');
+
+  assert.ok(routes.includes('create-kit'));
+  assert.ok(routes.includes(':id/refresh'));
+  assert.ok(!routes.includes(':id/load-more'));
+  assert.ok(!routes.includes(':id/update-insights'));
+});
+
+test('AI generation and reads are creator-only', () => {
+  assert.deepEqual(Reflect.getMetadata(ROLES_KEY, CampaignAIController), ['creator']);
 });

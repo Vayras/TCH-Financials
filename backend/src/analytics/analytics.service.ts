@@ -7,8 +7,15 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { D, Decimal, frac4, money } from '../common/decimal';
 import {
-  MONTHS_FY_ORDER, MONTH_NAME, QUARTERS, billingPeriod, creatorSplits,
-  fiscalYearOf, fyLabel, monthKey, quarterKey,
+  MONTHS_FY_ORDER,
+  MONTH_NAME,
+  QUARTERS,
+  billingPeriod,
+  creatorSplits,
+  fiscalYearOf,
+  fyLabel,
+  monthKey,
+  quarterKey,
 } from '../common/fy';
 import { CommercialDeal, Creator } from '../entities';
 
@@ -55,19 +62,37 @@ export class AnalyticsService {
     return fiscalYearOf(periodISO) === fyStart;
   }
 
-  async creatorDashboard(creatorId: number, fyStart: number, monthFilter?: string): Promise<Record<string, unknown>> {
-    const creator = await this.dataSource.getRepository(Creator).findOneBy({ id: String(creatorId) });
+  async creatorDashboard(
+    creatorId: number,
+    fyStart: number,
+    monthFilter?: string,
+  ): Promise<Record<string, unknown>> {
+    const creator = await this.dataSource
+      .getRepository(Creator)
+      .findOneBy({ id: String(creatorId) });
     if (!creator) throw new NotFoundException({ detail: 'Creator not found.' });
     const deals = await this.allDeals();
     const months = this.monthsMeta(fyStart, false).map((month) => ({
-      ...month, billing: new Decimal(0), creatorFee: new Decimal(0), margin: new Decimal(0), campaigns: 0,
+      ...month,
+      billing: new Decimal(0),
+      creatorFee: new Decimal(0),
+      margin: new Decimal(0),
+      campaigns: 0,
     }));
     const monthMap = new Map(months.map((month) => [month.key, month]));
     const payments = new Map<string, { count: number; amount: Decimal }>();
-    const brands = new Map<string, {
-      count: number; billing: Decimal; creatorFee: Decimal; margin: Decimal;
-      paid: Decimal; outstanding: Decimal; lastPeriod: string;
-    }>();
+    const brands = new Map<
+      string,
+      {
+        count: number;
+        billing: Decimal;
+        creatorFee: Decimal;
+        margin: Decimal;
+        paid: Decimal;
+        outstanding: Decimal;
+        lastPeriod: string;
+      }
+    >();
     const campaigns: Array<Record<string, unknown>> = [];
     let totalBilling = new Decimal(0);
     let totalCreatorFee = new Decimal(0);
@@ -80,7 +105,7 @@ export class AnalyticsService {
       if (!split) continue;
       const period = billingPeriod(deal);
       if (!period || !this.inFy(period, fyStart)) continue;
-      
+
       const mKey = monthKey(period);
       const month = monthMap.get(mKey);
       if (month) {
@@ -89,7 +114,7 @@ export class AnalyticsService {
         month.margin = month.margin.add(split.profit);
         month.campaigns += 1;
       }
-      
+
       if (monthFilter && mKey !== monthFilter) continue;
 
       totalBilling = totalBilling.add(split.fee);
@@ -104,8 +129,13 @@ export class AnalyticsService {
       else outstanding = outstanding.add(split.creatorFee);
       const brandName = deal.brand || deal.campaign?.brand || 'Unspecified';
       const brand = brands.get(brandName) ?? {
-        count: 0, billing: new Decimal(0), creatorFee: new Decimal(0), margin: new Decimal(0),
-        paid: new Decimal(0), outstanding: new Decimal(0), lastPeriod: period,
+        count: 0,
+        billing: new Decimal(0),
+        creatorFee: new Decimal(0),
+        margin: new Decimal(0),
+        paid: new Decimal(0),
+        outstanding: new Decimal(0),
+        lastPeriod: period,
       };
       brand.count += 1;
       brand.billing = brand.billing.add(split.fee);
@@ -116,38 +146,60 @@ export class AnalyticsService {
       if (period > brand.lastPeriod) brand.lastPeriod = period;
       brands.set(brandName, brand);
       campaigns.push({
-        deal_id: Number(deal.id), campaign_id: deal.campaignId ? Number(deal.campaignId) : null,
-        campaign: deal.campaign?.name || '(Direct deal)', brand: brandName,
+        deal_id: Number(deal.id),
+        campaign_id: deal.campaignId ? Number(deal.campaignId) : null,
+        campaign: deal.campaign?.name || '(Direct deal)',
+        brand: brandName,
         status: deal.campaign?.status || (deal.campaignOver === 'Y' ? 'Over' : 'Active'),
         direction: deal.direction,
-        period, billing: money(split.fee), creator_fee: money(split.creatorFee),
-        margin: money(split.profit), payment_status: status,
+        period,
+        billing: money(split.fee),
+        creator_fee: money(split.creatorFee),
+        margin: money(split.profit),
+        payment_status: status,
       });
     }
     campaigns.sort((a, b) => String(b.period).localeCompare(String(a.period)));
     return {
-      fy: fyLabel(fyStart), fy_start: fyStart,
+      fy: fyLabel(fyStart),
+      fy_start: fyStart,
       metrics: {
-        campaign_count: campaigns.length, total_billing: money(totalBilling),
-        creator_fees: money(totalCreatorFee), agency_margin: money(totalMargin),
-        amount_paid: money(paid), outstanding: money(outstanding),
+        campaign_count: campaigns.length,
+        total_billing: money(totalBilling),
+        creator_fees: money(totalCreatorFee),
+        agency_margin: money(totalMargin),
+        amount_paid: money(paid),
+        outstanding: money(outstanding),
         average_deal_value: money(campaigns.length ? totalBilling.div(campaigns.length) : 0),
         active_campaigns: campaigns.filter((campaign) => campaign.status !== 'Over').length,
       },
       months: months.map((month) => ({
-        key: month.key, label: month.label, billing: money(month.billing),
-        creator_fee: money(month.creatorFee), margin: money(month.margin), campaigns: month.campaigns,
+        key: month.key,
+        label: month.label,
+        billing: money(month.billing),
+        creator_fee: money(month.creatorFee),
+        margin: money(month.margin),
+        campaigns: month.campaigns,
       })),
       payment_statuses: [...payments.entries()].map(([status, value]) => ({
-        status, count: value.count, amount: money(value.amount),
+        status,
+        count: value.count,
+        amount: money(value.amount),
       })),
-      brands: [...brands.entries()].map(([name, value]) => ({
-        name, count: value.count, billing: money(value.billing),
-        creator_fee: money(value.creatorFee), margin: money(value.margin),
-        paid: money(value.paid), outstanding: money(value.outstanding),
-        billing_share: frac4(totalBilling.isZero() ? 0 : value.billing.div(totalBilling)),
-        last_period: value.lastPeriod,
-      })).sort((a, b) => D(b.billing).cmp(D(a.billing))).slice(0, 8),
+      brands: [...brands.entries()]
+        .map(([name, value]) => ({
+          name,
+          count: value.count,
+          billing: money(value.billing),
+          creator_fee: money(value.creatorFee),
+          margin: money(value.margin),
+          paid: money(value.paid),
+          outstanding: money(value.outstanding),
+          billing_share: frac4(totalBilling.isZero() ? 0 : value.billing.div(totalBilling)),
+          last_period: value.lastPeriod,
+        }))
+        .sort((a, b) => D(b.billing).cmp(D(a.billing)))
+        .slice(0, 8),
       campaigns,
     };
   }
@@ -216,10 +268,13 @@ export class AnalyticsService {
       const isValidInvoice = (invNo: string | null | undefined): boolean => {
         if (!invNo) return false;
         const clean = String(invNo).trim().toLowerCase();
-        return clean.length > 0 && !['na', 'n/a', 'n.a.', 'none', 'nil', '-', 'null'].includes(clean);
+        return (
+          clean.length > 0 && !['na', 'n/a', 'n.a.', 'none', 'nil', '-', 'null'].includes(clean)
+        );
       };
 
-      const isBilled = isValidInvoice(deal.clientInvoiceNumber) || isValidInvoice(deal.eInvoiceNumber);
+      const isBilled =
+        isValidInvoice(deal.clientInvoiceNumber) || isValidInvoice(deal.eInvoiceNumber);
 
       const rowKey = deal.campaignId === null ? 'none' : String(deal.campaignId);
       let row = rows.get(rowKey);
@@ -243,7 +298,7 @@ export class AnalyticsService {
       bump(row.byQuarter, qk, dealFee);
       row.total = row.total.add(dealFee);
       row.profit = row.profit.add(dealProfit);
-      
+
       const b = deal.campaignId && deal.campaign ? deal.campaign.brand : '';
       if (b) brandsAgg.set(b, (brandsAgg.get(b) || new Decimal(0)).add(dealFee));
 
@@ -343,7 +398,7 @@ export class AnalyticsService {
     const campaignCounts: Record<string, number> = {
       'Awaiting Invoices': 0,
       'Pending Payment': 0,
-      'Completed': 0,
+      Completed: 0,
     };
     for (const id of campaignStatusInFy) {
       const data = campaignData.get(id)!;
@@ -441,6 +496,14 @@ export class AnalyticsService {
       campaignNames: string[];
       creatorNames: string[];
       brands: string[];
+      deals: Array<{
+        id: string;
+        campaign: string;
+        brand: string;
+        creators: string[];
+        bookings: string;
+        agency_margin: string;
+      }>;
     }
     const entities = new Map<string, EntityAgg>();
     for (const deal of deals) {
@@ -461,9 +524,24 @@ export class AnalyticsService {
           campaignNames: [],
           creatorNames: [],
           brands: [],
+          deals: [],
         };
         entities.set(be, e);
       }
+      e.deals.push({
+        id: deal.id,
+        campaign: deal.campaign?.name || '',
+        brand: deal.brand,
+        creators: [
+          ...new Set(
+            creatorSplits(deal)
+              .map((c) => c.name)
+              .filter(Boolean),
+          ),
+        ],
+        bookings: money(D(deal.totalFee)),
+        agency_margin: money(D(deal.agencyFeeInr)),
+      });
       e.dealCount += 1;
       e.totalBilling = e.totalBilling.add(D(deal.totalFee));
       e.totalProfit = e.totalProfit.add(D(deal.agencyFeeInr));
@@ -480,6 +558,7 @@ export class AnalyticsService {
         const creators = [...new Set(data.creatorNames)].sort();
         return {
           entity: data.entity,
+          deals: data.deals,
           deal_count: data.dealCount,
           total_billing: money(data.totalBilling),
           total_profit: money(data.totalProfit),
@@ -487,7 +566,9 @@ export class AnalyticsService {
           campaigns,
           creator_count: creators.length,
           creators,
-          top_brands: counter(data.brands).slice(0, 5).map(([b]) => b),
+          top_brands: counter(data.brands)
+            .slice(0, 5)
+            .map(([b]) => b),
         };
       })
       .sort((a, b) => D(b.total_billing).cmp(D(a.total_billing)));
@@ -643,9 +724,7 @@ export class AnalyticsService {
       grand_total_billing: money(
         results.reduce((s, r) => s.add(D(r.total_billing)), new Decimal(0)),
       ),
-      grand_total_profit: money(
-        results.reduce((s, r) => s.add(D(r.total_profit)), new Decimal(0)),
-      ),
+      grand_total_profit: money(results.reduce((s, r) => s.add(D(r.total_profit)), new Decimal(0))),
       grand_total_deals: results.reduce((s, r) => s + r.total_count, 0),
       creator_count: results.length,
     };

@@ -4,16 +4,24 @@
 // 'campaign_id'), decimals as strings, ids as numbers.
 
 import {
-  Campaign, CommercialDeal, ContractingCompliance, Creator, CreatorDocument,
-  CreatorInvoice, DealCreatorShare, DealDocument, DropOff, EmployeeWeeklyReport, EventInvite,
+  Campaign,
+  CommercialDeal,
+  ContractingCompliance,
+  Creator,
+  CreatorDocument,
+  CreatorInvoice,
+  DealCreatorShare,
+  DealDocument,
+  DropOff,
+  EmployeeWeeklyReport,
+  EventInvite,
   SocialMediaSnapshot,
 } from '../entities';
 
 const num = (v: string | number | null | undefined): number | null =>
   v === null || v === undefined ? null : Number(v);
 
-const ts = (d: Date | null | undefined): string | null =>
-  d ? new Date(d).toISOString() : null;
+const ts = (d: Date | null | undefined): string | null => (d ? new Date(d).toISOString() : null);
 
 export function creatorDto(c: Creator) {
   return {
@@ -129,6 +137,7 @@ export function dealDto(d: CommercialDeal) {
     creator_name_raw: d.creatorNameRaw,
     creator_relationship: d.creatorId && d.creator ? d.creator.relationship : 'NonTCH',
     tch_poc: d.tchPoc,
+    responsible_member_id: d.responsibleMemberId,
     agency_commission_agreed: d.agencyCommissionAgreed,
     direction: d.direction,
     total_fee: d.totalFee,

@@ -3,435 +3,504 @@ import { httpClient, ConflictError } from './axios';
 export { ConflictError };
 
 export const api = {
-	get: async <T,>(path: string): Promise<T> => {
-		const res = await httpClient.get<T>(path);
-		return res.data;
-	},
-	post: async <T,>(path: string, body?: unknown): Promise<T> => {
-		const res = await httpClient.post<T>(path, body);
-		return res.data;
-	},
-	patch: async <T,>(path: string, body?: unknown): Promise<T> => {
-		const res = await httpClient.patch<T>(path, body);
-		return res.data;
-	},
-	put: async <T,>(path: string, body?: unknown): Promise<T> => {
-		const res = await httpClient.put<T>(path, body);
-		return res.data;
-	},
-	del: async <T,>(path: string): Promise<T> => {
-		const res = await httpClient.delete<T>(path);
-		return res.data;
-	},
-	upload: async <T,>(path: string, form: FormData, method: 'POST' | 'PATCH' | 'PUT' = 'POST'): Promise<T> => {
-		const res = await httpClient.request<T>({
-			url: path,
-			method,
-			data: form,
-			headers: { 'Content-Type': 'multipart/form-data' },
-		});
-		return res.data;
-	},
+  get: async <T>(path: string): Promise<T> => {
+    const res = await httpClient.get<T>(path);
+    return res.data;
+  },
+  post: async <T>(path: string, body?: unknown, headers?: Record<string, string>): Promise<T> => {
+    const res = await httpClient.post<T>(path, body, headers ? { headers } : undefined);
+    return res.data;
+  },
+  patch: async <T>(path: string, body?: unknown): Promise<T> => {
+    const res = await httpClient.patch<T>(path, body);
+    return res.data;
+  },
+  put: async <T>(path: string, body?: unknown): Promise<T> => {
+    const res = await httpClient.put<T>(path, body);
+    return res.data;
+  },
+  del: async <T>(path: string): Promise<T> => {
+    const res = await httpClient.delete<T>(path);
+    return res.data;
+  },
+  upload: async <T>(
+    path: string,
+    form: FormData,
+    method: 'POST' | 'PATCH' | 'PUT' = 'POST',
+  ): Promise<T> => {
+    const res = await httpClient.request<T>({
+      url: path,
+      method,
+      data: form,
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
 };
 
 export type Creator = {
-	id: number;
-	name: string;
-	category: string;
-	source: string;
-	stage: string;
-	relationship: 'Exclusive' | 'Friend' | 'Dropping' | 'NonTCH';
-	status: 'Active' | 'Inactive';
-	doj: string | null;
-	doj_note: string;
-	profile_url: string;
-	location: string;
-	ops_manager: string;
-	notes: string;
-	version: number;
-	email?: string;
-	portalStatus?: 'active' | 'invited' | 'inactive';
+  id: number;
+  name: string;
+  category: string;
+  source: string;
+  stage: string;
+  relationship: 'Exclusive' | 'Friend' | 'Dropping' | 'NonTCH';
+  status: 'Active' | 'Inactive';
+  doj: string | null;
+  doj_note: string;
+  profile_url: string;
+  location: string;
+  ops_manager: string;
+  notes: string;
+  version: number;
+  email?: string;
+  portalStatus?: 'active' | 'invited' | 'inactive';
 };
 
 export type CreatorPage = PaginatedResponse<Creator>;
 
 export type DropOff = {
-	id: number;
-	creator: number | null;
-	creator_name: string;
-	creator_name_raw: string;
-	drop_off_date: string | null;
-	drop_off_date_note: string;
-	reason: string;
-	learning: string;
-	duration: string;
-	version: number;
+  id: number;
+  creator: number | null;
+  creator_name: string;
+  creator_name_raw: string;
+  drop_off_date: string | null;
+  drop_off_date_note: string;
+  reason: string;
+  learning: string;
+  duration: string;
+  version: number;
 };
 
 export type Contracting = {
-	id: number;
-	creator: number;
-	creator_name: string;
-	final_meeting: string;
-	agreement_sent: string;
-	agreement_signed: string;
-	bank_verified: string;
-	time_to_sign: string;
-	renewal_date: string | null;
-	renewal_note: string;
-	version: number;
+  id: number;
+  creator: number;
+  creator_name: string;
+  final_meeting: string;
+  agreement_sent: string;
+  agreement_signed: string;
+  bank_verified: string;
+  time_to_sign: string;
+  renewal_date: string | null;
+  renewal_note: string;
+  version: number;
 };
 
 export type Campaign = {
-	id: number;
-	name: string;
-	brand: string;
-	status: 'Active' | 'Over';
-	start_date: string | null;
-	end_date: string | null;
-	notes: string;
-	deal_count: number;
-	created_at: string;
-	version: number;
+  id: number;
+  name: string;
+  brand: string;
+  status: 'Active' | 'Over';
+  start_date: string | null;
+  end_date: string | null;
+  notes: string;
+  deal_count: number;
+  created_at: string;
+  version: number;
 };
 
 export type CreatorShare = {
-	id?: number;
-	creator: number | null;
-	creator_name?: string;
-	creator_relationship?: string;
-	creator_name_raw: string;
-	total_fee: string;
-	agency_fee_pct: string;
-	agency_fee_inr: string;
-	creator_fee: string;
-	ro_number?: string;
+  id?: number;
+  creator: number | null;
+  creator_name?: string;
+  creator_relationship?: string;
+  creator_name_raw: string;
+  total_fee: string;
+  agency_fee_pct: string;
+  agency_fee_inr: string;
+  creator_fee: string;
+  ro_number?: string;
 };
 
 export type Deal = {
-	id: number;
-	confirmation_date: string | null;
-	e_invoice_date: string | null;
-	creator: number | null;
-	creator_name: string;
-	creator_name_raw: string;
-	creator_relationship: string;
-	tch_poc: string;
-	agency_commission_agreed: string;
-	direction: 'Inbound' | 'Outbound' | 'MarkUp';
-	total_fee: string;
-	agency_fee_pct: string;
-	agency_fee_inr: string;
-	creator_fee: string;
-	billing_entity: string;
-	brand: string;
-	brand_poc: string;
-	campaign: string | null;
-	campaign_id: number | null;
-	campaign_status: '' | 'Active' | 'Over';
-	deliverables: string;
-	ro_number: string;
-	campaign_over: string;
-	invoice_received: string;
-	payment_cleared: string;
-	e_invoice_number: string;
-	payment_received: string;
-	client_invoice_number: string;
-	client_invoice_date: string | null;
-	client_invoice_amount: string;
-	client_payment_status: '' | 'Pending' | 'Partial' | 'Received' | 'Overdue';
-	client_payment_received_amount: string;
-	client_payment_date: string | null;
-	creator_invoice_number: string;
-	creator_invoice_date: string | null;
-	creator_invoice_amount: string;
-	creator_payment_status: '' | 'Pending' | 'Scheduled' | 'Paid' | 'Overdue';
-	creator_payment_cycle: '' | 'Immediate' | 'Net15' | 'Net30' | 'Net45' | 'Net60';
-	creator_payment_date: string | null;
-	comments: string;
-	creator_shares: CreatorShare[];
-	completed_at: string | null;
-	version: number;
+  id: number;
+  confirmation_date: string | null;
+  e_invoice_date: string | null;
+  creator: number | null;
+  creator_name: string;
+  creator_name_raw: string;
+  creator_relationship: string;
+  tch_poc: string;
+  responsible_member_id?: string | null;
+  agency_commission_agreed: string;
+  direction: 'Inbound' | 'Outbound' | 'MarkUp';
+  total_fee: string;
+  agency_fee_pct: string;
+  agency_fee_inr: string;
+  creator_fee: string;
+  billing_entity: string;
+  brand: string;
+  brand_poc: string;
+  campaign: string | null;
+  campaign_id: number | null;
+  campaign_status: '' | 'Active' | 'Over';
+  deliverables: string;
+  ro_number: string;
+  campaign_over: string;
+  invoice_received: string;
+  payment_cleared: string;
+  e_invoice_number: string;
+  payment_received: string;
+  client_invoice_number: string;
+  client_invoice_date: string | null;
+  client_invoice_amount: string;
+  client_payment_status: '' | 'Pending' | 'Partial' | 'Received' | 'Overdue';
+  client_payment_received_amount: string;
+  client_payment_date: string | null;
+  creator_invoice_number: string;
+  creator_invoice_date: string | null;
+  creator_invoice_amount: string;
+  creator_payment_status: '' | 'Pending' | 'Scheduled' | 'Paid' | 'Overdue';
+  creator_payment_cycle: '' | 'Immediate' | 'Net15' | 'Net30' | 'Net45' | 'Net60';
+  creator_payment_date: string | null;
+  comments: string;
+  creator_shares: CreatorShare[];
+  completed_at: string | null;
+  version: number;
 };
 
 export type PaginatedResponse<T, TSummary = Record<string, never>> = {
-	items: T[];
-	page: number;
-	page_size: number;
-	total: number;
-	total_pages: number;
-	summary: TSummary;
+  items: T[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+  summary: TSummary;
 };
 
-export type DealPage = PaginatedResponse<Deal, {
-	total_billing: string;
-	deal_count: number;
-}>;
+export type DealPage = PaginatedResponse<
+  Deal,
+  {
+    total_billing: string;
+    deal_count: number;
+  }
+>;
 
 export type CampaignCardGroup = {
-	key: string;
-	name: string;
-	brand: string;
-	status: '' | 'Active' | 'Over';
-	invoices_uploaded: boolean;
-	creator_names: string[];
-	total: number;
-	cost_to_client?: number;
-	cost_to_us?: number;
-	deal_count: number;
-	deal: Deal;
+  key: string;
+  name: string;
+  brand: string;
+  status: '' | 'Active' | 'Over';
+  invoices_uploaded: boolean;
+  creator_names: string[];
+  total: number;
+  cost_to_client?: number;
+  cost_to_us?: number;
+  deal_count: number;
+  deal: Deal;
 };
 
 export type CreatorCardGroup = {
-	key: string;
-	name: string;
-	relationship?: string;
-	invoices_uploaded: boolean;
-	total: number;
-	deal_count: number;
-	deal: Deal;
+  key: string;
+  name: string;
+  relationship?: string;
+  invoices_uploaded: boolean;
+  total: number;
+  deal_count: number;
+  deal: Deal;
 };
 
-export type CommercialGroupPage = PaginatedResponse<CampaignCardGroup | CreatorCardGroup, {
-	total_billing: string;
-	deal_count: number;
-}>;
+export type CommercialGroupPage = PaginatedResponse<
+  CampaignCardGroup | CreatorCardGroup,
+  {
+    total_billing: string;
+    deal_count: number;
+  }
+>;
 
 export type DealDocument = {
-	id: number;
-	deal: number;
-	doc_type: 'ClientInvoice' | 'CreatorInvoice';
-	label: string;
-	file: string;
-	uploaded_at: string;
+  id: number;
+  deal: number;
+  doc_type: 'ClientInvoice' | 'CreatorInvoice';
+  label: string;
+  file: string;
+  uploaded_at: string;
 };
 
 export type CreatorDocument = {
-	id: number;
-	creator: number;
-	creator_name: string;
-	doc_type: string;
-	label: string;
-	file: string;
-	uploaded_at: string;
+  id: number;
+  creator: number;
+  creator_name: string;
+  doc_type: string;
+  label: string;
+  file: string;
+  uploaded_at: string;
 };
 
 export type CreatorInvoice = {
-	id: number;
-	deal: number;
-	campaign_id: number | null;
-	campaign_name: string | null;
-	brand: string;
-	creator: number;
-	creator_name: string;
-	invoice_number: string;
-	invoice_date: string | null;
-	invoice_amount: string;
-	payment_status: '' | 'Pending' | 'Scheduled' | 'Paid' | 'Overdue';
-	payment_cycle: '' | 'Immediate' | 'Net15' | 'Net30' | 'Net45' | 'Net60';
-	payment_date: string | null;
-	label: string;
-	file: string;
-	uploaded_at: string;
-	updated_at: string;
-	version: number;
+  id: number;
+  deal: number;
+  campaign_id: number | null;
+  campaign_name: string | null;
+  brand: string;
+  creator: number;
+  creator_name: string;
+  invoice_number: string;
+  invoice_date: string | null;
+  invoice_amount: string;
+  payment_status: '' | 'Pending' | 'Scheduled' | 'Paid' | 'Overdue';
+  payment_cycle: '' | 'Immediate' | 'Net15' | 'Net30' | 'Net45' | 'Net60';
+  payment_date: string | null;
+  label: string;
+  file: string;
+  uploaded_at: string;
+  updated_at: string;
+  version: number;
 };
 
 export type SocialMediaSnapshot = {
-	id: number;
-	creator: number;
-	creator_name: string;
-	snapshot_type: 'Baseline' | 'Quarterly';
-	snapshot_date: string;
-	platform: string;
-	followers: number;
-	engagement_rate: string;
-	estimated_reach: number;
-	revenue_last_3m: string;
-	notes: string;
-	version: number;
+  id: number;
+  creator: number;
+  creator_name: string;
+  snapshot_type: 'Baseline' | 'Quarterly';
+  snapshot_date: string;
+  platform: string;
+  followers: number;
+  engagement_rate: string;
+  estimated_reach: number;
+  revenue_last_3m: string;
+  notes: string;
+  version: number;
 };
 
 export type EventInvite = {
-	id: number;
-	creator: number;
-	creator_name: string;
-	event_name: string;
-	event_date: string;
-	invited_date: string | null;
-	response: '' | 'Accepted' | 'Declined' | 'NoResponse';
-	notes: string;
-	version: number;
+  id: number;
+  creator: number;
+  creator_name: string;
+  event_name: string;
+  event_date: string;
+  invited_date: string | null;
+  response: '' | 'Accepted' | 'Declined' | 'NoResponse';
+  notes: string;
+  version: number;
 };
 
 export type EmployeeReport = {
-	id: number;
-	week_ending: string | null;
-	employee_name: string;
-	new_outreach: number;
-	paid_confirmations: string;
-	revenue_locked: string;
-	profit_locked: string;
-	barter_confirmations: string;
-	live_campaigns: number;
-	action_points: string;
-	version: number;
+  id: number;
+  week_ending: string | null;
+  employee_name: string;
+  new_outreach: number;
+  paid_confirmations: string;
+  revenue_locked: string;
+  profit_locked: string;
+  barter_confirmations: string;
+  live_campaigns: number;
+  action_points: string;
+  version: number;
 };
 
 export type OverviewCampaignRow = {
-	campaign_id: number | null;
-	name: string;
-	brand: string;
-	status: '' | 'Active' | 'Over';
-	creators: string[];
-	deal_count: number;
-	by_month: Record<string, string>;
-	by_quarter: Record<string, string>;
-	total: string;
-	profit: string;
+  campaign_id: number | null;
+  name: string;
+  brand: string;
+  status: '' | 'Active' | 'Over';
+  creators: string[];
+  deal_count: number;
+  by_month: Record<string, string>;
+  by_quarter: Record<string, string>;
+  total: string;
+  profit: string;
 };
 
 export type Overview = {
-	fy: string;
-	fy_start: number;
-	months: { key: string; label: string }[];
-	quarters: { key: string; label: string }[];
-	campaign_counts: Record<string, number>;
-	total_campaigns: number;
-	rows: OverviewCampaignRow[];
-	totals: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
-	billed: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
-	unbilled: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
-	emw_billing: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
-	profits: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
-	emw_pct: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
-	profit_pct: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
-	top_brands: { name: string; total: string }[];
-	top_creators: { name: string; total: string }[];
-	not_invoiced: { count: number; total_fee: string; profit: string };
+  fy: string;
+  fy_start: number;
+  months: { key: string; label: string }[];
+  quarters: { key: string; label: string }[];
+  campaign_counts: Record<string, number>;
+  total_campaigns: number;
+  rows: OverviewCampaignRow[];
+  totals: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
+  billed: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
+  unbilled: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
+  emw_billing: {
+    by_month: Record<string, string>;
+    by_quarter: Record<string, string>;
+    total: string;
+  };
+  profits: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
+  emw_pct: { by_month: Record<string, string>; by_quarter: Record<string, string>; total: string };
+  profit_pct: {
+    by_month: Record<string, string>;
+    by_quarter: Record<string, string>;
+    total: string;
+  };
+  top_brands: { name: string; total: string }[];
+  top_creators: { name: string; total: string }[];
+  not_invoiced: { count: number; total_fee: string; profit: string };
 };
 
 export type QuarterlyExclusive = {
-	creator_id: number;
-	creator_name: string;
-	quarter: string;
-	inbound_count: number;
-	inbound_amount: string;
-	inbound_creator_fee: string;
-	inbound_tch_profit: string;
-	outbound_count: number;
-	outbound_amount: string;
-	outbound_creator_fee: string;
-	outbound_tch_profit: string;
-	top_brands: string[];
-	repeat_brands: string[];
-	common_deliverable: string;
+  creator_id: number;
+  creator_name: string;
+  quarter: string;
+  inbound_count: number;
+  inbound_amount: string;
+  inbound_creator_fee: string;
+  inbound_tch_profit: string;
+  outbound_count: number;
+  outbound_amount: string;
+  outbound_creator_fee: string;
+  outbound_tch_profit: string;
+  top_brands: string[];
+  repeat_brands: string[];
+  common_deliverable: string;
 };
 
 export type EntityRow = {
-	entity: string;
-	deal_count: number;
-	total_billing: string;
-	total_profit: string;
-	campaign_count: number;
-	campaigns: string[];
-	creator_count: number;
-	creators: string[];
-	top_brands: string[];
+  deals: {
+    id: string;
+    campaign: string;
+    brand: string;
+    creators: string[];
+    bookings: string;
+    agency_margin: string;
+  }[];
+  entity: string;
+  deal_count: number;
+  total_billing: string;
+  total_profit: string;
+  campaign_count: number;
+  campaigns: string[];
+  creator_count: number;
+  creators: string[];
+  top_brands: string[];
 };
 
 export type EntitySummary = {
-	fy: string;
-	fy_start: number;
-	entity_filter: string;
-	entities: EntityRow[];
-	grand_total_billing: string;
-	grand_total_profit: string;
+  fy: string;
+  fy_start: number;
+  entity_filter: string;
+  entities: EntityRow[];
+  grand_total_billing: string;
+  grand_total_profit: string;
 };
 
 export type CreatorInsight = {
-	creator_id: number | null;
-	creator_name: string;
-	relationship: 'Exclusive' | 'Friend' | 'Dropping' | 'NonTCH';
-	category: string;
-	ops_manager: string;
-	total_count: number;
-	inbound_count: number;
-	outbound_count: number;
-	markup_count: number;
-	total_billing: string;
-	total_profit: string;
-	total_creator_fee: string;
-	avg_deal_size: string;
-	profit_margin: string;
-	first_date: string | null;
-	last_date: string | null;
-	months_active: number;
-	brand_count: number;
-	top_brands: string[];
-	repeat_brands: string[];
-	common_deliverable: string;
-	top_billing_entity: string;
-	paid_count: number;
-	over_count: number;
-	by_month: Record<string, string>;
+  creator_id: number | null;
+  creator_name: string;
+  relationship: 'Exclusive' | 'Friend' | 'Dropping' | 'NonTCH';
+  category: string;
+  ops_manager: string;
+  total_count: number;
+  inbound_count: number;
+  outbound_count: number;
+  markup_count: number;
+  total_billing: string;
+  total_profit: string;
+  total_creator_fee: string;
+  avg_deal_size: string;
+  profit_margin: string;
+  first_date: string | null;
+  last_date: string | null;
+  months_active: number;
+  brand_count: number;
+  top_brands: string[];
+  repeat_brands: string[];
+  common_deliverable: string;
+  top_billing_entity: string;
+  paid_count: number;
+  over_count: number;
+  by_month: Record<string, string>;
 };
 
 export type CreatorInsights = {
-	fy: string;
-	fy_start: number;
-	months: { key: string; label: string }[];
-	creators: CreatorInsight[];
-	grand_total_billing: string;
-	grand_total_profit: string;
-	grand_total_deals: number;
-	creator_count: number;
+  fy: string;
+  fy_start: number;
+  months: { key: string; label: string }[];
+  creators: CreatorInsight[];
+  grand_total_billing: string;
+  grand_total_profit: string;
+  grand_total_deals: number;
+  creator_count: number;
 };
 
 export type CreatorDashboard = {
-	fy: string;
-	fy_start: number;
-	metrics: {
-		campaign_count: number; total_billing: string; creator_fees: string; agency_margin: string;
-		amount_paid: string; outstanding: string; average_deal_value: string; active_campaigns: number;
-	};
-	months: { key: string; label: string; billing: string; creator_fee: string; margin: string; campaigns: number }[];
-	payment_statuses: { status: string; count: number; amount: string }[];
-	brands: { name: string; count: number; billing: string; creator_fee: string; margin: string; paid: string; outstanding: string; billing_share: string; last_period: string }[];
-	campaigns: { deal_id: number; campaign_id: number | null; campaign: string; brand: string; status: string; direction: string; period: string; billing: string; creator_fee: string; margin: string; payment_status: string }[];
+  fy: string;
+  fy_start: number;
+  metrics: {
+    campaign_count: number;
+    total_billing: string;
+    creator_fees: string;
+    agency_margin: string;
+    amount_paid: string;
+    outstanding: string;
+    average_deal_value: string;
+    active_campaigns: number;
+  };
+  months: {
+    key: string;
+    label: string;
+    billing: string;
+    creator_fee: string;
+    margin: string;
+    campaigns: number;
+  }[];
+  payment_statuses: { status: string; count: number; amount: string }[];
+  brands: {
+    name: string;
+    count: number;
+    billing: string;
+    creator_fee: string;
+    margin: string;
+    paid: string;
+    outstanding: string;
+    billing_share: string;
+    last_period: string;
+  }[];
+  campaigns: {
+    deal_id: number;
+    campaign_id: number | null;
+    campaign: string;
+    brand: string;
+    status: string;
+    direction: string;
+    period: string;
+    billing: string;
+    creator_fee: string;
+    margin: string;
+    payment_status: string;
+  }[];
 };
 
 export type AlertSeverity = 'high' | 'med' | 'low';
 
 export type AlertItem = {
-	kind: string;
-	severity: AlertSeverity;
-	title: string;
-	detail: string;
-	action: string;
-	// Stable identity across recomputes — what /alerts/dismiss/ keys on.
-	key: string;
-	meta: Record<string, string | number | boolean | null>;
+  kind: string;
+  severity: AlertSeverity;
+  title: string;
+  detail: string;
+  action: string;
+  // Stable identity across recomputes — what /alerts/dismiss/ keys on.
+  key: string;
+  meta: Record<string, string | number | boolean | null>;
 };
 
 export type AlertsPayload = {
-	generated_at: string;
-	thresholds: {
-		inactive_creator_days: number;
-		invoice_overdue_days: number;
-		payment_overdue_days: number;
-		brand_dormant_days: number;
-		brand_hot_window_days: number;
-		renewal_due_days: number;
-		qoq_drop_pct: number;
-	};
-	urgent: AlertItem[];
-	bd: AlertItem[];
-	health: AlertItem[];
-	docs: AlertItem[];
-	seasonal: AlertItem[];
-	payments: AlertItem[];
-	counts: { urgent: number; bd: number; health: number; docs: number; seasonal: number; payments: number };
-	// How many computed alerts were suppressed by dismissals this load.
-	dismissed_count: number;
+  generated_at: string;
+  thresholds: {
+    inactive_creator_days: number;
+    invoice_overdue_days: number;
+    payment_overdue_days: number;
+    brand_dormant_days: number;
+    brand_hot_window_days: number;
+    renewal_due_days: number;
+    qoq_drop_pct: number;
+  };
+  urgent: AlertItem[];
+  bd: AlertItem[];
+  health: AlertItem[];
+  docs: AlertItem[];
+  seasonal: AlertItem[];
+  payments: AlertItem[];
+  counts: {
+    urgent: number;
+    bd: number;
+    health: number;
+    docs: number;
+    seasonal: number;
+    payments: number;
+  };
+  // How many computed alerts were suppressed by dismissals this load.
+  dismissed_count: number;
 };

@@ -15,14 +15,18 @@ export async function refreshInvoiceCompletion(
     source.getRepository(CreatorInvoice).find({ where: { dealId } }),
   ]);
   const hasClientInvoice = documents.some((document) => document.docType === 'ClientInvoice');
-  const assignedCreatorIds = Array.from(new Set(
-    (deal.creatorShares?.length
-      ? deal.creatorShares.map((share) => share.creatorId)
-      : [deal.creatorId]
-    ).filter((id): id is string => !!id),
-  ));
+  const assignedCreatorIds = Array.from(
+    new Set(
+      (deal.creatorShares?.length
+        ? deal.creatorShares.map((share) => share.creatorId)
+        : [deal.creatorId]
+      ).filter((id): id is string => !!id),
+    ),
+  );
   const invoicedCreatorIds = new Set(creatorInvoices.map((invoice) => invoice.creatorId));
-  const creatorsComplete = assignedCreatorIds.every((creatorId) => invoicedCreatorIds.has(creatorId));
+  const creatorsComplete = assignedCreatorIds.every((creatorId) =>
+    invoicedCreatorIds.has(creatorId),
+  );
   const complete = hasClientInvoice && creatorsComplete;
 
   let changed = false;

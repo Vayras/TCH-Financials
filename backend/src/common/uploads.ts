@@ -3,12 +3,7 @@ import { BadRequestException } from '@nestjs/common';
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 export const UPLOAD_LIMITS = { fileSize: MAX_UPLOAD_BYTES };
 
-export const DOCUMENT_MIME = new Set([
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-]);
+export const DOCUMENT_MIME = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
 
 export const SPREADSHEET_MIME = new Set([
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
