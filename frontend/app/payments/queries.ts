@@ -9,227 +9,238 @@ export const DEAL_DOCUMENTS_QUERY_KEY = ['deal-documents'] as const;
 export const CREATOR_INVOICES_QUERY_KEY = ['creator-invoices'] as const;
 
 export function useDealsQuery(fyStart: number | null) {
-	return useQuery<Deal[]>({
-		queryKey: DEALS_QUERY_KEY(fyStart ?? 0),
-		enabled: fyStart !== null,
-		queryFn: () => api.get<Deal[]>(`/deals/?fy=${fyStart!}`)
-	});
+  return useQuery<Deal[]>({
+    queryKey: DEALS_QUERY_KEY(fyStart ?? 0),
+    enabled: fyStart !== null,
+    queryFn: () => api.get<Deal[]>(`/deals/?fy=${fyStart!}`),
+  });
 }
 
 export function useDealDocumentsQuery() {
-	return useQuery<DealDocument[]>({
-		queryKey: DEAL_DOCUMENTS_QUERY_KEY,
-		queryFn: () => api.get<DealDocument[]>('/deal-documents/')
-	});
+  return useQuery<DealDocument[]>({
+    queryKey: DEAL_DOCUMENTS_QUERY_KEY,
+    queryFn: () => api.get<DealDocument[]>('/deal-documents/'),
+  });
 }
 
 export function useCreatorInvoicesQuery() {
-	return useQuery<CreatorInvoice[]>({
-		queryKey: CREATOR_INVOICES_QUERY_KEY,
-		queryFn: () => api.get<CreatorInvoice[]>('/creator-invoices/')
-	});
+  return useQuery<CreatorInvoice[]>({
+    queryKey: CREATOR_INVOICES_QUERY_KEY,
+    queryFn: () => api.get<CreatorInvoice[]>('/creator-invoices/'),
+  });
 }
 
 export function useMarkClientPaidMutation() {
-	const queryClient = useQueryClient();
-	return useMutation<unknown, Error, { id: number; version: number }>({
-		mutationFn: ({ id, version }) =>
-			api.patch(`/deals/${id}/`, {
-				payment_cleared: 'Y',
-				client_payment_date: new Date().toISOString().slice(0, 10),
-				version
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['deals'] });
-			queryClient.invalidateQueries({ queryKey: ['overview'] });
-		}
-	});
+  const queryClient = useQueryClient();
+  return useMutation<unknown, Error, { id: number; version: number }>({
+    mutationFn: ({ id, version }) =>
+      api.patch(`/deals/${id}/`, {
+        payment_cleared: 'Y',
+        client_payment_date: new Date().toISOString().slice(0, 10),
+        version,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+  });
 }
 
 export function useMarkCreatorPaidMutation() {
-	const queryClient = useQueryClient();
-	return useMutation<unknown, Error, { id: number; version: number }>({
-		mutationFn: ({ id, version }) =>
-			api.patch(`/deals/${id}/`, {
-				creator_payment_status: 'Paid',
-				creator_payment_date: new Date().toISOString().slice(0, 10),
-				version
-			}),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['deals'] });
-			queryClient.invalidateQueries({ queryKey: ['overview'] });
-		}
-	});
+  const queryClient = useQueryClient();
+  return useMutation<unknown, Error, { id: number; version: number }>({
+    mutationFn: ({ id, version }) =>
+      api.patch(`/deals/${id}/`, {
+        creator_payment_status: 'Paid',
+        creator_payment_date: new Date().toISOString().slice(0, 10),
+        version,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+  });
 }
 
 interface UploadInvoiceParams {
-	dealId: number;
-	clientFile: File | null;
-	creatorFile: File | null;
+  dealId: number;
+  clientFile: File | null;
+  creatorFile: File | null;
 }
 
 export function useUploadInvoiceMutation() {
-	const queryClient = useQueryClient();
-	return useMutation<void, Error, UploadInvoiceParams>({
-		mutationFn: async ({ dealId, clientFile, creatorFile }) => {
-			if (clientFile) {
-				await uploadDealInvoice(dealId, 'ClientInvoice', clientFile);
-			}
-			if (creatorFile) {
-				await uploadDealInvoice(dealId, 'CreatorInvoice', creatorFile);
-			}
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['deals'] });
-			queryClient.invalidateQueries({ queryKey: DEAL_DOCUMENTS_QUERY_KEY });
-			queryClient.invalidateQueries({ queryKey: ['overview'] });
-		}
-	});
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, UploadInvoiceParams>({
+    mutationFn: async ({ dealId, clientFile, creatorFile }) => {
+      if (clientFile) {
+        await uploadDealInvoice(dealId, 'ClientInvoice', clientFile);
+      }
+      if (creatorFile) {
+        await uploadDealInvoice(dealId, 'CreatorInvoice', creatorFile);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+      queryClient.invalidateQueries({ queryKey: DEAL_DOCUMENTS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ['overview'] });
+    },
+  });
 }
 
 export interface PaymentTransactionItem {
-	id: string;
-	transactionDate: string;
-	vendorName: string;
-	utrOrRef: string;
-	debitAmount: string;
-	creditAmount: string;
-	notes: string;
-	createdAt: string;
-	deal?: Deal;
-	creator?: { id: string; name: string };
+  id: string;
+  transactionDate: string;
+  vendorName: string;
+  utrOrRef: string;
+  debitAmount: string;
+  creditAmount: string;
+  notes: string;
+  createdAt: string;
+  deal?: Deal;
+  creator?: { id: string; name: string };
 }
 
 export interface PaymentTransactionResponse {
-	items: PaymentTransactionItem[];
-	page: number;
-	page_size: number;
-	total: number;
-	total_pages: number;
-	summary: {
-		total_debit: string;
-		total_credit: string;
-	};
+  items: PaymentTransactionItem[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+  summary: {
+    total_debit: string;
+    total_credit: string;
+  };
 }
 
 export const PAYMENT_TRANSACTIONS_QUERY_KEY = (page: number, search: string) =>
-	['payment-transactions', { page, search }] as const;
+  ['payment-transactions', { page, search }] as const;
 
 export function usePaymentTransactionsQuery(page: number, search: string, enabled = true) {
-	return useQuery<PaymentTransactionResponse>({
-		queryKey: PAYMENT_TRANSACTIONS_QUERY_KEY(page, search),
-		enabled,
-		queryFn: async () => {
-			const params = new URLSearchParams({ page: String(page) });
-			if (search.trim()) params.set('search', search.trim());
-			const res = await api.get<PaymentTransactionResponse>(`/payment-transactions?${params.toString()}`);
-			return {
-				items: Array.isArray(res?.items) ? res.items : [],
-				page: res?.page || page,
-				page_size: res?.page_size || 50,
-				total: res?.total || 0,
-				total_pages: res?.total_pages || 1,
-				summary: {
-					total_debit: res?.summary?.total_debit || '0.00',
-					total_credit: res?.summary?.total_credit || '0.00',
-				},
-			};
-		}
-	});
+  return useQuery<PaymentTransactionResponse>({
+    queryKey: PAYMENT_TRANSACTIONS_QUERY_KEY(page, search),
+    enabled,
+    queryFn: async () => {
+      const params = new URLSearchParams({ page: String(page) });
+      if (search.trim()) params.set('search', search.trim());
+      const res = await api.get<PaymentTransactionResponse>(
+        `/payment-transactions?${params.toString()}`,
+      );
+      return {
+        items: Array.isArray(res?.items) ? res.items : [],
+        page: res?.page || page,
+        page_size: res?.page_size || 50,
+        total: res?.total || 0,
+        total_pages: res?.total_pages || 1,
+        summary: {
+          total_debit: res?.summary?.total_debit || '0.00',
+          total_credit: res?.summary?.total_credit || '0.00',
+        },
+      };
+    },
+  });
 }
 
 export function useAddPaymentTransactionMutation() {
-	const queryClient = useQueryClient();
-	return useMutation({
-		mutationFn: (body: {
-			transactionDate: string;
-			vendorName: string;
-			utrOrRef: string;
-			debitAmount?: number;
-			creditAmount?: number;
-			notes?: string;
-		}) => api.post('/payment-transactions', body),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['payment-transactions'] });
-		}
-	});
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      transactionDate: string;
+      vendorName: string;
+      utrOrRef: string;
+      debitAmount?: number;
+      creditAmount?: number;
+      notes?: string;
+    }) => api.post('/payment-transactions', body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payment-transactions'] });
+    },
+  });
 }
 
 export function useImportPaymentTransactionsMutation() {
-	const queryClient = useQueryClient();
-	return useMutation({
-		mutationFn: (file: File) => {
-			const formData = new FormData();
-			formData.append('file', file);
-			return api.upload<{ success: boolean; imported_count: number; skipped: Array<{ row: number; reason: string }> }>('/payment-transactions/import', formData);
-		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['payment-transactions'] });
-		}
-	});
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      return api.upload<{
+        success: boolean;
+        imported_count: number;
+        skipped: Array<{ row: number; reason: string }>;
+      }>('/payment-transactions/import', formData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payment-transactions'] });
+    },
+  });
 }
 
 export interface TdsEntryItem {
-	id: string;
-	creatorId: string;
-	dealId: string | null;
-	quarter: string;
-	tdsRate: string;
-	grossAmount: string;
-	tdsAmount: string;
-	netPayable: string;
-	remittanceDate: string | null;
-	challanNumber: string;
-	status: 'Pending' | 'Remitted';
-	notes: string;
-	createdAt: string;
-	creator: {
-		id: string;
-		name: string;
-	};
+  id: string;
+  creatorId: string;
+  dealId: string | null;
+  quarter: string;
+  tdsRate: string;
+  grossAmount: string;
+  tdsAmount: string;
+  netPayable: string;
+  remittanceDate: string | null;
+  challanNumber: string;
+  status: 'Pending' | 'Remitted';
+  notes: string;
+  createdAt: string;
+  creator: {
+    id: string;
+    name: string;
+  };
 }
 
 export function useTdsEntriesQuery(creatorId?: string, status?: string, enabled = true) {
-	return useQuery<TdsEntryItem[]>({
-		queryKey: ['tds-entries', { creatorId, status }],
-		enabled,
-		queryFn: () => {
-			const params = new URLSearchParams();
-			if (creatorId) params.set('creatorId', creatorId);
-			if (status) params.set('status', status);
-			return api.get<TdsEntryItem[]>(`/tds?${params.toString()}`);
-		}
-	});
+  return useQuery<TdsEntryItem[]>({
+    queryKey: ['tds-entries', { creatorId, status }],
+    enabled,
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (creatorId) params.set('creatorId', creatorId);
+      if (status) params.set('status', status);
+      return api.get<TdsEntryItem[]>(`/tds?${params.toString()}`);
+    },
+  });
 }
 
 export function useAddTdsEntryMutation() {
-	const queryClient = useQueryClient();
-	return useMutation({
-		mutationFn: (body: {
-			creatorId: string;
-			dealId?: string | null;
-			quarter: string;
-			tdsRate: number;
-			grossAmount: number;
-			notes?: string;
-		}) => api.post('/tds', body),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['tds-entries'] });
-		}
-	});
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      creatorId: string;
+      dealId?: string | null;
+      quarter: string;
+      tdsRate: number;
+      grossAmount: number;
+      notes?: string;
+    }) => api.post('/tds', body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tds-entries'] });
+    },
+  });
 }
 
 export function useUpdateTdsRemittanceMutation() {
-	const queryClient = useQueryClient();
-	return useMutation({
-		mutationFn: ({ id, remittanceDate, challanNumber, notes }: {
-			id: string;
-			remittanceDate: string;
-			challanNumber: string;
-			notes?: string;
-		}) => api.patch(`/tds/${id}`, { remittanceDate, challanNumber, notes }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['tds-entries'] });
-		}
-	});
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      remittanceDate,
+      challanNumber,
+      notes,
+    }: {
+      id: string;
+      remittanceDate: string;
+      challanNumber: string;
+      notes?: string;
+    }) => api.patch(`/tds/${id}`, { remittanceDate, challanNumber, notes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tds-entries'] });
+    },
+  });
 }

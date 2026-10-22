@@ -12,26 +12,46 @@ export class AddFinancialIntegrityGuards1752800000000 implements MigrationInterf
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     const guards: Array<[string, string, string]> = [
-      ['tch_commercialdeal', 'ck_deal_nonnegative_money', `
+      [
+        'tch_commercialdeal',
+        'ck_deal_nonnegative_money',
+        `
         total_fee >= 0 AND agency_fee_inr >= 0 AND creator_fee >= 0 AND
         client_invoice_amount >= 0 AND client_payment_received_amount >= 0 AND
-        creator_invoice_amount >= 0`],
+        creator_invoice_amount >= 0`,
+      ],
       ['tch_commercialdeal', 'ck_deal_agency_pct', 'agency_fee_pct >= 0 AND agency_fee_pct <= 1'],
       ['tch_commercialdeal', 'ck_deal_direction', `direction IN ('Inbound', 'Outbound', 'MarkUp')`],
-      ['tch_commercialdeal', 'ck_deal_flags', `
+      [
+        'tch_commercialdeal',
+        'ck_deal_flags',
+        `
         campaign_over IN ('', 'Y', 'N') AND invoice_received IN ('', 'Y', 'N') AND
-        payment_cleared IN ('', 'Y', 'N') AND payment_received IN ('', 'Y', 'N')`],
-      ['tch_dealcreatorshare', 'ck_share_nonnegative_money', `
+        payment_cleared IN ('', 'Y', 'N') AND payment_received IN ('', 'Y', 'N')`,
+      ],
+      [
+        'tch_dealcreatorshare',
+        'ck_share_nonnegative_money',
+        `
         total_fee >= 0 AND agency_fee_inr >= 0 AND creator_fee >= 0 AND
-        agency_fee_pct >= 0 AND agency_fee_pct <= 1`],
+        agency_fee_pct >= 0 AND agency_fee_pct <= 1`,
+      ],
       ['tch_creatorinvoice', 'ck_creatorinvoice_nonnegative_amount', 'invoice_amount >= 0'],
-      ['tch_payment_transaction', 'ck_payment_one_sided_positive', `
+      [
+        'tch_payment_transaction',
+        'ck_payment_one_sided_positive',
+        `
         debit_amount >= 0 AND credit_amount >= 0 AND
-        ((debit_amount > 0 AND credit_amount = 0) OR (credit_amount > 0 AND debit_amount = 0))`],
-      ['tch_tds_entry', 'ck_tds_values', `
+        ((debit_amount > 0 AND credit_amount = 0) OR (credit_amount > 0 AND debit_amount = 0))`,
+      ],
+      [
+        'tch_tds_entry',
+        'ck_tds_values',
+        `
         quarter IN ('Q1', 'Q2', 'Q3', 'Q4') AND tds_rate >= 0 AND tds_rate <= 1 AND
         gross_amount >= 0 AND tds_amount >= 0 AND net_payable >= 0 AND
-        status IN ('Pending', 'Remitted')`],
+        status IN ('Pending', 'Remitted')`,
+      ],
     ];
 
     for (const [table, name, expression] of guards) {
@@ -81,4 +101,3 @@ export class AddFinancialIntegrityGuards1752800000000 implements MigrationInterf
     }
   }
 }
-

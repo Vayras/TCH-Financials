@@ -173,9 +173,7 @@ export class InitialSchema1751800000000 implements MigrationInterface {
         version integer NOT NULL DEFAULT 1 CHECK (version >= 0)
       )
     `);
-    await queryRunner.query(
-      `CREATE INDEX idx_dropoff_creator ON tch_dropoff (creator_id)`,
-    );
+    await queryRunner.query(`CREATE INDEX idx_dropoff_creator ON tch_dropoff (creator_id)`);
 
     await queryRunner.query(`
       CREATE TABLE tch_socialmediasnapshot (
@@ -210,9 +208,7 @@ export class InitialSchema1751800000000 implements MigrationInterface {
         version integer NOT NULL DEFAULT 1 CHECK (version >= 0)
       )
     `);
-    await queryRunner.query(
-      `CREATE INDEX idx_eventinvite_creator ON tch_eventinvite (creator_id)`,
-    );
+    await queryRunner.query(`CREATE INDEX idx_eventinvite_creator ON tch_eventinvite (creator_id)`);
 
     await queryRunner.query(`
       CREATE TABLE tch_employeeweeklyreport (

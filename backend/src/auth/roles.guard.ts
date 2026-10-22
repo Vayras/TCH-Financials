@@ -10,7 +10,13 @@ export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    if (this.reflector.getAllAndOverride<boolean>(PUBLIC_ROUTE_KEY, [context.getHandler(), context.getClass()])) return true;
+    if (
+      this.reflector.getAllAndOverride<boolean>(PUBLIC_ROUTE_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ])
+    )
+      return true;
     const skipAuth = this.reflector.getAllAndOverride<boolean>(SKIP_AUTH_KEY, [
       context.getHandler(),
       context.getClass(),

@@ -25,14 +25,19 @@ export function strictDecimal(
     throw new BadRequestException({ [field]: [`Must be at most ${options.max}.`] });
   }
   if (options.scale !== undefined && parsed.decimalPlaces() > options.scale) {
-    throw new BadRequestException({ [field]: [`Use no more than ${options.scale} decimal places.`] });
+    throw new BadRequestException({
+      [field]: [`Use no more than ${options.scale} decimal places.`],
+    });
   }
   return parsed;
 }
 
 export function optionalMoney(value: unknown, field: string): string | undefined {
   if (value === undefined) return undefined;
-  return strictDecimal(value === '' || value === null ? 0 : value, field, { min: 0, scale: 2 }).toFixed(2);
+  return strictDecimal(value === '' || value === null ? 0 : value, field, {
+    min: 0,
+    scale: 2,
+  }).toFixed(2);
 }
 
 export function optionalDate(value: unknown, field: string): string | null | undefined {
@@ -44,17 +49,27 @@ export function optionalDate(value: unknown, field: string): string | null | und
   }
   const [year, month, day] = text.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
     throw new BadRequestException({ [field]: ['Enter a real calendar date.'] });
   }
   return text;
 }
 
-export function optionalEnum(value: unknown, field: string, allowed: readonly string[]): string | undefined {
+export function optionalEnum(
+  value: unknown,
+  field: string,
+  allowed: readonly string[],
+): string | undefined {
   if (value === undefined) return undefined;
   const text = String(value);
   if (!allowed.includes(text)) {
-    throw new BadRequestException({ [field]: [`Use one of: ${allowed.map((v) => v || '(blank)').join(', ')}.`] });
+    throw new BadRequestException({
+      [field]: [`Use one of: ${allowed.map((v) => v || '(blank)').join(', ')}.`],
+    });
   }
   return text;
 }
@@ -67,4 +82,3 @@ export function requiredText(value: unknown, field: string, maxLength: number): 
   }
   return text;
 }
-

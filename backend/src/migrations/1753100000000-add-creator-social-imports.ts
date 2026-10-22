@@ -25,8 +25,12 @@ export class AddCreatorSocialImports1753100000000 implements MigrationInterface 
       WHERE state IN ('queued','triggering','collecting','needs_review')`);
     await q.query(`CREATE INDEX idx_social_jobs_due ON tch_creator_social_import(next_attempt_at)
       WHERE state IN ('queued','collecting')`);
-    await q.query(`CREATE INDEX idx_social_jobs_requested ON tch_creator_social_import(requested_at DESC)`);
-    await q.query(`CREATE INDEX idx_social_account_jobs ON tch_creator_social_import(account_id, requested_at DESC)`);
+    await q.query(
+      `CREATE INDEX idx_social_jobs_requested ON tch_creator_social_import(requested_at DESC)`,
+    );
+    await q.query(
+      `CREATE INDEX idx_social_account_jobs ON tch_creator_social_import(account_id, requested_at DESC)`,
+    );
     await q.query(`CREATE TABLE tch_creator_social_snapshot (
       id uuid PRIMARY KEY, account_id uuid NOT NULL REFERENCES tch_creator_social_account(id) ON DELETE CASCADE,
       import_id uuid NOT NULL UNIQUE REFERENCES tch_creator_social_import(id) ON DELETE CASCADE,
@@ -36,9 +40,15 @@ export class AddCreatorSocialImports1753100000000 implements MigrationInterface 
       posts jsonb NOT NULL CHECK (jsonb_typeof(posts) = 'array' AND jsonb_array_length(posts) <= 50),
       coverage jsonb NOT NULL CHECK (jsonb_typeof(coverage) = 'object')
     )`);
-    await q.query(`CREATE INDEX idx_social_latest_snapshot ON tch_creator_social_snapshot(account_id, collected_at DESC, id DESC)`);
+    await q.query(
+      `CREATE INDEX idx_social_latest_snapshot ON tch_creator_social_snapshot(account_id, collected_at DESC, id DESC)`,
+    );
     // No browser/Supabase REST policies: this data is accessible only through the authorized backend.
-    for (const table of ['tch_creator_social_account', 'tch_creator_social_import', 'tch_creator_social_snapshot']) {
+    for (const table of [
+      'tch_creator_social_account',
+      'tch_creator_social_import',
+      'tch_creator_social_snapshot',
+    ]) {
       await q.query(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
       await q.query(`REVOKE ALL ON ${table} FROM PUBLIC`);
       await q.query(`DO $$ BEGIN

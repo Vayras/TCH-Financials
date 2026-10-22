@@ -12,7 +12,6 @@ import { CampaignActor, campaignId } from './campaign-content.model';
 import { CampaignContentPolicy } from './campaign-content.policy';
 import { validateConcept, uuid } from './content-concept.model';
 
-
 export interface GeneratedIdea {
   title: string;
   hook: string;
@@ -33,7 +32,7 @@ export class CampaignAIService {
       const creator = await this.policy.requireCreator(m, a);
       const [assigned] = await m.query(
         'SELECT 1 FROM tch_campaign_brief_creator WHERE campaign_id=$1 AND creator_id=$2',
-        [id, creator]
+        [id, creator],
       );
       if (!assigned) throw new NotFoundException('Campaign brief assignment not found.');
       return creator;
@@ -41,52 +40,111 @@ export class CampaignAIService {
     throw new ForbiddenException('Only assigned creators can generate AI concept ideas.');
   }
 
-  async generateIdeas(a: CampaignActor, id: string, options: { reference_ids?: string[] } = {}) {
+  async generateIdeas(
+    a: CampaignActor,
+    id: string,
+    options: { reference_ids?: string[] } = {},
+    requestKey: string,
+  ) {
     if (!env.openaiApiKey) {
-      throw new ServiceUnavailableException('AI concept generation is not configured on this server.');
+      throw new ServiceUnavailableException(
+        'AI concept generation is not configured on this server.',
+      );
     }
 
-    return this.db.transaction(async (m) => {
+    const reservation = await this.db.transaction(async (m) => {
       const creatorId = await this.access(m, a, id);
 
       // Lock campaign and retrieve current shared brief revision
       const [brief] = await m.query(
         'SELECT b.shared_revision_id, r.content FROM tch_campaign_brief b JOIN tch_campaign_brief_revision r ON r.id=b.shared_revision_id WHERE b.campaign_id=$1',
-        [id]
+        [id],
       );
       if (!brief || !brief.shared_revision_id) {
-        throw new ConflictException('A shared campaign brief is required before generating concept ideas.');
+        throw new ConflictException(
+          'A shared campaign brief is required before generating concept ideas.',
+        );
       }
 
-      // Check for any ongoing job for this creator and campaign
+      // Recover jobs left behind by a crashed API process before admission.
+      await m.query(
+        `UPDATE tch_campaign_ai_job SET status='failed', error_message='Generation expired before completion.', updated_at=now()
+        WHERE campaign_id=$1 AND creator_id=$2 AND status IN ('pending','processing') AND updated_at < now()-interval '5 minutes'`,
+        [id, creatorId],
+      );
+
+      const [sameRequest] = await m.query(
+        `SELECT id,status FROM tch_campaign_ai_job WHERE campaign_id=$1 AND creator_id=$2 AND request_key=$3`,
+        [id, creatorId, requestKey],
+      );
+      if (sameRequest?.status === 'completed') {
+        const ideas = await m.query(
+          `SELECT id,job_id,title,hook,outline,script_draft,cta,rationale,is_expanded FROM tch_campaign_ai_idea WHERE job_id=$1 ORDER BY created_at,id`,
+          [sameRequest.id],
+        );
+        return {
+          creatorId,
+          briefRevisionId: brief.shared_revision_id,
+          jobId: sameRequest.id,
+          existing: { job_id: sameRequest.id, status: 'completed', ideas },
+        };
+      }
+      if (sameRequest?.status === 'pending' || sameRequest?.status === 'processing') {
+        throw new ConflictException(
+          'This AI generation request is still processing. Retry with the same Idempotency-Key shortly.',
+        );
+      }
+      if (sameRequest?.status === 'failed') {
+        // A failed attempt is safe to retry with its persisted key; completed attempts remain replayable.
+        await m.query('UPDATE tch_campaign_ai_job SET request_key=NULL WHERE id=$1', [
+          sameRequest.id,
+        ]);
+      }
+
+      // One active generation per creator/campaign, enforced again by a partial unique index.
       const [existingJob] = await m.query(
         `SELECT id, status FROM tch_campaign_ai_job 
          WHERE campaign_id=$1 AND creator_id=$2 AND status IN ('pending', 'processing')
          ORDER BY created_at DESC LIMIT 1`,
-        [id, creatorId]
+        [id, creatorId],
       );
       if (existingJob) {
-        throw new ConflictException('An AI generation job is already in progress for this campaign.');
+        throw new ConflictException(
+          'An AI generation job is already in progress for this campaign.',
+        );
       }
 
-      // Create new PENDING job record
+      // Create the durable job before making the provider request.
       const jobId = randomUUID();
-      await m.query(
-        `INSERT INTO tch_campaign_ai_job(id, campaign_id, brief_revision_id, creator_id, status)
-         VALUES($1, $2, $3, $4, 'processing')`,
-        [jobId, id, brief.shared_revision_id, creatorId]
+      const [inserted] = await m.query(
+        `INSERT INTO tch_campaign_ai_job(id,campaign_id,brief_revision_id,creator_id,status,request_key)
+        VALUES($1,$2,$3,$4,'processing',$5) ON CONFLICT DO NOTHING RETURNING id`,
+        [jobId, id, brief.shared_revision_id, creatorId, requestKey],
+      );
+      if (!inserted)
+        throw new ConflictException(
+          'An AI generation job is already in progress for this campaign. Retry with the same Idempotency-Key.',
+        );
+      return { creatorId, briefRevisionId: brief.shared_revision_id, jobId, existing: null };
+    });
+    if (reservation.existing) return reservation.existing;
+
+    const { creatorId, jobId } = reservation;
+    try {
+      const [brief] = await this.db.query(
+        'SELECT r.content FROM tch_campaign_brief_revision r WHERE r.id=$1 AND r.campaign_id=$2',
+        [reservation.briefRevisionId, id],
+      );
+      const briefContent =
+        typeof brief.content === 'string' ? JSON.parse(brief.content) : brief.content;
+
+      // Fetch optional creator details for personalization
+      const [creatorProfile] = await this.db.query(
+        `SELECT name, category, notes FROM tch_creator WHERE id=$1`,
+        [creatorId],
       );
 
-      try {
-        const briefContent = typeof brief.content === 'string' ? JSON.parse(brief.content) : brief.content;
-
-        // Fetch optional creator details for personalization
-        const [creatorProfile] = await m.query(
-          `SELECT name, category, notes FROM tch_creator WHERE id=$1`,
-          [creatorId]
-        );
-
-        const promptSystem = `You are a world-class social media creative strategist. 
+      const promptSystem = `You are a world-class social media creative strategist. 
 Generate 3 distinct, creative, high-converting social media content concept ideas (Reels/TikTok/Shorts) based on the brand campaign brief and creator profile provided.
 You MUST output ONLY valid JSON matching this exact structure:
 {
@@ -102,10 +160,26 @@ You MUST output ONLY valid JSON matching this exact structure:
   ]
 }`;
 
-        const referenceIds = Array.isArray(options.reference_ids) ? options.reference_ids.slice(0, 3).filter(v => /^[0-9a-f-]{36}$/i.test(v)) : [];
-        const references = referenceIds.length ? await m.query(`SELECT r.snapshot_id,r.post_id,s.posts FROM tch_campaign_content_reference r JOIN tch_creator_social_snapshot s ON s.id=r.snapshot_id WHERE r.campaign_id=$1 AND r.creator_id=$2 AND r.id = ANY($3::uuid[])`,[id,creatorId,referenceIds]) : [];
-        const referenceText = references.map((r:any) => { const post=(Array.isArray(r.posts)?r.posts:[]).find((p:any)=>p.platform_post_id===r.post_id)||{}; return `- Format: ${post.content_type||'post'}; Caption: ${String(post.caption||'').slice(0,500)}; Likes: ${post.likes??'unavailable'}; Comments: ${post.comments??'unavailable'}`; }).join('\n') || 'None selected.';
-        const promptUser = `BRAND CAMPAIGN BRIEF:
+      const referenceIds = Array.isArray(options.reference_ids)
+        ? options.reference_ids.slice(0, 3).filter((v) => /^[0-9a-f-]{36}$/i.test(v))
+        : [];
+      const references = referenceIds.length
+        ? await this.db.query(
+            `SELECT r.snapshot_id,r.post_id,s.posts FROM tch_campaign_content_reference r JOIN tch_creator_social_snapshot s ON s.id=r.snapshot_id WHERE r.campaign_id=$1 AND r.creator_id=$2 AND r.id = ANY($3::uuid[])`,
+            [id, creatorId, referenceIds],
+          )
+        : [];
+      const referenceText =
+        references
+          .map((r: any) => {
+            const post =
+              (Array.isArray(r.posts) ? r.posts : []).find(
+                (p: any) => p.platform_post_id === r.post_id,
+              ) || {};
+            return `- Format: ${post.content_type || 'post'}; Caption: ${String(post.caption || '').slice(0, 500)}; Likes: ${post.likes ?? 'unavailable'}; Comments: ${post.comments ?? 'unavailable'}`;
+          })
+          .join('\n') || 'None selected.';
+      const promptUser = `BRAND CAMPAIGN BRIEF:
 - Title: ${briefContent.title || 'Untitled Campaign'}
 - Objective: ${briefContent.objective || 'N/A'}
 - Target Audience: ${briefContent.audience || 'N/A'}
@@ -122,41 +196,43 @@ ${referenceText}
 
 Generate 3 unique, personalized ideas now in strict JSON format.`;
 
-        // Call OpenAI API via server-side fetch
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${env.openaiApiKey}`,
-          },
-          body: JSON.stringify({
-            model: env.openaiModel,
-            messages: [
-              { role: 'system', content: promptSystem },
-              { role: 'user', content: promptUser },
-            ],
-            response_format: { type: 'json_object' },
-            temperature: 0.7,
-            max_tokens: 2000,
-          }),
-        });
+      // Call OpenAI API via server-side fetch
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${env.openaiApiKey}`,
+        },
+        body: JSON.stringify({
+          model: env.openaiModel,
+          messages: [
+            { role: 'system', content: promptSystem },
+            { role: 'user', content: promptUser },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.7,
+          max_tokens: 2000,
+        }),
+        signal: AbortSignal.timeout(30_000),
+      });
 
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(`OpenAI API returned HTTP ${response.status}: ${errText.slice(0, 300)}`);
-        }
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`OpenAI API returned HTTP ${response.status}: ${errText.slice(0, 300)}`);
+      }
 
-        const data: any = await response.json();
-        const responseText = data.choices?.[0]?.message?.content ?? '{}';
+      const data: any = await response.json();
+      const responseText = data.choices?.[0]?.message?.content ?? '{}';
 
-        const parsed = JSON.parse(responseText);
+      const parsed = JSON.parse(responseText);
 
-        const ideas: GeneratedIdea[] = Array.isArray(parsed.ideas) ? parsed.ideas : [];
-        if (ideas.length === 0) {
-          throw new Error('OpenAI API returned empty or invalid idea items.');
-        }
+      const ideas: GeneratedIdea[] = Array.isArray(parsed.ideas) ? parsed.ideas : [];
+      if (ideas.length === 0) {
+        throw new Error('OpenAI API returned empty or invalid idea items.');
+      }
 
-        // Save generated ideas to database
+      // Persist result and completion atomically after provider I/O has finished.
+      return await this.db.transaction(async (m) => {
         const savedIdeas = [];
         for (const idea of ideas.slice(0, 3)) {
           const ideaId = randomUUID();
@@ -175,7 +251,7 @@ Generate 3 unique, personalized ideas now in strict JSON format.`;
               String(idea.script_draft || '').trim(),
               String(idea.cta || '').trim(),
               String(idea.rationale || '').trim(),
-            ]
+            ],
           );
           savedIdeas.push({
             id: ideaId,
@@ -193,7 +269,7 @@ Generate 3 unique, personalized ideas now in strict JSON format.`;
         // Update job status to COMPLETED
         await m.query(
           `UPDATE tch_campaign_ai_job SET status='completed', updated_at=now() WHERE id=$1`,
-          [jobId]
+          [jobId],
         );
 
         return {
@@ -201,17 +277,19 @@ Generate 3 unique, personalized ideas now in strict JSON format.`;
           status: 'completed',
           ideas: savedIdeas,
         };
-      } catch (err: any) {
-        const errorMsg = err.message || 'AI generation failed.';
-        await m.query(
-          `UPDATE tch_campaign_ai_job SET status='failed', error_message=$2, updated_at=now() WHERE id=$1`,
-          [jobId, errorMsg]
-        );
-        // Provider/configuration failures are operational errors, not invalid user input.
-        // Do not return the provider response or any key-related detail to the client.
-        throw new ServiceUnavailableException('AI generation is temporarily unavailable. Check the server AI configuration and try again.');
-      }
-    });
+      });
+    } catch (err: any) {
+      const errorMsg = err.message || 'AI generation failed.';
+      await this.db.query(
+        `UPDATE tch_campaign_ai_job SET status='failed', error_message=$2, updated_at=now() WHERE id=$1`,
+        [jobId, errorMsg],
+      );
+      // Provider/configuration failures are operational errors, not invalid user input.
+      // Do not return the provider response or any key-related detail to the client.
+      throw new ServiceUnavailableException(
+        'AI generation is temporarily unavailable. Check the server AI configuration and try again.',
+      );
+    }
   }
 
   async listIdeas(a: CampaignActor, id: string) {
@@ -222,7 +300,7 @@ Generate 3 unique, personalized ideas now in strict JSON format.`;
          FROM tch_campaign_ai_idea
          WHERE campaign_id=$1 AND creator_id=$2
          ORDER BY created_at DESC LIMIT 10`,
-        [id, creatorId]
+        [id, creatorId],
       );
       return { ideas };
     });
@@ -235,16 +313,18 @@ Generate 3 unique, personalized ideas now in strict JSON format.`;
 
       const [idea] = await m.query(
         `SELECT * FROM tch_campaign_ai_idea WHERE id=$1 AND campaign_id=$2 AND creator_id=$3`,
-        [ideaId, id, creatorId]
+        [ideaId, id, creatorId],
       );
       if (!idea) throw new NotFoundException('AI Idea not found.');
 
       const [brief] = await m.query(
         'SELECT shared_revision_id FROM tch_campaign_brief WHERE campaign_id=$1',
-        [id]
+        [id],
       );
       if (!brief || !brief.shared_revision_id) {
-        throw new ConflictException('A shared campaign brief is required to convert ideas into drafts.');
+        throw new ConflictException(
+          'A shared campaign brief is required to convert ideas into drafts.',
+        );
       }
 
       const content = validateConcept({
@@ -263,25 +343,22 @@ Generate 3 unique, personalized ideas now in strict JSON format.`;
       await m.query(
         `INSERT INTO tch_content_concept(id, campaign_id, creator_id, state, version)
          VALUES($1, $2, $3, 'draft', 1)`,
-        [conceptId, id, creatorId]
+        [conceptId, id, creatorId],
       );
 
       // Create initial Concept Revision
       await m.query(
         `INSERT INTO tch_content_concept_revision(id, concept_id, campaign_id, brief_revision_id, content, created_by)
          VALUES($1, $2, $3, $4, $5, $6)`,
-        [revisionId, conceptId, id, brief.shared_revision_id, JSON.stringify(content), a.id]
+        [revisionId, conceptId, id, brief.shared_revision_id, JSON.stringify(content), a.id],
       );
 
       // Link current revision & mark AI idea as expanded
-      await m.query(
-        `UPDATE tch_content_concept SET current_revision=$2 WHERE id=$1`,
-        [conceptId, revisionId]
-      );
-      await m.query(
-        `UPDATE tch_campaign_ai_idea SET is_expanded=true WHERE id=$1`,
-        [ideaId]
-      );
+      await m.query(`UPDATE tch_content_concept SET current_revision=$2 WHERE id=$1`, [
+        conceptId,
+        revisionId,
+      ]);
+      await m.query(`UPDATE tch_campaign_ai_idea SET is_expanded=true WHERE id=$1`, [ideaId]);
 
       return {
         concept_id: conceptId,

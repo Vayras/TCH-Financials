@@ -1,6 +1,4 @@
-import {
-  Column, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn,
-} from 'typeorm';
+import { Column, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Creator } from './creator.entity';
 
 @Entity('tch_contractingcompliance')

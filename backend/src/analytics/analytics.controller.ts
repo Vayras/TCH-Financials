@@ -41,7 +41,11 @@ export class AnalyticsController {
 
   @Get('creators/:id/dashboard')
   @Roles('super_admin', 'accounts', 'tch_member')
-  creatorDashboard(@Param('id') id: string, @Query('fy') fy?: string, @Query('month') month?: string) {
+  creatorDashboard(
+    @Param('id') id: string,
+    @Query('fy') fy?: string,
+    @Query('month') month?: string,
+  ) {
     if (!/^\d+$/.test(id)) throw new BadRequestException({ detail: 'Invalid creator id.' });
     return this.analytics.creatorDashboard(Number(id), fyStartOf(fy), month);
   }
@@ -63,11 +67,7 @@ export class AnalyticsController {
   @Roles('super_admin', 'tch_member')
   async dismiss(@Body() body: { keys?: unknown }) {
     const keys = body?.keys;
-    if (
-      !Array.isArray(keys) ||
-      !keys.length ||
-      !keys.every((k) => typeof k === 'string' && k)
-    ) {
+    if (!Array.isArray(keys) || !keys.length || !keys.every((k) => typeof k === 'string' && k)) {
       throw new BadRequestException({ detail: 'keys must be a non-empty list of strings' });
     }
     return { dismissed: await this.alerts.dismiss(keys as string[]) };

@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Query, UseInterceptors, UploadedFile, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Query,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { Roles } from '../auth/roles.decorator';
 import { PaymentTransaction } from '../entities/payment-transaction.entity';
@@ -22,7 +32,8 @@ type PaymentInput = {
 
 export function normalizedPayment(body: PaymentInput) {
   const transactionDate = optionalDate(body.transactionDate, 'transactionDate');
-  if (!transactionDate) throw new BadRequestException({ transactionDate: ['Transaction date is required.'] });
+  if (!transactionDate)
+    throw new BadRequestException({ transactionDate: ['Transaction date is required.'] });
   const debit = strictDecimal(body.debitAmount ?? 0, 'debitAmount', { min: 0, scale: 2 });
   const credit = strictDecimal(body.creditAmount ?? 0, 'creditAmount', { min: 0, scale: 2 });
   if ((debit.isZero() && credit.isZero()) || (!debit.isZero() && !credit.isZero())) {
@@ -54,7 +65,8 @@ export class PaymentTransactionsController {
     const pagination = paginationParams(page, pageSize);
     const repo = this.dataSource.getRepository(PaymentTransaction);
 
-    const qb = repo.createQueryBuilder('pt')
+    const qb = repo
+      .createQueryBuilder('pt')
       .leftJoinAndSelect('pt.deal', 'deal')
       .leftJoinAndSelect('pt.creator', 'creator')
       .orderBy('pt.transactionDate', 'DESC')
@@ -63,18 +75,18 @@ export class PaymentTransactionsController {
     if (search?.trim()) {
       qb.andWhere(
         '(pt.vendorName ILIKE :search OR pt.utrOrRef ILIKE :search OR pt.notes ILIKE :search)',
-        { search: `%${search.trim()}%` }
+        { search: `%${search.trim()}%` },
       );
     }
 
     const total = await qb.getCount();
-    
+
     // Get sums of debits and credits without orderBy or leftJoinAndSelect
     const sumsQb = repo.createQueryBuilder('pt');
     if (search?.trim()) {
       sumsQb.andWhere(
         '(pt.vendorName ILIKE :search OR pt.utrOrRef ILIKE :search OR pt.notes ILIKE :search)',
-        { search: `%${search.trim()}%` }
+        { search: `%${search.trim()}%` },
       );
     }
     const sums = await sumsQb
@@ -96,27 +108,35 @@ export class PaymentTransactionsController {
       summary: {
         total_debit: sums?.debit || '0.00',
         total_credit: sums?.credit || '0.00',
-      }
+      },
     };
   }
 
   @Post()
-  async create(
-    @Body() body: PaymentInput,
-  ) {
+  async create(@Body() body: PaymentInput) {
     const repo = this.dataSource.getRepository(PaymentTransaction);
     const values = normalizedPayment(body);
-    if (values.dealId && !await this.dataSource.getRepository(CommercialDeal).existsBy({ id: values.dealId })) {
+    if (
+      values.dealId &&
+      !(await this.dataSource.getRepository(CommercialDeal).existsBy({ id: values.dealId }))
+    ) {
       throw new BadRequestException({ dealId: ['Deal not found.'] });
     }
-    if (values.creatorId && !await this.dataSource.getRepository(Creator).existsBy({ id: values.creatorId })) {
+    if (
+      values.creatorId &&
+      !(await this.dataSource.getRepository(Creator).existsBy({ id: values.creatorId }))
+    ) {
       throw new BadRequestException({ creatorId: ['Creator not found.'] });
     }
     const duplicate = await repo.existsBy({
-      transactionDate: values.transactionDate, vendorName: values.vendorName,
-      utrOrRef: values.utrOrRef, debitAmount: values.debitAmount, creditAmount: values.creditAmount,
+      transactionDate: values.transactionDate,
+      vendorName: values.vendorName,
+      utrOrRef: values.utrOrRef,
+      debitAmount: values.debitAmount,
+      creditAmount: values.creditAmount,
     });
-    if (duplicate) throw new ConflictException({ detail: 'This payment transaction already exists.' });
+    if (duplicate)
+      throw new ConflictException({ detail: 'This payment transaction already exists.' });
     const pt = repo.create(values);
     try {
       return await repo.save(pt);
@@ -149,7 +169,7 @@ export class PaymentTransactionsController {
 
       for (let i = 1; i < sheetRows.length; i++) {
         const row = sheetRows[i];
-        
+
         // Excel headers: Transaction Date | Vendor Name | Cheque/UTR or Ref No | Debit Amount | Credit Amount
         const dateRaw = cellAt(row, 'Transaction Date');
         const vendor = cellAt(row, 'Vendor Name');
@@ -158,7 +178,10 @@ export class PaymentTransactionsController {
         const credit = cellAt(row, 'Credit Amount') || 0;
 
         if (!dateRaw || !vendor || !utr) {
-          skipped.push({ row: i + 1, reason: 'Missing required columns (Date, Vendor, or UTR/Ref).' });
+          skipped.push({
+            row: i + 1,
+            reason: 'Missing required columns (Date, Vendor, or UTR/Ref).',
+          });
           continue;
         }
 
@@ -174,9 +197,11 @@ export class PaymentTransactionsController {
           // Try parsing standard formats like dd-mm-yyyy or yyyy-mm-dd
           const parts = String(dateRaw).split(/[-/]/);
           if (parts.length === 3) {
-            if (parts[2].length === 4) { // dd-mm-yyyy
+            if (parts[2].length === 4) {
+              // dd-mm-yyyy
               dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-            } else if (parts[0].length === 4) { // yyyy-mm-dd
+            } else if (parts[0].length === 4) {
+              // yyyy-mm-dd
               dateStr = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
             }
           }
@@ -188,11 +213,20 @@ export class PaymentTransactionsController {
         }
         try {
           const values = normalizedPayment({
-            transactionDate: dateStr, vendorName: vendor, utrOrRef: utr,
-            debitAmount: debit, creditAmount: credit,
+            transactionDate: dateStr,
+            vendorName: vendor,
+            utrOrRef: utr,
+            debitAmount: debit,
+            creditAmount: credit,
             notes: cellAt(row, 'Notes') || 'Imported via Excel',
           });
-          const key = [values.transactionDate, values.vendorName.toLowerCase(), values.utrOrRef.toLowerCase(), values.debitAmount, values.creditAmount].join('|');
+          const key = [
+            values.transactionDate,
+            values.vendorName.toLowerCase(),
+            values.utrOrRef.toLowerCase(),
+            values.debitAmount,
+            values.creditAmount,
+          ].join('|');
           if (seen.has(key)) {
             skipped.push({ row: i + 1, reason: 'Duplicate row in this spreadsheet.' });
             continue;
@@ -200,7 +234,10 @@ export class PaymentTransactionsController {
           seen.add(key);
           pending.push(values);
         } catch (error: any) {
-          skipped.push({ row: i + 1, reason: error?.response?.detail ?? 'Invalid debit or credit amount.' });
+          skipped.push({
+            row: i + 1,
+            reason: error?.response?.detail ?? 'Invalid debit or credit amount.',
+          });
         }
       }
 
@@ -209,8 +246,11 @@ export class PaymentTransactionsController {
         let count = 0;
         for (const values of pending) {
           const duplicate = await repo.existsBy({
-            transactionDate: values.transactionDate, vendorName: values.vendorName,
-            utrOrRef: values.utrOrRef, debitAmount: values.debitAmount, creditAmount: values.creditAmount,
+            transactionDate: values.transactionDate,
+            vendorName: values.vendorName,
+            utrOrRef: values.utrOrRef,
+            debitAmount: values.debitAmount,
+            creditAmount: values.creditAmount,
           });
           if (duplicate) {
             skipped.push({ row: count + 2, reason: 'Transaction already exists.' });

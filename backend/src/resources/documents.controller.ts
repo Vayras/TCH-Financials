@@ -1,8 +1,18 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  BadRequestException, Body, Controller, Delete, Get, HttpCode,
-  NotFoundException, Param, Post, Query, UploadedFile, UseInterceptors,
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -55,10 +65,7 @@ export class DocumentsController {
   @Post()
   @HttpCode(201)
   @UseInterceptors(FileInterceptor('file', { limits: UPLOAD_LIMITS }))
-  async create(
-    @Body() body: Record<string, string>,
-    @UploadedFile() file?: Express.Multer.File,
-  ) {
+  async create(@Body() body: Record<string, string>, @UploadedFile() file?: Express.Multer.File) {
     const creatorId = body.creator;
     if (!creatorId || !/^\d+$/.test(creatorId)) {
       throw new BadRequestException({ creator: ['A valid creator is required.'] });

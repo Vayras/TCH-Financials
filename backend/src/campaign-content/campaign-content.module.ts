@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
-import { CampaignContentController, CreatorCampaignBriefController } from './campaign-content.controller';
+import {
+  CampaignContentController,
+  CreatorCampaignBriefController,
+} from './campaign-content.controller';
 import { CampaignContentService } from './campaign-content.service';
 import { ContentConceptController } from './content-concept.controller';
 import { ContentConceptService } from './content-concept.service';
@@ -13,11 +16,6 @@ import { CampaignAIService } from './campaign-ai.service';
     ContentConceptController,
     CampaignAIController,
   ],
-  providers: [
-    CampaignContentService,
-    ContentConceptService,
-    CampaignAIService,
-  ],
+  providers: [CampaignContentService, ContentConceptService, CampaignAIService],
 })
 export class CampaignContentModule {}
-

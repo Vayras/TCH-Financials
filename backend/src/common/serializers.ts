@@ -4,16 +4,24 @@
 // 'campaign_id'), decimals as strings, ids as numbers.
 
 import {
-  Campaign, CommercialDeal, ContractingCompliance, Creator, CreatorDocument,
-  CreatorInvoice, DealCreatorShare, DealDocument, DropOff, EmployeeWeeklyReport, EventInvite,
+  Campaign,
+  CommercialDeal,
+  ContractingCompliance,
+  Creator,
+  CreatorDocument,
+  CreatorInvoice,
+  DealCreatorShare,
+  DealDocument,
+  DropOff,
+  EmployeeWeeklyReport,
+  EventInvite,
   SocialMediaSnapshot,
 } from '../entities';
 
 const num = (v: string | number | null | undefined): number | null =>
   v === null || v === undefined ? null : Number(v);
 
-const ts = (d: Date | null | undefined): string | null =>
-  d ? new Date(d).toISOString() : null;
+const ts = (d: Date | null | undefined): string | null => (d ? new Date(d).toISOString() : null);
 
 export function creatorDto(c: Creator) {
   return {

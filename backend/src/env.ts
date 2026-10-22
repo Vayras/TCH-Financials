@@ -20,14 +20,12 @@ if (injectedOpenAiKey) process.env.OPENAI_API_KEY = injectedOpenAiKey;
 if (injectedOpenAiModel) process.env.OPENAI_MODEL = injectedOpenAiModel;
 if (injectedOpenAiSearchModel) process.env.OPENAI_SEARCH_MODEL = injectedOpenAiSearchModel;
 
-
-
-
 export const env = {
   appEnv: process.env.APP_ENV ?? 'development',
-  swaggerEnabled: process.env.SWAGGER_ENABLED === undefined
-    ? (process.env.APP_ENV ?? 'development') === 'development'
-    : process.env.SWAGGER_ENABLED === 'true',
+  swaggerEnabled:
+    process.env.SWAGGER_ENABLED === undefined
+      ? (process.env.APP_ENV ?? 'development') === 'development'
+      : process.env.SWAGGER_ENABLED === 'true',
   databaseUrl: process.env.DATABASE_URL ?? '',
   databaseSslCa: (process.env.DATABASE_SSL_CA ?? '').replace(/\\n/g, '\n'),
   databaseSslRejectUnauthorized:
@@ -47,11 +45,14 @@ export const env = {
   alertWebhookUrl: process.env.ALERT_WEBHOOK_URL?.trim() ?? '',
   // Resend — used to send invite emails. Prefer RESEND_FROM_EMAIL; falls back to onboarding sender.
   resendApiKey: process.env.RESEND_API_KEY ?? '',
-  resendFromEmail:
-    process.env.RESEND_FROM_EMAIL?.trim() || 'TCH Financials <beth.t@example.com>',
+  resendFromEmail: process.env.RESEND_FROM_EMAIL?.trim() || 'TCH Financials <beth.t@example.com>',
   // OpenAI — used for AI concept generation in Campaign Briefs.
   openaiApiKey: (process.env.OPENAI_API_KEY ?? '').trim(),
-  openaiModel: (process.env.OPENAI_SEARCH_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini').trim(),
+  openaiModel: (
+    process.env.OPENAI_SEARCH_MODEL ||
+    process.env.OPENAI_MODEL ||
+    'gpt-4o-mini'
+  ).trim(),
 };
 
 if (!env.databaseUrl) {

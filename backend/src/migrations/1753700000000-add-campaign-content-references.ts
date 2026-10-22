@@ -11,7 +11,11 @@ export class AddCampaignContentReferences1753700000000 implements MigrationInter
       created_at timestamptz NOT NULL DEFAULT now(),
       UNIQUE(campaign_id, creator_id, snapshot_id, post_id)
     )`);
-    await q.query('CREATE INDEX idx_campaign_content_reference_owner ON tch_campaign_content_reference(campaign_id, creator_id, created_at DESC)');
+    await q.query(
+      'CREATE INDEX idx_campaign_content_reference_owner ON tch_campaign_content_reference(campaign_id, creator_id, created_at DESC)',
+    );
   }
-  async down(q: QueryRunner) { await q.query('DROP TABLE tch_campaign_content_reference'); }
+  async down(q: QueryRunner) {
+    await q.query('DROP TABLE tch_campaign_content_reference');
+  }
 }

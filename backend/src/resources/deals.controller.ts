@@ -1,13 +1,25 @@
 import {
-  BadRequestException, Body, Controller, Delete, ForbiddenException, Get, HttpCode,
-  NotFoundException, Param, Patch, Post, Put, Query, Req,
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  Req,
 } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
 import { applyMapped } from '../common/apply';
 import { D, isBlank, normalisePct } from '../common/decimal';
 import { syncBillingPeriod } from '../common/fy';
-import { csvValues, paginationParams } from '../common/pagination';
+import { creatorPaginationParams, csvValues, paginationParams } from '../common/pagination';
 import { refreshInvoiceCompletion } from '../common/invoice-completion';
 import { dealDto } from '../common/serializers';
 import { versionedUpdate } from '../common/versioned-update';
@@ -65,12 +77,21 @@ const REQUIRED: Record<string, string> = {
 
 const RELATIONS = ['creator', 'campaign', 'creatorShares', 'creatorShares.creator'];
 const DEAL_DATES = [
-  'confirmation_date', 'e_invoice_date', 'client_invoice_date', 'client_payment_date',
-  'creator_invoice_date', 'creator_payment_date', 'completed_at',
+  'confirmation_date',
+  'e_invoice_date',
+  'client_invoice_date',
+  'client_payment_date',
+  'creator_invoice_date',
+  'creator_payment_date',
+  'completed_at',
 ] as const;
 const DEAL_MONEY = [
-  'total_fee', 'agency_fee_inr', 'creator_fee', 'client_invoice_amount',
-  'client_payment_received_amount', 'creator_invoice_amount',
+  'total_fee',
+  'agency_fee_inr',
+  'creator_fee',
+  'client_invoice_amount',
+  'client_payment_received_amount',
+  'creator_invoice_amount',
 ] as const;
 
 interface SharePayload {
@@ -84,15 +105,29 @@ interface SharePayload {
 
 const ACCOUNTS_PATCH_FIELDS = new Set([
   'version',
-  'invoice_received', 'payment_cleared', 'payment_received',
-  'client_invoice_number', 'client_invoice_date', 'client_invoice_amount',
-  'client_payment_status', 'client_payment_received_amount', 'client_payment_date',
-  'creator_invoice_number', 'creator_invoice_date', 'creator_invoice_amount',
-  'creator_payment_status', 'creator_payment_cycle', 'creator_payment_date',
-  'completed_at', 'comments',
+  'invoice_received',
+  'payment_cleared',
+  'payment_received',
+  'client_invoice_number',
+  'client_invoice_date',
+  'client_invoice_amount',
+  'client_payment_status',
+  'client_payment_received_amount',
+  'client_payment_date',
+  'creator_invoice_number',
+  'creator_invoice_date',
+  'creator_invoice_amount',
+  'creator_payment_status',
+  'creator_payment_cycle',
+  'creator_payment_date',
+  'completed_at',
+  'comments',
 ]);
 
-export function assertDealPatchAllowed(role: string | undefined, body: Record<string, unknown>): void {
+export function assertDealPatchAllowed(
+  role: string | undefined,
+  body: Record<string, unknown>,
+): void {
   if (role !== 'accounts') return;
   const denied = Object.keys(body).filter((field) => !ACCOUNTS_PATCH_FIELDS.has(field));
   if (denied.length) {
@@ -170,10 +205,16 @@ export class DealsController {
     }
     if ('creator' in body) {
       body.creator = isBlank(body.creator) ? null : Number(body.creator);
-      if (body.creator !== null && (!Number.isSafeInteger(body.creator) || Number(body.creator) <= 0)) {
+      if (
+        body.creator !== null &&
+        (!Number.isSafeInteger(body.creator) || Number(body.creator) <= 0)
+      ) {
         throw new BadRequestException({ creator: ['Select a valid creator.'] });
       }
-      if (body.creator !== null && !await manager.getRepository(Creator).existsBy({ id: String(body.creator) })) {
+      if (
+        body.creator !== null &&
+        !(await manager.getRepository(Creator).existsBy({ id: String(body.creator) }))
+      ) {
         throw new BadRequestException({ creator: ['Creator not found.'] });
       }
     }
@@ -207,7 +248,11 @@ export class DealsController {
         }
       : {};
     const missing = Object.entries(REQUIRED)
-      .filter(([field]) => !(field === 'tch_poc' && body.responsible_member_id) && isBlank(field in body ? body[field] : instanceWire[field]))
+      .filter(
+        ([field]) =>
+          !(field === 'tch_poc' && body.responsible_member_id) &&
+          isBlank(field in body ? body[field] : instanceWire[field]),
+      )
       .map(([, label]) => label);
     if (missing.length) {
       throw new BadRequestException({
@@ -220,8 +265,15 @@ export class DealsController {
     if ('responsible_member_id' in body) {
       const id = body.responsible_member_id;
       if (id !== null && id !== '') {
-        if (typeof id !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new BadRequestException('Invalid responsible member.');
-        const [member] = await manager.query("SELECT id,display_name,email FROM tch_profile WHERE id=$1 AND status='approved' AND role IN ('super_admin','tch_member')", [id]);
+        if (
+          typeof id !== 'string' ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+        )
+          throw new BadRequestException('Invalid responsible member.');
+        const [member] = await manager.query(
+          "SELECT id,display_name,email FROM tch_profile WHERE id=$1 AND status='approved' AND role IN ('super_admin','tch_member')",
+          [id],
+        );
         if (!member) throw new BadRequestException('Choose an approved team member.');
         body.tch_poc = member.display_name || member.email;
       } else body.responsible_member_id = null;
@@ -240,17 +292,32 @@ export class DealsController {
           });
         }
         if ('agency_fee_pct' in share) {
-          strictDecimal(share.agency_fee_pct, 'creator_shares.agency_fee_pct', { min: 0, max: 100, scale: 4 });
+          strictDecimal(share.agency_fee_pct, 'creator_shares.agency_fee_pct', {
+            min: 0,
+            max: 100,
+            scale: 4,
+          });
           share.agency_fee_pct = normalisePct(share.agency_fee_pct);
-          strictDecimal(share.agency_fee_pct, 'creator_shares.agency_fee_pct', { min: 0, max: 1, scale: 4 });
+          strictDecimal(share.agency_fee_pct, 'creator_shares.agency_fee_pct', {
+            min: 0,
+            max: 1,
+            scale: 4,
+          });
         }
         const creatorId = String(share.creator);
         if (creatorIds.has(creatorId)) {
-          throw new BadRequestException({ creator_shares: ['A creator can appear only once in a split.'] });
+          throw new BadRequestException({
+            creator_shares: ['A creator can appear only once in a split.'],
+          });
         }
         creatorIds.add(creatorId);
-        if (!/^\d+$/.test(creatorId) || !await manager.getRepository(Creator).existsBy({ id: creatorId })) {
-          throw new BadRequestException({ creator_shares: [`Creator ${creatorId} was not found.`] });
+        if (
+          !/^\d+$/.test(creatorId) ||
+          !(await manager.getRepository(Creator).existsBy({ id: creatorId }))
+        ) {
+          throw new BadRequestException({
+            creator_shares: [`Creator ${creatorId} was not found.`],
+          });
         }
         for (const field of ['total_fee', 'agency_fee_inr', 'creator_fee'] as const) {
           if (field in share) share[field] = optionalMoney(share[field], `creator_shares.${field}`);
@@ -258,10 +325,16 @@ export class DealsController {
       }
     }
 
-    const clientAmount = D(String(body.client_invoice_amount ?? instance?.clientInvoiceAmount ?? 0));
-    const receivedAmount = D(String(body.client_payment_received_amount ?? instance?.clientPaymentReceivedAmount ?? 0));
+    const clientAmount = D(
+      String(body.client_invoice_amount ?? instance?.clientInvoiceAmount ?? 0),
+    );
+    const receivedAmount = D(
+      String(body.client_payment_received_amount ?? instance?.clientPaymentReceivedAmount ?? 0),
+    );
     if (receivedAmount.gt(clientAmount) && !clientAmount.isZero()) {
-      throw new BadRequestException({ client_payment_received_amount: ['Cannot exceed the client invoice amount.'] });
+      throw new BadRequestException({
+        client_payment_received_amount: ['Cannot exceed the client invoice amount.'],
+      });
     }
 
     // Resolve the campaign name string into a Campaign row.
@@ -375,28 +448,37 @@ export class DealsController {
       if (periodOnly === '1' || periodOnly === 'true') {
         qb.andWhere('deal.billing_fy_start = :fyStart', { fyStart });
       } else {
-        qb.andWhere(`(
+        qb.andWhere(
+          `(
           deal.billing_fy_start = :fyStart OR
           (deal.confirmation_date >= :fyFrom AND deal.confirmation_date < :fyTo) OR
           (deal.billing_period IS NULL AND deal.confirmation_date IS NULL)
-        )`, {
-          fyStart,
-          fyFrom: `${fyStart}-04-01`,
-          fyTo: `${fyStart + 1}-04-01`,
-        });
+        )`,
+          {
+            fyStart,
+            fyFrom: `${fyStart}-04-01`,
+            fyTo: `${fyStart + 1}-04-01`,
+          },
+        );
       }
     }
     if (direction) qb.andWhere('deal.direction = :direction', { direction });
     if (creator) {
       qb.andWhere('(deal.creator_id = :creator OR filterShare.creator_id = :creator)', { creator });
     }
-    const monthValues = csvValues(months).map(Number).filter((m) => m >= 1 && m <= 12);
-    if (monthValues.length) qb.andWhere('deal.billing_month IN (:...months)', { months: monthValues });
+    const monthValues = csvValues(months)
+      .map(Number)
+      .filter((m) => m >= 1 && m <= 12);
+    if (monthValues.length)
+      qb.andWhere('deal.billing_month IN (:...months)', { months: monthValues });
     if (search?.trim()) {
-      qb.andWhere(`(
+      qb.andWhere(
+        `(
         deal.brand ILIKE :search OR campaign.name ILIKE :search OR deal.ro_number ILIKE :search OR
         creator.name ILIKE :search OR filterShareCreator.name ILIKE :search
-      )`, { search: `%${search.trim()}%` });
+      )`,
+        { search: `%${search.trim()}%` },
+      );
     }
 
     if (filterStatus) {
@@ -410,8 +492,11 @@ export class DealsController {
     }
 
     const sortMap: Record<string, string> = {
-      billing_period: 'deal.billingPeriod', confirmation_date: 'deal.confirmationDate',
-      total_fee: 'deal.totalFee', brand: 'deal.brand', created_at: 'deal.createdAt',
+      billing_period: 'deal.billingPeriod',
+      confirmation_date: 'deal.confirmationDate',
+      total_fee: 'deal.totalFee',
+      brand: 'deal.brand',
+      created_at: 'deal.createdAt',
     };
     // Explicit sort_by/sort_order is the public contract. The compact legacy
     // `sort=-billing_period` form remains accepted so old URLs keep working.
@@ -429,7 +514,9 @@ export class DealsController {
     const sortColumn = sortMap[sortKey];
     const sortDirection = requestedOrder
       ? (requestedOrder.toUpperCase() as 'ASC' | 'DESC')
-      : (sort ?? '').startsWith('-') ? 'DESC' : 'ASC';
+      : (sort ?? '').startsWith('-')
+        ? 'DESC'
+        : 'ASC';
     qb.orderBy(sortColumn, sortDirection, 'NULLS FIRST').addOrderBy('deal.id', 'ASC');
 
     if (!pagination.requested) return (await qb.getMany()).map(dealDto);
@@ -458,32 +545,48 @@ export class DealsController {
             current.invoices_uploaded = false;
           }
           current.total = Number(current.total) + (Number(row.totalFee) || 0);
-          current.cost_to_client = Number(current.cost_to_client) + (Number(row.clientInvoiceAmount || row.totalFee) || 0);
+          current.cost_to_client =
+            Number(current.cost_to_client) + (Number(row.clientInvoiceAmount || row.totalFee) || 0);
           current.cost_to_us = Number(current.cost_to_us) + (Number(row.creatorFee) || 0);
           current.deal_count = Number(current.deal_count) + 1;
-          const names = (row.creatorShares?.length ? row.creatorShares.map((s) => s.creator?.name || s.creatorNameRaw) : [row.creator?.name || row.creatorNameRaw]).filter(Boolean);
-          for (const name of names) if (!(current.creator_names as string[]).includes(name)) (current.creator_names as string[]).push(name);
+          const names = (
+            row.creatorShares?.length
+              ? row.creatorShares.map((s) => s.creator?.name || s.creatorNameRaw)
+              : [row.creator?.name || row.creatorNameRaw]
+          ).filter(Boolean);
+          for (const name of names)
+            if (!(current.creator_names as string[]).includes(name))
+              (current.creator_names as string[]).push(name);
           groups.set(key, current);
         }
       } else {
         for (const row of allRows) {
           const members = row.creatorShares?.length
             ? row.creatorShares.map((share) => ({
-                key: share.creatorId ? `c${share.creatorId}` : `n${share.creatorNameRaw.toLowerCase()}`,
+                key: share.creatorId
+                  ? `c${share.creatorId}`
+                  : `n${share.creatorNameRaw.toLowerCase()}`,
                 name: share.creator?.name || share.creatorNameRaw || '—',
                 relationship: share.creator?.relationship ?? 'NonTCH',
                 total: Number(share.totalFee) || 0,
               }))
-            : [{
-                key: row.creatorId ? `c${row.creatorId}` : `n${row.creatorNameRaw.toLowerCase()}`,
-                name: row.creator?.name || row.creatorNameRaw || '—',
-                relationship: row.creator?.relationship ?? 'NonTCH',
-                total: Number(row.totalFee) || 0,
-              }];
+            : [
+                {
+                  key: row.creatorId ? `c${row.creatorId}` : `n${row.creatorNameRaw.toLowerCase()}`,
+                  name: row.creator?.name || row.creatorNameRaw || '—',
+                  relationship: row.creator?.relationship ?? 'NonTCH',
+                  total: Number(row.totalFee) || 0,
+                },
+              ];
           for (const member of members) {
             const current = groups.get(member.key) ?? {
-              key: member.key, name: member.name, relationship: member.relationship,
-              total: 0, deal_count: 0, invoices_uploaded: true, deal: dealDto(row),
+              key: member.key,
+              name: member.name,
+              relationship: member.relationship,
+              total: 0,
+              deal_count: 0,
+              invoices_uploaded: true,
+              deal: dealDto(row),
             };
             if (!row.completedAt) {
               current.invoices_uploaded = false;
@@ -494,7 +597,9 @@ export class DealsController {
           }
         }
       }
-      const items = Array.from(groups.values()).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      const items = Array.from(groups.values()).sort((a, b) =>
+        String(a.name).localeCompare(String(b.name)),
+      );
       const start = (pagination.page - 1) * pagination.pageSize;
       return {
         items: items.slice(start, start + pagination.pageSize),
@@ -507,13 +612,17 @@ export class DealsController {
     }
 
     const total = await qb.getCount();
-    const summaryRows = await qb.clone()
+    const summaryRows = await qb
+      .clone()
       .select('deal.id', 'id')
       .addSelect('deal.total_fee', 'total_fee')
       .orderBy()
       .getRawMany<{ id: string; total_fee: string }>();
     const totalBilling = summaryRows.reduce((sum, row) => sum + (Number(row.total_fee) || 0), 0);
-    const rows = await qb.skip((pagination.page - 1) * pagination.pageSize).take(pagination.pageSize).getMany();
+    const rows = await qb
+      .skip((pagination.page - 1) * pagination.pageSize)
+      .take(pagination.pageSize)
+      .getMany();
     return {
       items: rows.map(dealDto),
       page: pagination.page,
@@ -525,13 +634,45 @@ export class DealsController {
   }
 
   @Roles('creator')
+  @Get('creator-portal/summary')
+  async creatorPortalSummary(@Req() req: any) {
+    const creatorId = req.user?.creatorId;
+    if (!creatorId)
+      throw new BadRequestException('Your profile is not linked to any creator record.');
+    const [row] = await this.dataSource.query(
+      `WITH assigned AS (
+      SELECT d.id,d.creator_payment_status,
+        CASE WHEN d.creator_id=$1 THEN d.creator_fee ELSE s.creator_fee END AS creator_fee
+      FROM tch_commercialdeal d LEFT JOIN tch_dealcreatorshare s ON s.deal_id=d.id AND s.creator_id=$1
+      WHERE d.creator_id=$1 OR s.creator_id=$1
+    ) SELECT
+      COALESCE(sum(creator_fee) FILTER (WHERE creator_payment_status='Paid'),0)::text AS paid,
+      COALESCE(sum(creator_fee) FILTER (WHERE creator_payment_status IS DISTINCT FROM 'Paid'),0)::text AS pending,
+      count(*) FILTER (WHERE creator_payment_status IS DISTINCT FROM 'Paid' AND NOT EXISTS
+        (SELECT 1 FROM tch_creatorinvoice i WHERE i.deal_id=assigned.id AND i.creator_id=$1))::int AS missing_invoice_count
+      FROM assigned`,
+      [creatorId],
+    );
+    return {
+      paid: row.paid,
+      pending: row.pending,
+      missing_invoice_count: row.missing_invoice_count,
+    };
+  }
+
+  @Roles('creator')
   @Get('creator-portal')
-  async creatorPortalDeals(@Req() req: any) {
+  async creatorPortalDeals(
+    @Req() req: any,
+    @Query('page') page?: string,
+    @Query('page_size') pageSize?: string,
+  ) {
     const creatorId = req.user?.creatorId;
     if (!creatorId) {
       throw new BadRequestException('Your profile is not linked to any creator record.');
     }
 
+    const pagination = creatorPaginationParams(page, pageSize);
     const qb = this.repo()
       .createQueryBuilder('deal')
       .leftJoinAndSelect('deal.creator', 'creator')
@@ -539,13 +680,24 @@ export class DealsController {
       .leftJoinAndSelect('deal.creatorShares', 'share')
       .leftJoinAndSelect('share.creator', 'shareCreator')
       .leftJoin('deal.creatorShares', 'filterShare')
-      .andWhere('(deal.creator_id = :creatorId OR filterShare.creator_id = :creatorId)', { creatorId })
+      .andWhere('(deal.creator_id = :creatorId OR filterShare.creator_id = :creatorId)', {
+        creatorId,
+      })
       .distinct(true)
-      .orderBy('deal.confirmationDate', 'DESC')
-      .addOrderBy('deal.id', 'ASC');
+      .orderBy('deal.confirmationDate', 'DESC', 'NULLS LAST')
+      .addOrderBy('deal.id', 'DESC')
+      .skip((pagination.page - 1) * pagination.pageSize)
+      .take(pagination.pageSize + 1);
 
     const rows = await qb.getMany();
-    return rows.map((row) => creatorPortalDealDto(row, String(creatorId)));
+    return {
+      items: rows
+        .slice(0, pagination.pageSize)
+        .map((row) => creatorPortalDealDto(row, String(creatorId))),
+      page: pagination.page,
+      page_size: pagination.pageSize,
+      has_more: rows.length > pagination.pageSize,
+    };
   }
 
   @Get(':id')

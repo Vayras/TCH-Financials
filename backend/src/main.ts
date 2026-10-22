@@ -43,7 +43,11 @@ async function bootstrap() {
 
   setupSwagger(app);
   await app.listen(env.port);
-  structuredLog('info', 'application_started', { port: env.port, prefix: '/api', app_env: env.appEnv });
+  structuredLog('info', 'application_started', {
+    port: env.port,
+    prefix: '/api',
+    app_env: env.appEnv,
+  });
 }
 
 void bootstrap();

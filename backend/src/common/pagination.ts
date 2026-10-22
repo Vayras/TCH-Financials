@@ -19,6 +19,28 @@ export function paginationParams(page?: string, pageSize?: string): PaginationPa
   return { page: parsedPage, pageSize: parsedSize, requested };
 }
 
+export function creatorPaginationParams(page?: string, pageSize?: string): PaginationParams {
+  const requested = page !== undefined || pageSize !== undefined;
+  const parsedPage = page === undefined ? 1 : Number(page);
+  const parsedSize = pageSize === undefined ? 20 : Number(pageSize);
+  if (
+    !Number.isInteger(parsedPage) ||
+    parsedPage < 1 ||
+    parsedPage > 100000 ||
+    !Number.isInteger(parsedSize) ||
+    parsedSize < 1 ||
+    parsedSize > 50
+  ) {
+    throw new BadRequestException({
+      detail: 'page must be positive and page_size must be between 1 and 50.',
+    });
+  }
+  return { page: parsedPage, pageSize: parsedSize, requested };
+}
+
 export function csvValues(value?: string): string[] {
-  return (value ?? '').split(',').map((item) => item.trim()).filter(Boolean);
+  return (value ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
 }

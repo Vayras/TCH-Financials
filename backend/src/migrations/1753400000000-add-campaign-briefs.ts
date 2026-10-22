@@ -11,7 +11,9 @@ export class AddCampaignBriefs1753400000000 implements MigrationInterface {
       draft_version integer NOT NULL, content jsonb NOT NULL CHECK(jsonb_typeof(content)='object'),
       shared_at timestamptz NOT NULL DEFAULT now(), shared_by uuid NOT NULL REFERENCES tch_profile(id) ON DELETE RESTRICT,
       UNIQUE(campaign_id,draft_version), UNIQUE(campaign_id,id))`);
-    await q.query(`ALTER TABLE tch_campaign_brief ADD FOREIGN KEY(campaign_id,shared_revision_id) REFERENCES tch_campaign_brief_revision(campaign_id,id)`);
+    await q.query(
+      `ALTER TABLE tch_campaign_brief ADD FOREIGN KEY(campaign_id,shared_revision_id) REFERENCES tch_campaign_brief_revision(campaign_id,id)`,
+    );
     await q.query(`CREATE TABLE tch_campaign_brief_member (
       campaign_id bigint NOT NULL REFERENCES tch_campaign_brief(campaign_id) ON DELETE RESTRICT,
       user_id uuid NOT NULL REFERENCES tch_profile(id) ON DELETE RESTRICT, can_publish boolean NOT NULL DEFAULT false,
@@ -24,7 +26,12 @@ export class AddCampaignBriefs1753400000000 implements MigrationInterface {
       PRIMARY KEY(campaign_id,creator_id))`);
     await q.query('CREATE INDEX ON tch_campaign_brief_member(user_id,campaign_id)');
     await q.query('CREATE INDEX ON tch_campaign_brief_creator(creator_id,campaign_id)');
-    for (const table of ['tch_campaign_brief','tch_campaign_brief_revision','tch_campaign_brief_member','tch_campaign_brief_creator']) {
+    for (const table of [
+      'tch_campaign_brief',
+      'tch_campaign_brief_revision',
+      'tch_campaign_brief_member',
+      'tch_campaign_brief_creator',
+    ]) {
       await q.query(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
       await q.query(`REVOKE ALL ON ${table} FROM PUBLIC`);
       await q.query(`DO $$ BEGIN
@@ -35,7 +42,10 @@ export class AddCampaignBriefs1753400000000 implements MigrationInterface {
   }
   async down(q: QueryRunner) {
     const [row] = await q.query('SELECT count(*)::int AS n FROM tch_campaign_brief_revision');
-    if (row.n) throw new Error('Shared brief history exists; disable the feature instead of deleting revisions.');
+    if (row.n)
+      throw new Error(
+        'Shared brief history exists; disable the feature instead of deleting revisions.',
+      );
     await q.query('DROP TABLE tch_campaign_brief_creator, tch_campaign_brief_member');
     await q.query('ALTER TABLE tch_campaign_brief DROP COLUMN shared_revision_id');
     await q.query('DROP TABLE tch_campaign_brief_revision');

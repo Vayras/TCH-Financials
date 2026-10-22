@@ -2,24 +2,206 @@
 
 import type { CreatorDashboard } from '@/lib/api';
 import { inr } from '@/lib/utils';
-import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Legend,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { ChartContainer, ChartTooltipContent, type ChartConfig } from '@/components/ui/Chart';
 
-const colors: Record<string, string> = { Paid: 'var(--chart-profit)', Pending: 'var(--app-warning)', Scheduled: 'var(--chart-emw)', Overdue: 'var(--app-danger)', 'Not set': 'var(--chart-external)' };
-const paymentLabel = (status: string) => status === 'Not set' ? 'Awaiting update' : status;
+const colors: Record<string, string> = {
+  Paid: 'var(--chart-profit)',
+  Pending: 'var(--app-warning)',
+  Scheduled: 'var(--chart-emw)',
+  Overdue: 'var(--app-danger)',
+  'Not set': 'var(--chart-external)',
+};
+const paymentLabel = (status: string) => (status === 'Not set' ? 'Awaiting update' : status);
 
 export function CreatorFinancialTrend({ months }: { months: CreatorDashboard['months'] }) {
-	const data = months.map((month) => ({ label: month.label, billing: Number(month.billing) || 0, creatorFee: Number(month.creator_fee) || 0, margin: Number(month.margin) || 0 }));
-	const config: ChartConfig = { billing: { label: 'Billing', color: 'var(--chart-emw)' }, creatorFee: { label: 'Creator fee', color: 'var(--app-warning)' }, margin: { label: 'Margin', color: 'var(--chart-profit)' } };
-	return <section className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5" aria-labelledby="creator-financial-performance"><div className="mb-4"><h2 id="creator-financial-performance" className="text-base font-medium">Financial performance</h2><p className="mt-1 text-xs text-[var(--app-muted)]">Monthly billing, creator cost, and agency margin.</p></div><ChartContainer config={config} className="h-56"><ResponsiveContainer width="100%" height="100%"><BarChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}><XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 10, fill: 'var(--app-muted)' }} /><YAxis hide /><Legend iconType="circle" iconSize={7} wrapperStyle={{fontSize:10, paddingTop:12}} /><Tooltip content={<ChartTooltipContent />} formatter={(value: unknown) => `₹${inr(Number(value) || 0) || '0'}`} /><Bar dataKey="billing" name="Billing" fill="var(--chart-emw)" radius={[3, 3, 0, 0]} /><Bar dataKey="creatorFee" name="Creator fee" fill="var(--app-warning)" radius={[3, 3, 0, 0]} /><Bar dataKey="margin" name="Margin" fill="var(--chart-profit)" radius={[3, 3, 0, 0]} /></BarChart></ResponsiveContainer></ChartContainer></section>;
+  const data = months.map((month) => ({
+    label: month.label,
+    billing: Number(month.billing) || 0,
+    creatorFee: Number(month.creator_fee) || 0,
+    margin: Number(month.margin) || 0,
+  }));
+  const config: ChartConfig = {
+    billing: { label: 'Billing', color: 'var(--chart-emw)' },
+    creatorFee: { label: 'Creator fee', color: 'var(--app-warning)' },
+    margin: { label: 'Margin', color: 'var(--chart-profit)' },
+  };
+  return (
+    <section
+      className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5"
+      aria-labelledby="creator-financial-performance"
+    >
+      <div className="mb-4">
+        <h2 id="creator-financial-performance" className="text-base font-medium">
+          Financial performance
+        </h2>
+        <p className="mt-1 text-xs text-[var(--app-muted)]">
+          Monthly billing, creator cost, and agency margin.
+        </p>
+      </div>
+      <ChartContainer config={config} className="h-56">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 8, right: 4, bottom: 0, left: 0 }}>
+            <XAxis
+              dataKey="label"
+              tickLine={false}
+              axisLine={false}
+              tick={{ fontSize: 10, fill: 'var(--app-muted)' }}
+            />
+            <YAxis hide />
+            <Legend
+              iconType="circle"
+              iconSize={7}
+              wrapperStyle={{ fontSize: 10, paddingTop: 12 }}
+            />
+            <Tooltip
+              content={<ChartTooltipContent />}
+              formatter={(value: unknown) => `₹${inr(Number(value) || 0) || '0'}`}
+            />
+            <Bar dataKey="billing" name="Billing" fill="var(--chart-emw)" radius={[3, 3, 0, 0]} />
+            <Bar
+              dataKey="creatorFee"
+              name="Creator fee"
+              fill="var(--app-warning)"
+              radius={[3, 3, 0, 0]}
+            />
+            <Bar dataKey="margin" name="Margin" fill="var(--chart-profit)" radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartContainer>
+    </section>
+  );
 }
 
 export function CreatorPaymentChart({ rows }: { rows: CreatorDashboard['payment_statuses'] }) {
-	const total = rows.reduce((sum, row) => sum + row.count, 0);
-	const data = rows.map((row) => ({ name: paymentLabel(row.status), value: row.count, amount: row.amount, color: colors[row.status] || colors['Not set'] }));
-	return <section className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5" aria-labelledby="creator-payment-health"><h2 id="creator-payment-health" className="text-base font-medium">Payment health</h2><p className="mt-1 text-xs text-[var(--app-muted)]">Creator payment status by campaign.</p>{total ? <div className="relative mx-auto my-4 h-40 w-full"><ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={data} dataKey="value" innerRadius="55%" outerRadius="75%" paddingAngle={3} strokeWidth={0}>{data.map((entry) => <Cell key={entry.name} fill={entry.color} />)}</Pie><Tooltip content={<ChartTooltipContent />} /></PieChart></ResponsiveContainer><div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center"><strong className="text-2xl tabular-nums">{total}</strong><span className="text-[10px] text-[var(--app-muted)]">campaigns</span></div></div> : <div className="my-8 text-center text-xs text-[var(--app-muted)]">No payment activity yet.</div>}<div className="space-y-2 text-xs">{data.map((row) => <div key={row.name} className="flex items-center gap-2"><i className="h-2.5 w-2.5 rounded-full" style={{ background: row.color }} /><span>{row.name}</span><span className="ml-auto tabular-nums">{row.value} · ₹{inr(row.amount) || '0'}</span></div>)}</div></section>;
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+  const data = rows.map((row) => ({
+    name: paymentLabel(row.status),
+    value: row.count,
+    amount: row.amount,
+    color: colors[row.status] || colors['Not set'],
+  }));
+  return (
+    <section
+      className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5"
+      aria-labelledby="creator-payment-health"
+    >
+      <h2 id="creator-payment-health" className="text-base font-medium">
+        Payment health
+      </h2>
+      <p className="mt-1 text-xs text-[var(--app-muted)]">Creator payment status by campaign.</p>
+      {total ? (
+        <div className="relative mx-auto my-4 h-40 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={data}
+                dataKey="value"
+                innerRadius="55%"
+                outerRadius="75%"
+                paddingAngle={3}
+                strokeWidth={0}
+              >
+                {data.map((entry) => (
+                  <Cell key={entry.name} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip content={<ChartTooltipContent />} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <strong className="text-2xl tabular-nums">{total}</strong>
+            <span className="text-[10px] text-[var(--app-muted)]">campaigns</span>
+          </div>
+        </div>
+      ) : (
+        <div className="my-8 text-center text-xs text-[var(--app-muted)]">
+          No payment activity yet.
+        </div>
+      )}
+      <div className="space-y-2 text-xs">
+        {data.map((row) => (
+          <div key={row.name} className="flex items-center gap-2">
+            <i className="h-2.5 w-2.5 rounded-full" style={{ background: row.color }} />
+            <span>{row.name}</span>
+            <span className="ml-auto tabular-nums">
+              {row.value} · ₹{inr(row.amount) || '0'}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export function CreatorBrandChart({ rows }: { rows: CreatorDashboard['brands'] }) {
-	return <section className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5" aria-labelledby="creator-brand-portfolio"><div><h2 id="creator-brand-portfolio" className="text-base font-medium">Brand portfolio</h2><p className="mt-1 text-xs text-[var(--app-muted)]">Brand contribution, campaign activity, and creator payment health.</p></div>{rows.length ? <div className="mt-4 space-y-3">{rows.map((row) => { const billing = Number(row.billing) || 0; const creatorFee = Number(row.creator_fee) || 0; const paid = Number(row.paid) || 0; const paidPct = creatorFee ? Math.min(100, paid / creatorFee * 100) : 0; return <article key={row.name} className="rounded-lg border border-[var(--app-border)] p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><h3 className="truncate text-sm font-medium" title={row.name}>{row.name}</h3><p className="mt-1 text-xs text-[var(--app-muted)]">{row.count} {row.count === 1 ? 'campaign' : 'campaigns'}</p></div><span className="shrink-0 rounded-full bg-[var(--app-brand-soft)] px-2 py-1 text-xs text-[var(--app-brand)]">{(Number(row.billing_share) * 100).toFixed(0)}% share</span></div><div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--app-surface-muted)]"><div className="h-full rounded-full bg-[var(--chart-emw)]" style={{ width: `${billing ? Math.min(100, creatorFee / billing * 100) : 0}%` }} /></div><div className="mt-2 flex justify-between text-xs text-[var(--app-muted)]"><span>Creator payout ₹{inr(creatorFee) || '0'}</span><span>Paid {paidPct.toFixed(0)}%</span></div></article>; })}</div> : <div className="mt-4 rounded-lg border border-dashed border-[var(--app-border)] p-6 text-center text-xs text-[var(--app-muted)]">No brand activity in this fiscal year.</div>}</section>;
+  return (
+    <section
+      className="rounded-xl border border-[var(--app-border)] bg-[var(--app-surface)] p-5"
+      aria-labelledby="creator-brand-portfolio"
+    >
+      <div>
+        <h2 id="creator-brand-portfolio" className="text-base font-medium">
+          Brand portfolio
+        </h2>
+        <p className="mt-1 text-xs text-[var(--app-muted)]">
+          Brand contribution, campaign activity, and creator payment health.
+        </p>
+      </div>
+      {rows.length ? (
+        <div className="mt-4 space-y-3">
+          {rows.map((row) => {
+            const billing = Number(row.billing) || 0;
+            const creatorFee = Number(row.creator_fee) || 0;
+            const paid = Number(row.paid) || 0;
+            const paidPct = creatorFee ? Math.min(100, (paid / creatorFee) * 100) : 0;
+            return (
+              <article key={row.name} className="rounded-lg border border-[var(--app-border)] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="truncate text-sm font-medium" title={row.name}>
+                      {row.name}
+                    </h3>
+                    <p className="mt-1 text-xs text-[var(--app-muted)]">
+                      {row.count} {row.count === 1 ? 'campaign' : 'campaigns'}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-[var(--app-brand-soft)] px-2 py-1 text-xs text-[var(--app-brand)]">
+                    {(Number(row.billing_share) * 100).toFixed(0)}% share
+                  </span>
+                </div>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--app-surface-muted)]">
+                  <div
+                    className="h-full rounded-full bg-[var(--chart-emw)]"
+                    style={{
+                      width: `${billing ? Math.min(100, (creatorFee / billing) * 100) : 0}%`,
+                    }}
+                  />
+                </div>
+                <div className="mt-2 flex justify-between text-xs text-[var(--app-muted)]">
+                  <span>Creator payout ₹{inr(creatorFee) || '0'}</span>
+                  <span>Paid {paidPct.toFixed(0)}%</span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-lg border border-dashed border-[var(--app-border)] p-6 text-center text-xs text-[var(--app-muted)]">
+          No brand activity in this fiscal year.
+        </div>
+      )}
+    </section>
+  );
 }

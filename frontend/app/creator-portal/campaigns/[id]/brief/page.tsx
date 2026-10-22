@@ -10,7 +10,9 @@ import type { SharedBrief } from '@/features/campaign-content/types';
 export default function CreatorBrief() {
   const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState<'brief' | 'ideas' | 'feedback'>('brief');
-  const query = useBriefQuery<SharedBrief>(`/creator-portal/campaign-briefs/${encodeURIComponent(id)}`);
+  const query = useBriefQuery<SharedBrief>(
+    `/creator-portal/campaign-briefs/${encodeURIComponent(id)}`,
+  );
 
   useEffect(() => {
     const view = new URLSearchParams(window.location.search).get('view');
@@ -54,18 +56,31 @@ export default function CreatorBrief() {
               <h1 className="mt-2 text-2xl font-bold text-gray-900">{query.data.name}</h1>
             </div>
             <div className="text-right text-xs text-gray-500">
-              <p className="font-medium text-gray-700">Shared Version {query.data.shared_version}</p>
+              <p className="font-medium text-gray-700">
+                Shared Version {query.data.shared_version}
+              </p>
               <p className="mt-0.5">Updated {query.data.shared_at.slice(0, 10)}</p>
             </div>
           </header>
 
           <div className="creator-campaign-tabs" role="tablist" aria-label="Campaign workspace">
-            {([
-              ['brief', 'Brief'],
-              ['ideas', 'Ideas'],
-              ['feedback', 'Feedback'],
-            ] as const).map(([value, label]) => (
-              <button key={value} id={`campaign-tab-${value}`} type="button" role="tab" aria-selected={tab === value} aria-controls={`campaign-panel-${value}`} tabIndex={tab === value ? 0 : -1} onClick={() => selectTab(value)}>
+            {(
+              [
+                ['brief', 'Brief'],
+                ['ideas', 'Ideas'],
+                ['feedback', 'Feedback'],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                id={`campaign-tab-${value}`}
+                type="button"
+                role="tab"
+                aria-selected={tab === value}
+                aria-controls={`campaign-panel-${value}`}
+                tabIndex={tab === value ? 0 : -1}
+                onClick={() => selectTab(value)}
+              >
                 {label}
               </button>
             ))}
@@ -77,8 +92,29 @@ export default function CreatorBrief() {
             </div>
           )}
 
-          {tab === 'ideas' && <div id="campaign-panel-ideas" role="tabpanel" aria-labelledby="campaign-tab-ideas"><ConceptWorkspace campaignId={id} displayedBriefId={query.data.shared_revision_id} mode="ideas" /></div>}
-          {tab === 'feedback' && <div id="campaign-panel-feedback" role="tabpanel" aria-labelledby="campaign-tab-feedback"><ConceptWorkspace campaignId={id} displayedBriefId={query.data.shared_revision_id} mode="feedback" onGoToIdeas={() => selectTab('ideas')} /></div>}
+          {tab === 'ideas' && (
+            <div id="campaign-panel-ideas" role="tabpanel" aria-labelledby="campaign-tab-ideas">
+              <ConceptWorkspace
+                campaignId={id}
+                displayedBriefId={query.data.shared_revision_id}
+                mode="ideas"
+              />
+            </div>
+          )}
+          {tab === 'feedback' && (
+            <div
+              id="campaign-panel-feedback"
+              role="tabpanel"
+              aria-labelledby="campaign-tab-feedback"
+            >
+              <ConceptWorkspace
+                campaignId={id}
+                displayedBriefId={query.data.shared_revision_id}
+                mode="feedback"
+                onGoToIdeas={() => selectTab('ideas')}
+              />
+            </div>
+          )}
         </>
       )}
     </div>

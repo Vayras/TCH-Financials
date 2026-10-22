@@ -27,4 +27,3 @@ export class AddPaymentIdempotency1752900000000 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX IF EXISTS uq_payment_business_key`);
   }
 }
-

@@ -1,70 +1,155 @@
-# TCH Financials - Daily Developer Guide (Start & Stop)
+# TCH Financials — repeatable startup guide
 
-This document provides a simple, step-by-step guide on how to start the local development server, log in, and stop the servers cleanly when you're finished.
+Use **Option A** for the existing Node.js setup and configured database. Use
+**Option B** for an isolated Docker database. Choose one option per session:
+these setups use the same frontend and backend ports.
 
----
+## Option A: existing Node.js setup
 
-## 1. How to Start the Project
+### One-time setup (or after dependencies change)
 
-Whenever you want to start working on the project, run the following steps in your terminal from the project's root directory:
+Open Terminal and run:
 
-### Step 1: Select the correct Node version
-Ensure your terminal session is using Node.js v22:
 ```bash
+cd /Users/kapildadhich/Documents/GitHub/TCH-Financials
 nvm use 22
+node --version
+npm run install:backend
+npm run install:frontend
 ```
 
-### Step 2: Start the servers
-Launch the development environment:
+Use Node 22.12 or newer. If `nvm use 22` says the version is missing, run
+`nvm install 22`, then `nvm use 22`. If `nvm` is unavailable, use your installed
+Node.js version after checking that it meets the requirement.
+
+The existing environment files must be configured:
+
+- Backend: `DATABASE_URL` in the root `.env` or `backend/.env`, plus the
+  Supabase authentication settings when using real accounts.
+- Frontend: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` in
+  `frontend/.env.local` when using real accounts. Next.js also loads
+  `frontend/.env.development.local` in development; values there take precedence
+  over `.env.local`.
+
+Keep your existing credentials. Do not overwrite configured environment files
+with `.env.example`. The host setup connects to the database in your environment
+files, so application edits affect that database.
+
+### Every time you start
+
+**1. Start the backend in Terminal tab 1:**
+
 ```bash
-npm run dev
+cd /Users/kapildadhich/Documents/GitHub/TCH-Financials
+nvm use 22
+npm run dev:backend
 ```
-This runs both the NestJS API (port `8000`) and the Next.js Frontend (port `5050`) concurrently in the background.
 
-### Step 3: Open the application in your browser
-Go to the frontend local URL:
-👉 **[http://localhost:5050](http://localhost:5050)**
+Leave this tab running. Wait for NestJS to report that the application started.
+The API normally runs at <http://localhost:8000/api>.
 
-If you are not already logged in, you will be redirected to the login page:
-*   **Default login emails**:
-    - `admin@theculturehub.co.in`
-    - `mayank@theculturehub.co.in`
-    - `arzoo@theculturehub.co.in`
-*   **Password**: Enter the password matching the account in your Supabase Auth dashboard.
+**2. Open a second Terminal tab and start the frontend:**
 
----
-
-## 2. How to Stop (Turn Off) the Project
-
-When you are done working and want to shut down the servers and free up the network ports:
-
-### Step 1: Terminate the running processes
-Go to the terminal tab where the `npm run dev` command is running, and press:
-```
-Ctrl + C
-```
-This will cleanly terminate both the frontend and backend Node processes.
-
-### Step 2: (Optional) Double-Check Port Status
-If a server process ever gets stuck in the background and prevents you from restarting the project, you can verify if ports are clear by running:
 ```bash
-# Check if anything is still listening on port 5050 (Frontend) or 8000 (Backend)
-lsof -i :5050
-lsof -i :8000
+cd /Users/kapildadhich/Documents/GitHub/TCH-Financials
+nvm use 22
+npm run dev:frontend
 ```
-If a process is still running, you can kill it by using:
+
+Leave this tab running. Wait for Next.js to show `Ready`.
+
+**3. Open the app:**
+
+<http://localhost:5050>
+
+If the login page appears, use your existing Supabase account email and password.
+There is no universal default password. Keep both Terminal tabs open while
+working; code changes are reloaded automatically.
+
+### Every time you stop
+
+Press **Ctrl + C in each Terminal tab**, once for the frontend and once for the
+backend. Separate tabs make it clear which server you are stopping.
+
+The root `npm run dev` shortcut starts both servers, but it uses a shell
+background process for the backend. This guide uses separate tabs so you can
+stop each server explicitly.
+
+## Option B: isolated Docker development
+
+This option uses its own local PostgreSQL database and uploaded-file storage.
+It starts with an empty database rather than your existing Supabase records.
+
+### Every time you start
+
+1. Open Docker Desktop and wait until its engine is running.
+2. Open Terminal and run:
+
 ```bash
-kill -9 <PID>
+cd /Users/kapildadhich/Documents/GitHub/TCH-Financials
+npm run docker:dev
 ```
-*(Replace `<PID>` with the process ID returned from the `lsof` command).*
 
----
+The first run takes longer while images build. The stack runs database migrations
+and seeds development accounts automatically. Wait for the frontend to be ready,
+then open <http://localhost:5050>.
 
-## Helpful Commands Reference
+Use the **Development account** selector in the bottom-right corner to choose
+Dev Admin, Dev Accounts, or Dev Creator. No real Supabase login is required.
 
-| Action | Command | Target Directory | Description |
-|---|---|---|---|
-| **Start Dev Mode** | `npm run dev` | Project Root | Runs both frontend and backend concurrently |
-| **Stop Dev Mode** | `Ctrl + C` | Active Terminal | Stops all dev servers |
-| **Run Migrations** | `npm run migration:run` | `backend/` | Syncs the database schema with Supabase |
-| **Production Build** | `npm run build` | Project Root | Generates optimized production assets |
+### Every time you stop
+
+Press **Ctrl + C** in the running terminal, then run:
+
+```bash
+npm run docker:dev:down
+```
+
+Your local database and uploaded files remain available for the next start.
+`npm run docker:dev:reset` deletes the Docker development data; it is not a
+normal stop or startup step.
+
+More Docker details: [DOCKER_DEV.md](DOCKER_DEV.md).
+
+## If something does not start
+
+| Symptom | What to do |
+|---|---|
+| Missing dependencies or command not found inside the app | Run the two install commands under Option A. For Docker, inspect the build logs. |
+| `EADDRINUSE` / port already in use | Stop the previous Node servers or Docker stack before restarting. |
+| App opens but data fails to load | Check the backend terminal for errors and confirm the backend is running. |
+| Backend reports a database connection error | Check the configured database URL and database availability; Docker users should check Docker Desktop and service logs. |
+| Docker cannot connect to its daemon | Start Docker Desktop and wait for the engine. |
+| Login fails | Use the correct existing Supabase credentials for Option A, or the development selector for Option B. |
+
+Check which processes are listening:
+
+```bash
+lsof -nP -iTCP:5050 -sTCP:LISTEN
+lsof -nP -iTCP:8000 -sTCP:LISTEN
+```
+
+Prefer Ctrl + C in the original terminal. If a leftover process belongs to this
+project, stop that specific process with `kill <PID>` using its actual process
+ID. Do not stop unrelated processes.
+
+For Docker status and logs:
+
+```bash
+docker compose -f docker-compose.dev.yml ps
+npm run docker:dev:logs
+```
+
+Press Ctrl + C to exit the log viewer.
+
+## Occasional database updates
+
+Migrations are not an everyday host startup step. When a project update adds
+migrations, confirm which database your environment targets, then run from the
+project root:
+
+```bash
+npm run migrate
+```
+
+Docker development applies migrations automatically during startup.

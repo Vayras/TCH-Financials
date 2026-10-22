@@ -15,7 +15,7 @@ export class AddCreatorBrandKits1753200000000 implements MigrationInterface {
     )`);
     await q.query(`ALTER TABLE tch_creator_brand_kit ADD CONSTRAINT fk_brand_kit_publication
       FOREIGN KEY (creator_id,published_revision) REFERENCES tch_creator_brand_kit_revision(creator_id,id)`);
-    for (const table of ['tch_creator_brand_kit','tch_creator_brand_kit_revision']) {
+    for (const table of ['tch_creator_brand_kit', 'tch_creator_brand_kit_revision']) {
       await q.query(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
       await q.query(`REVOKE ALL ON ${table} FROM PUBLIC`);
       await q.query(`DO $$ BEGIN

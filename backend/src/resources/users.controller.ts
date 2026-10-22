@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Delete, Body, Param, BadRequestException, Req } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  BadRequestException,
+  Req,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { env } from '../env';
@@ -30,19 +39,15 @@ export class UsersController {
 
   // ─── Helper: look up Supabase auth.users.id by email via direct DB query ───
   private async getAuthUserIdByEmail(email: string): Promise<string | null> {
-    const rows = await this.dataSource.query(
-      `SELECT id FROM auth.users WHERE email = $1 LIMIT 1`,
-      [email.toLowerCase().trim()],
-    );
+    const rows = await this.dataSource.query(`SELECT id FROM auth.users WHERE email = $1 LIMIT 1`, [
+      email.toLowerCase().trim(),
+    ]);
     return (rows[0]?.id as string) ?? null;
   }
 
   // ─── Helper: delete a user's refresh tokens to immediately invalidate sessions ─
   private async revokeRefreshTokens(userId: string): Promise<void> {
-    await this.dataSource.query(
-      `DELETE FROM auth.refresh_tokens WHERE user_id = $1`,
-      [userId],
-    );
+    await this.dataSource.query(`DELETE FROM auth.refresh_tokens WHERE user_id = $1`, [userId]);
   }
 
   @Get()
@@ -50,12 +55,14 @@ export class UsersController {
     const profileRepo = this.dataSource.getRepository(Profile);
     const invitationRepo = this.dataSource.getRepository(Invitation);
 
-    const profiles = await profileRepo.createQueryBuilder('profile')
+    const profiles = await profileRepo
+      .createQueryBuilder('profile')
       .where("profile.role != 'creator'")
       .orderBy('profile.createdAt', 'DESC')
       .getMany();
 
-    const invitations = await invitationRepo.createQueryBuilder('invitation')
+    const invitations = await invitationRepo
+      .createQueryBuilder('invitation')
       .where("invitation.role != 'creator'")
       .orderBy('invitation.createdAt', 'DESC')
       .getMany();
@@ -66,7 +73,11 @@ export class UsersController {
   // ─── Update Role: only super_admin can assign super_admin or accounts roles ──
   @Roles('super_admin')
   @Post(':id/role')
-  async updateRole(@Param('id') id: string, @Body() body: { role: AppRole; creatorId?: string }, @Req() req: any) {
+  async updateRole(
+    @Param('id') id: string,
+    @Body() body: { role: AppRole; creatorId?: string },
+    @Req() req: any,
+  ) {
     const { role, creatorId } = body;
     if (!role || !ALL_ROLES.includes(role)) {
       throw new BadRequestException(`Role must be one of: ${ALL_ROLES.join(', ')}.`);

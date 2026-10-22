@@ -21,8 +21,12 @@ export class AddDealBillingPeriod1752100000000 implements MigrationInterface {
           billing_month = EXTRACT(MONTH FROM COALESCE(e_invoice_date, confirmation_date))::smallint
       WHERE COALESCE(e_invoice_date, confirmation_date) IS NOT NULL
     `);
-    await queryRunner.query(`CREATE INDEX idx_commercialdeal_billing_fy_period ON tch_commercialdeal (billing_fy_start, billing_period, id)`);
-    await queryRunner.query(`CREATE INDEX idx_commercialdeal_direction ON tch_commercialdeal (direction)`);
+    await queryRunner.query(
+      `CREATE INDEX idx_commercialdeal_billing_fy_period ON tch_commercialdeal (billing_fy_start, billing_period, id)`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX idx_commercialdeal_direction ON tch_commercialdeal (direction)`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

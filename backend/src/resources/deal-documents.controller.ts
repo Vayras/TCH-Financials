@@ -1,8 +1,18 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  BadRequestException, Body, Controller, Delete, Get, HttpCode,
-  NotFoundException, Param, Post, Query, UploadedFile, UseInterceptors,
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectDataSource } from '@nestjs/typeorm';
@@ -61,10 +71,7 @@ export class DealDocumentsController {
   @Post()
   @HttpCode(201)
   @UseInterceptors(FileInterceptor('file', { limits: UPLOAD_LIMITS }))
-  async create(
-    @Body() body: Record<string, string>,
-    @UploadedFile() file?: Express.Multer.File,
-  ) {
+  async create(@Body() body: Record<string, string>, @UploadedFile() file?: Express.Multer.File) {
     const dealId = body.deal;
     if (!dealId) throw new BadRequestException({ deal: ['This field is required.'] });
     const deal = await this.dealRepo().findOneBy({ id: dealId });

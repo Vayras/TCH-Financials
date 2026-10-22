@@ -1,5 +1,9 @@
 import {
-  Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn,
+  Column,
+  CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 
 export type PortalStatus = 'none' | 'invited' | 'active';

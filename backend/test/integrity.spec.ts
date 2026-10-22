@@ -20,33 +20,65 @@ describe('financial integrity validation', () => {
   });
 
   it('accepts percentages only in the fractional database range', () => {
-    assert.equal(strictDecimal('0.1000', 'rate', { min: 0, max: 1, scale: 4 }).toFixed(4), '0.1000');
-    assert.throws(() => strictDecimal('1.0001', 'rate', { min: 0, max: 1, scale: 4 }), BadRequestException);
+    assert.equal(
+      strictDecimal('0.1000', 'rate', { min: 0, max: 1, scale: 4 }).toFixed(4),
+      '0.1000',
+    );
+    assert.throws(
+      () => strictDecimal('1.0001', 'rate', { min: 0, max: 1, scale: 4 }),
+      BadRequestException,
+    );
   });
 
   it('never treats malformed numeric input as zero', () => {
-    assert.throws(() => strictDecimal('abc', 'rate', { min: 0, max: 100, scale: 4 }), BadRequestException);
+    assert.throws(
+      () => strictDecimal('abc', 'rate', { min: 0, max: 100, scale: 4 }),
+      BadRequestException,
+    );
   });
 
   it('requires exactly one positive debit or credit', () => {
     const debit = normalizedPayment({
-      transactionDate: '2026-08-17', vendorName: 'Creator', utrOrRef: 'UTR-1',
-      debitAmount: '100', creditAmount: '0',
+      transactionDate: '2026-08-17',
+      vendorName: 'Creator',
+      utrOrRef: 'UTR-1',
+      debitAmount: '100',
+      creditAmount: '0',
     });
     assert.equal(debit.debitAmount, '100.00');
-    assert.throws(() => normalizedPayment({
-      transactionDate: '2026-08-17', vendorName: 'Creator', utrOrRef: 'UTR-2',
-      debitAmount: '100', creditAmount: '10',
-    }), BadRequestException);
-    assert.throws(() => normalizedPayment({
-      transactionDate: '2026-08-17', vendorName: 'Creator', utrOrRef: 'UTR-3',
-      debitAmount: '0', creditAmount: '0',
-    }), BadRequestException);
+    assert.throws(
+      () =>
+        normalizedPayment({
+          transactionDate: '2026-08-17',
+          vendorName: 'Creator',
+          utrOrRef: 'UTR-2',
+          debitAmount: '100',
+          creditAmount: '10',
+        }),
+      BadRequestException,
+    );
+    assert.throws(
+      () =>
+        normalizedPayment({
+          transactionDate: '2026-08-17',
+          vendorName: 'Creator',
+          utrOrRef: 'UTR-3',
+          debitAmount: '0',
+          creditAmount: '0',
+        }),
+      BadRequestException,
+    );
   });
 
   it('audit metadata records field names without secret or file fields', () => {
     assert.deepEqual(
-      safeFieldNames({ amount: 10, password: 'hidden', token: 'hidden', file: 'hidden', notes: 'ok' }),
+      safeFieldNames({
+        amount: 10,
+        password: 'hidden',
+        token: 'hidden',
+        file: 'hidden',
+        notes: 'ok',
+      }),
       ['amount', 'notes'],
     );
   });

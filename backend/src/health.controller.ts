@@ -9,11 +9,15 @@ export class HealthController {
 
   @Get()
   @SkipAuth()
-  health() { return this.ready(); }
+  health() {
+    return this.ready();
+  }
 
   @Get('live')
   @SkipAuth()
-  live() { return { status: 'ok' }; }
+  live() {
+    return { status: 'ok' };
+  }
 
   @Get('ready')
   @SkipAuth()
@@ -22,7 +26,11 @@ export class HealthController {
       await this.dataSource.query('SELECT 1');
       const pendingMigrations = await this.dataSource.showMigrations();
       if (pendingMigrations) {
-        throw new ServiceUnavailableException({ status: 'unavailable', database: 'reachable', migrations: 'pending' });
+        throw new ServiceUnavailableException({
+          status: 'unavailable',
+          database: 'reachable',
+          migrations: 'pending',
+        });
       }
       return { status: 'ok', database: 'reachable', migrations: 'current' };
     } catch (error) {

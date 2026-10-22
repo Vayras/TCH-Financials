@@ -4,20 +4,27 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, LessThanOrEqual } from 'typeorm';
-import {
-  addDays, daysBetween, nextWednesdayOnOrAfter, safeDate, todayISO,
-} from '../common/dates';
+import { addDays, daysBetween, nextWednesdayOnOrAfter, safeDate, todayISO } from '../common/dates';
 import { D, Decimal } from '../common/decimal';
 import { QUARTERS, creatorSplits, fiscalYearOf } from '../common/fy';
 import {
-  AlertDismissal, ContractingCompliance, Creator, CreatorDocument, DealDocument,
+  AlertDismissal,
+  ContractingCompliance,
+  Creator,
+  CreatorDocument,
+  DealDocument,
 } from '../entities';
 import { AnalyticsService } from './analytics.service';
 
 // Creator payment cycle -> days added to the invoice date before the
 // Wednesday clearing run.
 const CYCLE_DAYS: Record<string, number> = {
-  '': 0, Immediate: 0, Net15: 15, Net30: 30, Net45: 45, Net60: 60,
+  '': 0,
+  Immediate: 0,
+  Net15: 15,
+  Net30: 30,
+  Net45: 45,
+  Net60: 60,
 };
 
 // Thresholds (calendar days)
@@ -68,8 +75,10 @@ export function alertKey(item: AlertItem): string {
   const kind = item.kind;
   let ident: string;
   if (
-    kind === 'invoice_overdue' || kind === 'payment_overdue' ||
-    kind === 'upload_invoice' || kind === 'clear_payment'
+    kind === 'invoice_overdue' ||
+    kind === 'payment_overdue' ||
+    kind === 'upload_invoice' ||
+    kind === 'clear_payment'
   ) {
     ident = `deal:${meta.deal_id}`;
   } else if (['inactive_creator', 'missing_documents', 'renewal_due'].includes(kind)) {
@@ -118,7 +127,8 @@ export class AlertsService {
       const last = lastDealByCreator.get(Number(c.id));
       if (!last) {
         // No deal ever — only flag if creator joined more than threshold ago
-        const anchor = c.doj || (c.createdAt ? new Date(c.createdAt).toISOString().slice(0, 10) : null);
+        const anchor =
+          c.doj || (c.createdAt ? new Date(c.createdAt).toISOString().slice(0, 10) : null);
         if (anchor && daysBetween(anchor, today) >= INACTIVE_CREATOR_DAYS) {
           const age = daysBetween(anchor, today);
           urgent.push({
@@ -419,9 +429,7 @@ export class AlertsService {
         kind: 'seasonal',
         severity: 'low',
         title:
-          weeks > 0
-            ? `${label} — ${weeks} week${weeks !== 1 ? 's' : ''} away`
-            : `${label} — today`,
+          weeks > 0 ? `${label} — ${weeks} week${weeks !== 1 ? 's' : ''} away` : `${label} — today`,
         detail: `${nxt} (${days} days).`,
         action: 'Plan campaign',
         meta: { date: nxt, days_away: days, weeks_away: weeks },
@@ -438,8 +446,7 @@ export class AlertsService {
     health.sort(sortKey);
     docs.sort(
       (a, b) =>
-        (sevRank[a.severity] ?? 9) - (sevRank[b.severity] ?? 9) ||
-        a.title.localeCompare(b.title),
+        (sevRank[a.severity] ?? 9) - (sevRank[b.severity] ?? 9) || a.title.localeCompare(b.title),
     );
     payments.sort(
       (a, b) =>

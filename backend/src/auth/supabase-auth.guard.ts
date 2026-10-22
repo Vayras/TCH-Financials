@@ -1,6 +1,4 @@
-import {
-  CanActivate, ExecutionContext, Injectable, UnauthorizedException,
-} from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
@@ -31,7 +29,13 @@ export class SupabaseAuthGuard implements CanActivate {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    if (this.reflector.getAllAndOverride<boolean>(PUBLIC_ROUTE_KEY, [context.getHandler(), context.getClass()])) return true;
+    if (
+      this.reflector.getAllAndOverride<boolean>(PUBLIC_ROUTE_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ])
+    )
+      return true;
     const isSkipAuth = this.reflector.getAllAndOverride<boolean>(SKIP_AUTH_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -53,19 +57,21 @@ export class SupabaseAuthGuard implements CanActivate {
       if (selectedEmail && !selectedProfile) {
         throw new UnauthorizedException({ detail: 'Unknown development account.' });
       }
-      (req as Request & { user?: unknown }).user = selectedProfile ? {
-        id: selectedProfile.id,
-        email: selectedProfile.email,
-        role: selectedProfile.role,
-        status: selectedProfile.status,
-        passwordSet: selectedProfile.passwordSet,
-        creatorId: selectedProfile.creatorId,
-      } : {
-        id: '00000000-0000-0000-0000-000000000000',
-        email: 'dev@theculturehub.co.in',
-        role: 'super_admin',
-        status: 'approved',
-      };
+      (req as Request & { user?: unknown }).user = selectedProfile
+        ? {
+            id: selectedProfile.id,
+            email: selectedProfile.email,
+            role: selectedProfile.role,
+            status: selectedProfile.status,
+            passwordSet: selectedProfile.passwordSet,
+            creatorId: selectedProfile.creatorId,
+          }
+        : {
+            id: '00000000-0000-0000-0000-000000000000',
+            email: 'dev@theculturehub.co.in',
+            role: 'super_admin',
+            status: 'approved',
+          };
       return true;
     }
 

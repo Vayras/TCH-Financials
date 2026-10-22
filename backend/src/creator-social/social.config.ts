@@ -8,12 +8,18 @@ function positiveInt(name: string, fallback: number, max: number) {
   return parsed;
 }
 
+export function socialImportsEnabled(env: NodeJS.ProcessEnv = process.env) {
+  return (
+    env.TRIOSPHERE_IMPORTS_ENABLED === 'true' &&
+    !!env.TRIOSPHERE_API_TOKEN?.trim() &&
+    env.CREATOR_SOCIAL_IMPORTS_PAUSED === 'false'
+  );
+}
+
 export const socialConfig = {
-  enabled: process.env.BRIGHTDATA_IMPORTS_ENABLED === 'true',
-  apiKey: process.env.BRIGHTDATA_API_KEY?.trim() ?? '',
-  datasetId: process.env.BRIGHTDATA_IG_DATASET_ID?.trim() ?? '',
-  postsDatasetId: process.env.BRIGHTDATA_IG_POSTS_DATASET_ID?.trim() ?? '',
-  cooldownSeconds: positiveInt('SOCIAL_REFRESH_COOLDOWN_SECONDS', 3600, 604800),
-  creatorDailyLimit: positiveInt('SOCIAL_CREATOR_DAILY_LIMIT', 3, 100),
+  paused: !socialImportsEnabled(),
+  enabled: socialImportsEnabled(),
+  apiToken: process.env.TRIOSPHERE_API_TOKEN?.trim() ?? '',
   globalDailyLimit: positiveInt('SOCIAL_GLOBAL_DAILY_LIMIT', 100, 10000),
+  globalHourlyLimit: positiveInt('SOCIAL_GLOBAL_HOURLY_LIMIT', 20, 30),
 };

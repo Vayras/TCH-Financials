@@ -23,9 +23,7 @@ export class PaymentsDealDocuments1751900000000 implements MigrationInterface {
         uploaded_at timestamptz NOT NULL DEFAULT now()
       )
     `);
-    await queryRunner.query(
-      `CREATE INDEX idx_dealdocument_deal ON tch_dealdocument (deal_id)`,
-    );
+    await queryRunner.query(`CREATE INDEX idx_dealdocument_deal ON tch_dealdocument (deal_id)`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

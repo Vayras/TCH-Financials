@@ -36,7 +36,7 @@ export class AddCampaignAiIdeas1753600000000 implements MigrationInterface {
       await q.query(`ALTER TABLE ${table} ENABLE ROW LEVEL SECURITY`);
       await q.query(`REVOKE ALL ON ${table} FROM PUBLIC`);
       await q.query(
-        `DO $$ BEGIN IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon') THEN REVOKE ALL ON ${table} FROM anon; END IF; IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN REVOKE ALL ON ${table} FROM authenticated; END IF; END $$`
+        `DO $$ BEGIN IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon') THEN REVOKE ALL ON ${table} FROM anon; END IF; IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN REVOKE ALL ON ${table} FROM authenticated; END IF; END $$`,
       );
     }
   }

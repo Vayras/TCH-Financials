@@ -1,5 +1,10 @@
 import {
-  Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, OneToMany,
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Campaign } from './campaign.entity';
@@ -120,7 +125,13 @@ export class CommercialDeal {
   @Column({ name: 'client_payment_status', length: 20, default: '' })
   clientPaymentStatus: string;
 
-  @Column({ name: 'client_payment_received_amount', type: 'numeric', precision: 14, scale: 2, default: 0 })
+  @Column({
+    name: 'client_payment_received_amount',
+    type: 'numeric',
+    precision: 14,
+    scale: 2,
+    default: 0,
+  })
   clientPaymentReceivedAmount: string;
 
   @Column({ name: 'client_payment_date', type: 'date', nullable: true })

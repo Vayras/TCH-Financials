@@ -1,6 +1,16 @@
 import {
-  BadRequestException, Body, Controller, Delete, Get, HttpCode,
-  NotFoundException, Param, Patch, Post, Put, Query,
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
 } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -16,7 +26,6 @@ import { env } from '../env';
 import { Roles } from '../auth/roles.decorator';
 import { structuredLog } from '../common/observability';
 import * as https from 'https';
-
 
 const FIELDS = {
   name: 'name',
@@ -99,35 +108,55 @@ export class CreatorsController {
     const pagination = paginationParams(page, pageSize);
     const qb = this.repo().createQueryBuilder('creator');
     if (search?.trim()) {
-      qb.andWhere(`(
+      qb.andWhere(
+        `(
         creator.name ILIKE :search OR creator.category ILIKE :search OR
         creator.ops_manager ILIKE :search OR creator.location ILIKE :search
-      )`, { search: `%${search.trim()}%` });
+      )`,
+        { search: `%${search.trim()}%` },
+      );
     }
     if (relationship) qb.andWhere('creator.relationship = :relationship', { relationship });
     if (status) qb.andWhere('creator.status = :status', { status });
 
     const sortMap: Record<string, string> = {
-      name: 'creator.name', category: 'creator.category', relationship: 'creator.relationship',
-      status: 'creator.status', doj: 'creator.doj', location: 'creator.location',
-      ops_manager: 'creator.opsManager', created_at: 'creator.createdAt',
+      name: 'creator.name',
+      category: 'creator.category',
+      relationship: 'creator.relationship',
+      status: 'creator.status',
+      doj: 'creator.doj',
+      location: 'creator.location',
+      ops_manager: 'creator.opsManager',
+      created_at: 'creator.createdAt',
     };
     const sortKey = sortBy ?? 'name';
     if (!sortMap[sortKey]) {
-      throw new BadRequestException({ detail: `sort_by must be one of: ${Object.keys(sortMap).join(', ')}.` });
+      throw new BadRequestException({
+        detail: `sort_by must be one of: ${Object.keys(sortMap).join(', ')}.`,
+      });
     }
     const requestedOrder = (sortOrder ?? 'asc').toLowerCase();
     if (requestedOrder !== 'asc' && requestedOrder !== 'desc') {
       throw new BadRequestException({ detail: 'sort_order must be asc or desc.' });
     }
-    qb.orderBy(sortMap[sortKey], requestedOrder.toUpperCase() as 'ASC' | 'DESC').addOrderBy('creator.id', 'ASC');
+    qb.orderBy(sortMap[sortKey], requestedOrder.toUpperCase() as 'ASC' | 'DESC').addOrderBy(
+      'creator.id',
+      'ASC',
+    );
 
     if (!pagination.requested) return (await qb.getMany()).map(creatorDto);
     const total = await qb.getCount();
-    const rows = await qb.skip((pagination.page - 1) * pagination.pageSize).take(pagination.pageSize).getMany();
+    const rows = await qb
+      .skip((pagination.page - 1) * pagination.pageSize)
+      .take(pagination.pageSize)
+      .getMany();
     return {
-      items: rows.map(creatorDto), page: pagination.page, page_size: pagination.pageSize,
-      total, total_pages: Math.max(1, Math.ceil(total / pagination.pageSize)), summary: {},
+      items: rows.map(creatorDto),
+      page: pagination.page,
+      page_size: pagination.pageSize,
+      total,
+      total_pages: Math.max(1, Math.ceil(total / pagination.pageSize)),
+      summary: {},
     };
   }
 
@@ -143,10 +172,16 @@ export class CreatorsController {
     if (!/^[1-9]\d*$/.test(id)) throw new BadRequestException('Invalid creator ID.');
     if (!(await this.repo().findOneBy({ id }))) throw new NotFoundException();
     // Agency views receive only the creator's explicitly published revision.
-    const [row] = await this.dataSource.query(`SELECT k.slug, r.id AS revision, r.published_at, r.content
+    const [row] = await this.dataSource.query(
+      `SELECT k.slug, r.id AS revision, r.published_at, r.content
       FROM tch_creator_brand_kit k LEFT JOIN tch_creator_brand_kit_revision r ON r.id=k.published_revision
-      WHERE k.creator_id=$1`, [id]);
-    return { status: !row ? 'not_started' : row.revision ? 'published' : 'private_draft', kit: row?.revision ? row : null };
+      WHERE k.creator_id=$1`,
+      [id],
+    );
+    return {
+      status: !row ? 'not_started' : row.revision ? 'published' : 'private_draft',
+      kit: row?.revision ? row : null,
+    };
   }
 
   @Post()
@@ -185,15 +220,14 @@ export class CreatorsController {
 
   @Post(':id/create-account')
   @Roles('super_admin', 'tch_member')
-  async createAccount(
-    @Param('id') id: string,
-    @Body() body: { password?: string }
-  ) {
+  async createAccount(@Param('id') id: string, @Body() body: { password?: string }) {
     const creatorRepo = this.repo();
     const creator = await creatorRepo.findOneBy({ id });
     if (!creator) throw new NotFoundException({ detail: 'Creator not found.' });
     if (!creator.email) {
-      throw new BadRequestException('Creator must have an email address to create a login account.');
+      throw new BadRequestException(
+        'Creator must have an email address to create a login account.',
+      );
     }
     if (creator.portalStatus === 'active') {
       throw new BadRequestException('Creator already has an active portal account.');
@@ -211,42 +245,46 @@ export class CreatorsController {
         email,
         password,
         email_confirm: true,
-        user_metadata: { role: 'creator' }
+        user_metadata: { role: 'creator' },
       });
 
-      const req = https.request(`${env.supabaseUrl}/auth/v1/admin/users`, {
-        method: 'POST',
-        headers: {
-          'apikey': env.supabaseServiceRoleKey,
-          'Authorization': 'Bearer ' + env.supabaseServiceRoleKey,
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(payload)
-        }
-      }, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.id) {
-                resolve(parsed.id);
-              } else {
-                reject(new Error('User ID missing in Supabase response.'));
+      const req = https.request(
+        `${env.supabaseUrl}/auth/v1/admin/users`,
+        {
+          method: 'POST',
+          headers: {
+            apikey: env.supabaseServiceRoleKey,
+            Authorization: 'Bearer ' + env.supabaseServiceRoleKey,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload),
+          },
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk) => (data += chunk));
+          res.on('end', () => {
+            if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.id) {
+                  resolve(parsed.id);
+                } else {
+                  reject(new Error('User ID missing in Supabase response.'));
+                }
+              } catch {
+                reject(new Error('Failed to parse Supabase response.'));
               }
-            } catch {
-              reject(new Error('Failed to parse Supabase response.'));
+            } else {
+              try {
+                const parsed = JSON.parse(data);
+                reject(new Error(parsed.message || `HTTP ${res.statusCode}`));
+              } catch {
+                reject(new Error(`HTTP ${res.statusCode}`));
+              }
             }
-          } else {
-            try {
-              const parsed = JSON.parse(data);
-              reject(new Error(parsed.message || `HTTP ${res.statusCode}`));
-            } catch {
-              reject(new Error(`HTTP ${res.statusCode}`));
-            }
-          }
-        });
-      });
+          });
+        },
+      );
 
       req.on('error', (e) => {
         reject(e);
@@ -255,8 +293,12 @@ export class CreatorsController {
       req.write(payload);
       req.end();
     }).catch(() => {
-      structuredLog('error', 'supabase_creator_account_creation_failed', { creator_id: creator.id });
-      throw new BadRequestException('Supabase account creation failed. Check the server logs using the request ID.');
+      structuredLog('error', 'supabase_creator_account_creation_failed', {
+        creator_id: creator.id,
+      });
+      throw new BadRequestException(
+        'Supabase account creation failed. Check the server logs using the request ID.',
+      );
     });
 
     // 2. Create Profile record in database
@@ -268,7 +310,7 @@ export class CreatorsController {
       role: 'creator',
       status: 'approved',
       passwordSet: true,
-      creatorId: creator.id
+      creatorId: creator.id,
     });
 
     await profileRepo.save(profile);

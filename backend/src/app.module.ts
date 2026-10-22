@@ -24,8 +24,11 @@ import { AuditInterceptor } from './common/audit.interceptor';
 import { CreatorSocialModule } from './creator-social/creator-social.module';
 import { CampaignContentModule } from './campaign-content/campaign-content.module';
 import {
-  ContractingController, DropOffsController, EmployeeReportsController,
-  EventInvitesController, SocialSnapshotsController,
+  ContractingController,
+  DropOffsController,
+  EmployeeReportsController,
+  EventInvitesController,
+  SocialSnapshotsController,
 } from './resources/simple-resources.controllers';
 
 @Module({

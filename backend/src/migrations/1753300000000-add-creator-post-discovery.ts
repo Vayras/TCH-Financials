@@ -11,13 +11,17 @@ export class AddCreatorPostDiscovery1753300000000 implements MigrationInterface 
       ADD COLUMN end_date varchar(10),
       ADD COLUMN prepared_data jsonb,
       ADD COLUMN request_units int NOT NULL DEFAULT 1 CHECK (request_units BETWEEN 1 AND 2)`);
-    await q.query(`ALTER TABLE tch_creator_social_snapshot DROP CONSTRAINT tch_creator_social_snapshot_posts_check`);
+    await q.query(
+      `ALTER TABLE tch_creator_social_snapshot DROP CONSTRAINT tch_creator_social_snapshot_posts_check`,
+    );
     await q.query(`ALTER TABLE tch_creator_social_snapshot ADD CONSTRAINT tch_creator_social_snapshot_posts_check
       CHECK (jsonb_typeof(posts) = 'array' AND jsonb_array_length(posts) <= 300)`);
   }
   async down(q: QueryRunner) {
     // Refuse rollback if larger libraries exist instead of silently truncating saved content.
-    await q.query(`ALTER TABLE tch_creator_social_snapshot DROP CONSTRAINT tch_creator_social_snapshot_posts_check`);
+    await q.query(
+      `ALTER TABLE tch_creator_social_snapshot DROP CONSTRAINT tch_creator_social_snapshot_posts_check`,
+    );
     await q.query(`ALTER TABLE tch_creator_social_snapshot ADD CONSTRAINT tch_creator_social_snapshot_posts_check
       CHECK (jsonb_typeof(posts) = 'array' AND jsonb_array_length(posts) <= 50)`);
     await q.query(`ALTER TABLE tch_creator_social_import DROP COLUMN purpose, DROP COLUMN stage,

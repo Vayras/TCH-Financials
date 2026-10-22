@@ -1,6 +1,15 @@
 import {
-  Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch,
-  Post, Put, Query,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
 } from '@nestjs/common';
 import { DataSource, EntityManager, FindOptionsOrder, ObjectType } from 'typeorm';
 import { applyMapped } from '../common/apply';
@@ -79,11 +88,17 @@ export abstract class VersionedCrudBase<T extends HasIdVersion> {
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() body: Record<string, unknown>) {
-    return versionedUpdate(this.dataSource, this.cfg.entity as ObjectType<T & HasIdVersion>, id, body, {
-      apply: (row) =>
-        applyMapped(row as unknown as Record<string, unknown>, body, this.cfg.fields),
-      serialize: async (rowId, manager) => this.cfg.dto(await this.fetch(rowId, manager)),
-    });
+    return versionedUpdate(
+      this.dataSource,
+      this.cfg.entity as ObjectType<T & HasIdVersion>,
+      id,
+      body,
+      {
+        apply: (row) =>
+          applyMapped(row as unknown as Record<string, unknown>, body, this.cfg.fields),
+        serialize: async (rowId, manager) => this.cfg.dto(await this.fetch(rowId, manager)),
+      },
+    );
   }
 
   @Delete(':id')

@@ -13,57 +13,62 @@ import { getSupabase } from '@/lib/supabase';
 // which is more reliable than capturing the hash at module scope in AuthGuard.
 
 export default function AuthCallbackPage() {
-	const router = useRouter();
+  const router = useRouter();
 
-	React.useEffect(() => {
-		// Capture the hash NOW — before the SDK clears it
-		const hash = window.location.hash;
-		const params = new URLSearchParams(hash.replace(/^#/, ''));
-		const type = params.get('type'); // 'invite' | 'recovery' | 'signup' | null
+  React.useEffect(() => {
+    // Capture the hash NOW — before the SDK clears it
+    const hash = window.location.hash;
+    const params = new URLSearchParams(hash.replace(/^#/, ''));
+    const type = params.get('type'); // 'invite' | 'recovery' | 'signup' | null
 
-		const supabase = getSupabase();
+    const supabase = getSupabase();
 
-		// onAuthStateChange fires as soon as the SDK processes the hash tokens
-		const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-			if (event === 'PASSWORD_RECOVERY') {
-				// Explicit recovery event — always go to set-password
-				router.replace('/set-password');
-				return;
-			}
+    // onAuthStateChange fires as soon as the SDK processes the hash tokens
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        // Explicit recovery event — always go to set-password
+        router.replace('/set-password');
+        return;
+      }
 
-			if (session) {
-				if (type === 'invite' || type === 'recovery') {
-					router.replace('/set-password');
-				} else {
-					// signup confirmation or unknown — let AuthGuard decide routing
-					router.replace('/');
-				}
-			} else {
-				router.replace('/login');
-			}
-		});
+      if (session) {
+        if (type === 'invite' || type === 'recovery') {
+          router.replace('/set-password');
+        } else {
+          // signup confirmation or unknown — let AuthGuard decide routing
+          router.replace('/');
+        }
+      } else {
+        router.replace('/login');
+      }
+    });
 
-		// Fallback: if the session is already established before the listener fires
-		supabase.auth.getSession().then(({ data: { session } }) => {
-			if (session) {
-				if (type === 'invite' || type === 'recovery') {
-					router.replace('/set-password');
-				} else {
-					router.replace('/');
-				}
-			}
-		});
+    // Fallback: if the session is already established before the listener fires
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        if (type === 'invite' || type === 'recovery') {
+          router.replace('/set-password');
+        } else {
+          router.replace('/');
+        }
+      }
+    });
 
-		return () => {
-			subscription.unsubscribe();
-		};
-	}, [router]);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router]);
 
-	return (
-		<div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--n-bg)' }}>
-			<span className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
-				Completing sign in…
-			</span>
-		</div>
-	);
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{ background: 'var(--n-bg)' }}
+    >
+      <span className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
+        Completing sign in…
+      </span>
+    </div>
+  );
 }

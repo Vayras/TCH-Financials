@@ -2,97 +2,131 @@ import type { Deal } from '@/lib/api';
 import type { DealForm } from '@/types/deal';
 
 export const DIRECTION = [
-	{ value: 'Inbound', label: 'Inbound' },
-	{ value: 'Outbound', label: 'Outbound' }
+  { value: 'Inbound', label: 'Inbound' },
+  { value: 'Outbound', label: 'Outbound' },
 ];
 
 export const EMPTY_DEAL_FORM: DealForm = {
-	confirmation_date: '',
-	e_invoice_number: '',
-	e_invoice_date: '',
-	creator: '',
-	tch_poc: '',
-	responsible_member_id: '',
-	direction: 'Outbound',
-	total_fee: '',
-	agency_fee_pct: '',
-	agency_fee_inr: '',
-	creator_fee: '',
-	billing_entity: '',
-	brand: '',
-	brand_poc: '',
-	campaign: '',
-	deliverables: '',
-	ro_number: '',
-	comments: ''
+  confirmation_date: '',
+  e_invoice_number: '',
+  e_invoice_date: '',
+  creator: '',
+  tch_poc: '',
+  responsible_member_id: '',
+  direction: 'Outbound',
+  total_fee: '',
+  agency_fee_pct: '',
+  agency_fee_inr: '',
+  creator_fee: '',
+  billing_entity: '',
+  brand: '',
+  brand_poc: '',
+  campaign: '',
+  deliverables: '',
+  ro_number: '',
+  comments: '',
 };
 
 // Build a CreatorShare payload row from pct input, deriving ₹ fee and creator fee.
-export function buildShare(creator: string, total: string, pct: string, customCreatorFee?: string, roNumber?: string) {
-	const t = Number(total) || 0;
-	const p = Number(pct) || 0;
-	// Accept either decimal (0.20) or whole-number percent (20 = 20 %)
-	const pctDecimal = p < 1 ? p : p / 100;
-	const a = t * pctDecimal;
-	const defaultCreatorFee = (t - a).toFixed(2);
-	return {
-		creator: creator ? Number(creator) : null,
-		creator_name_raw: '',
-		total_fee: total || '0',
-		agency_fee_inr: a.toFixed(2),
-		agency_fee_pct: pctDecimal.toFixed(4),
-		creator_fee: customCreatorFee && customCreatorFee.trim() !== '' ? customCreatorFee : defaultCreatorFee,
-		ro_number: roNumber || ''
-	};
+export function buildShare(
+  creator: string,
+  total: string,
+  pct: string,
+  customCreatorFee?: string,
+  roNumber?: string,
+) {
+  const t = Number(total) || 0;
+  const p = Number(pct) || 0;
+  // Accept either decimal (0.20) or whole-number percent (20 = 20 %)
+  const pctDecimal = p < 1 ? p : p / 100;
+  const a = t * pctDecimal;
+  const defaultCreatorFee = (t - a).toFixed(2);
+  return {
+    creator: creator ? Number(creator) : null,
+    creator_name_raw: '',
+    total_fee: total || '0',
+    agency_fee_inr: a.toFixed(2),
+    agency_fee_pct: pctDecimal.toFixed(4),
+    creator_fee:
+      customCreatorFee && customCreatorFee.trim() !== '' ? customCreatorFee : defaultCreatorFee,
+    ro_number: roNumber || '',
+  };
 }
 
 export function relTone(rel?: string) {
-	if (rel === 'Exclusive') return 'exclusive' as const;
-	if (rel === 'Dropping') return 'dropping' as const;
-	if (rel === 'NonTCH') return 'nontch' as const;
-	return 'friend' as const;
+  if (rel === 'Exclusive') return 'exclusive' as const;
+  if (rel === 'Dropping') return 'dropping' as const;
+  if (rel === 'NonTCH') return 'nontch' as const;
+  return 'friend' as const;
 }
 
 export function dirTone(dir: string) {
-	if (dir === 'Inbound') return 'inbound' as const;
-	if (dir === 'Outbound') return 'outbound' as const;
-	return 'markup' as const;
+  if (dir === 'Inbound') return 'inbound' as const;
+  if (dir === 'Outbound') return 'outbound' as const;
+  return 'markup' as const;
 }
 
 export function normalisePctValue(p: string): number {
-	const n = Number(p);
-	if (!Number.isFinite(n) || n <= 0) return 0;
-	// Historical/prod rows sometimes stored "15" for 15% instead of "0.15".
-	// Values below 1 are fractions; 1 and above are human percent (1 = 1%).
-	return n >= 1 ? n / 100 : n;
+  const n = Number(p);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  // Historical/prod rows sometimes stored "15" for 15% instead of "0.15".
+  // Values below 1 are fractions; 1 and above are human percent (1 = 1%).
+  return n >= 1 ? n / 100 : n;
 }
 
 export function normalisePctString(p: string): string {
-	const n = normalisePctValue(p);
-	return n > 0 ? n.toFixed(4) : '0';
+  const n = normalisePctValue(p);
+  return n > 0 ? n.toFixed(4) : '0';
 }
 
 // Indian fiscal year runs Apr → Mar. These mirror the backend aggregation so
 // client-side period filtering lines up with Current Overview / Entity Summary.
 export function fyStartOf(iso: string): number {
-	const [y, m] = iso.split('-').map(Number);
-	return m >= 4 ? y : y - 1;
+  const [y, m] = iso.split('-').map(Number);
+  return m >= 4 ? y : y - 1;
 }
 
-export const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const MONTH_NAMES = [
+  '',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+];
 
 export function monthYearLabel(iso?: string | null): string {
-	if (!iso) return 'No date';
-	const [y, m] = iso.split('-');
-	return `${MONTH_NAMES[Number(m)] ?? m} ${y}`;
+  if (!iso) return 'No date';
+  const [y, m] = iso.split('-');
+  return `${MONTH_NAMES[Number(m)] ?? m} ${y}`;
 }
 
-export const FY_MONTH_ORDER = ['04', '05', '06', '07', '08', '09', '10', '11', '12', '01', '02', '03'];
+export const FY_MONTH_ORDER = [
+  '04',
+  '05',
+  '06',
+  '07',
+  '08',
+  '09',
+  '10',
+  '11',
+  '12',
+  '01',
+  '02',
+  '03',
+];
 
 // Calendar year a fiscal-month belongs to: Apr–Dec sit in fyStart, Jan–Mar roll
 // into fyStart + 1.
 export function calYearOfMonth(mm: string, fyStart: number): number {
-	return Number(mm) >= 4 ? fyStart : fyStart + 1;
+  return Number(mm) >= 4 ? fyStart : fyStart + 1;
 }
 
 // Mirrors backend billing_period (tch/aggregation.py): the E-Invoice No (e.g.
@@ -101,31 +135,29 @@ export function calYearOfMonth(mm: string, fyStart: number): number {
 // number is blank or unparseable. Keeping the two in lockstep is what makes
 // this page's headline match the Overview's "Campaigns this FY".
 export function billingPeriodOf(r: Deal): string | null {
-	if (r.e_invoice_date) return `${r.e_invoice_date.slice(0, 7)}-01`;
-	if (r.confirmation_date) return `${r.confirmation_date.slice(0, 7)}-01`;
-	return null;
+  if (r.e_invoice_date) return `${r.e_invoice_date.slice(0, 7)}-01`;
+  if (r.confirmation_date) return `${r.confirmation_date.slice(0, 7)}-01`;
+  return null;
 }
 
 export function getStatusDisplay(status: string, invoicesUploaded: boolean) {
-	if (status === 'Over') return { label: 'Completed', tone: 'yes' as const };
-	if (invoicesUploaded) return { label: 'Pending Payment', tone: 'markup' as const };
-	return { label: 'Awaiting Invoices', tone: 'exclusive' as const };
+  if (status === 'Over') return { label: 'Completed', tone: 'yes' as const };
+  if (invoicesUploaded) return { label: 'Pending Payment', tone: 'markup' as const };
+  return { label: 'Awaiting Invoices', tone: 'exclusive' as const };
 }
 
 // The full set of creator display names on a deal (primary + any split rows).
 export function creatorNamesOf(r: Deal): string[] {
-	if (r.creator_shares && r.creator_shares.length > 0) {
-		return r.creator_shares
-			.map((s) => s.creator_name || s.creator_name_raw)
-			.filter(Boolean);
-	}
-	const single = r.creator_name || r.creator_name_raw;
-	return single ? [single] : [];
+  if (r.creator_shares && r.creator_shares.length > 0) {
+    return r.creator_shares.map((s) => s.creator_name || s.creator_name_raw).filter(Boolean);
+  }
+  const single = r.creator_name || r.creator_name_raw;
+  return single ? [single] : [];
 }
 
 // Compact creator label for cards: all names if ≤2, else "First +N more".
 export function creatorLabel(names: string[]): string {
-	if (names.length === 0) return '—';
-	if (names.length <= 2) return names.join(', ');
-	return `${names[0]} +${names.length - 1} more`;
+  if (names.length === 0) return '—';
+  if (names.length <= 2) return names.join(', ');
+  return `${names[0]} +${names.length - 1} more`;
 }
