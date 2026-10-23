@@ -7,6 +7,8 @@ const injectedDatabaseUrl = process.env.DATABASE_URL;
 const injectedOpenAiKey = process.env.OPENAI_API_KEY;
 const injectedOpenAiModel = process.env.OPENAI_MODEL;
 const injectedOpenAiSearchModel = process.env.OPENAI_SEARCH_MODEL;
+const injectedTrioSphereEnabled = process.env.TRIOSPHERE_IMPORTS_ENABLED;
+const injectedTrioSphereToken = process.env.TRIOSPHERE_API_TOKEN;
 if (!process.env.OPENAI_API_KEY?.trim()) delete process.env.OPENAI_API_KEY;
 if (!process.env.OPENAI_SEARCH_MODEL?.trim()) delete process.env.OPENAI_SEARCH_MODEL;
 
@@ -19,6 +21,8 @@ if (injectedDatabaseUrl) process.env.DATABASE_URL = injectedDatabaseUrl;
 if (injectedOpenAiKey) process.env.OPENAI_API_KEY = injectedOpenAiKey;
 if (injectedOpenAiModel) process.env.OPENAI_MODEL = injectedOpenAiModel;
 if (injectedOpenAiSearchModel) process.env.OPENAI_SEARCH_MODEL = injectedOpenAiSearchModel;
+if (injectedTrioSphereEnabled !== undefined) process.env.TRIOSPHERE_IMPORTS_ENABLED = injectedTrioSphereEnabled;
+if (injectedTrioSphereToken !== undefined) process.env.TRIOSPHERE_API_TOKEN = injectedTrioSphereToken;
 
 export const env = {
   appEnv: process.env.APP_ENV ?? 'development',
