@@ -9,8 +9,8 @@ test('deployment TrioSphere settings override stale dotenv files', () => {
   const temp = mkdtempSync(join(tmpdir(), 'tch-env-'));
   const app = join(temp, 'app');
   mkdirSync(app);
-  writeFileSync(join(temp, '.env'), 'TRIOSPHERE_IMPORTS_ENABLED=false\nTRIOSPHERE_API_TOKEN=\n');
-  writeFileSync(join(app, '.env'), 'TRIOSPHERE_IMPORTS_ENABLED=false\nTRIOSPHERE_API_TOKEN=\n');
+  writeFileSync(join(temp, '.env'), 'TRIOSPHERE_API_TOKEN=\n');
+  writeFileSync(join(app, '.env'), 'TRIOSPHERE_API_TOKEN=\n');
 
   try {
     const backend = resolve(__dirname, '..');
@@ -27,7 +27,6 @@ test('deployment TrioSphere settings override stale dotenv files', () => {
         env: {
           ...process.env,
           TS_NODE_PROJECT: join(backend, 'tsconfig.json'),
-          TRIOSPHERE_IMPORTS_ENABLED: 'true',
           TRIOSPHERE_API_TOKEN: 'deployment-token',
         },
         encoding: 'utf8',
