@@ -38,7 +38,6 @@ export function useSocialImportStatus() {
   return useQuery({
     queryKey: ['creator-social-import-status', creatorId],
     enabled: !!creatorId,
-    staleTime: 60_000,
     queryFn: () => api.get<{ paused: boolean }>('/creator-portal/social-accounts/import-status'),
     retry: 1,
   });
