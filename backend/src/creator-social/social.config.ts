@@ -11,8 +11,7 @@ function positiveInt(name: string, fallback: number, max: number) {
 export function socialImportsEnabled(env: NodeJS.ProcessEnv = process.env) {
   return (
     env.TRIOSPHERE_IMPORTS_ENABLED === 'true' &&
-    !!env.TRIOSPHERE_API_TOKEN?.trim() &&
-    env.CREATOR_SOCIAL_IMPORTS_PAUSED === 'false'
+    !!env.TRIOSPHERE_API_TOKEN?.trim()
   );
 }
 

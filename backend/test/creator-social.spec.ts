@@ -9,31 +9,21 @@ import {
 import { CreatorSocialService, creatorScope } from '../src/creator-social/creator-social.service';
 import { socialConfig, socialImportsEnabled } from '../src/creator-social/social.config';
 
-test('TrioSphere imports stay paused without explicit enablement and token', () => {
+test('TrioSphere imports require only explicit enablement and a token', () => {
   assert.equal(
     socialImportsEnabled({ TRIOSPHERE_IMPORTS_ENABLED: 'true', TRIOSPHERE_API_TOKEN: 'secret' }),
-    false,
-  );
-  assert.equal(
-    socialImportsEnabled({
-      TRIOSPHERE_IMPORTS_ENABLED: 'true',
-      TRIOSPHERE_API_TOKEN: 'secret',
-      CREATOR_SOCIAL_IMPORTS_PAUSED: 'false',
-    }),
     true,
   );
   assert.equal(
     socialImportsEnabled({
       TRIOSPHERE_IMPORTS_ENABLED: 'false',
       TRIOSPHERE_API_TOKEN: 'secret',
-      CREATOR_SOCIAL_IMPORTS_PAUSED: 'false',
     }),
     false,
   );
   assert.equal(
     socialImportsEnabled({
       TRIOSPHERE_IMPORTS_ENABLED: 'true',
-      CREATOR_SOCIAL_IMPORTS_PAUSED: 'false',
     }),
     false,
   );
