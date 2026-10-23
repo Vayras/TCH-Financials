@@ -135,7 +135,6 @@ Copy `.env.example` to `.env` at the repository root:
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string (Supabase session pooler port 5432 with `sslmode=require`) |
 | `APP_ENV` | Application environment (`development`, `staging`, `production`) |
-| `TRIOSPHERE_IMPORTS_ENABLED` | Enable Instagram data imports via TrioSphere (`true` or `false`) |
 | `TRIOSPHERE_API_TOKEN` | Bearer token for TrioSphere profile/media lookups |
 | `SOCIAL_GLOBAL_HOURLY_LIMIT` | Global rate limit cap per hour (default: `20`, provider cap: `30`) |
 | `SOCIAL_GLOBAL_DAILY_LIMIT` | Global rate limit cap per day (default: `100`) |
