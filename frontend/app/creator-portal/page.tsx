@@ -243,33 +243,42 @@ export default function CreatorOverviewPage() {
                   <article className={styles.campaign} key={c.id}>
                     <p className={styles.eyebrow}>{c.brand}</p>
                     <h3>{c.name}</h3>
-                    <p>
-                      {next
-                        ? `Next brief deadline: ${next.quantity} ${next.format} · ${date(next.due_date)}`
-                        : 'No upcoming brief deadline recorded'}
-                    </p>
-                    <div className={styles.tags}>
-                      {c.concepts.length ? (
-                        c.concepts.map((x) => (
-                          <span key={x.id}>
-                            {x.title || 'Concept'} · {x.state.replaceAll('_', ' ')}
-                          </span>
-                        ))
-                      ) : (
-                        <span>No concept started</span>
-                      )}
-                    </div>
-                    <div className={styles.links}>
-                      <Link href={`/creator-portal/campaigns/${c.id}/brief`}>Open brief →</Link>
-                      <Link href={`/creator-portal/campaigns/${c.id}/brief?view=ideas`}>
-                        Work on concepts →
-                      </Link>
-                      {c.concepts.length > 0 && (
-                        <Link href={`/creator-portal/campaigns/${c.id}/brief?view=feedback`}>
-                          Discussion →
-                        </Link>
-                      )}
-                    </div>
+                    {c.brief_shared ? (
+                      <>
+                        <p>
+                          {next
+                            ? `Next brief deadline: ${next.quantity} ${next.format} · ${date(next.due_date)}`
+                            : 'No upcoming brief deadline recorded'}
+                        </p>
+                        <div className={styles.tags}>
+                          {c.concepts.length ? (
+                            c.concepts.map((x) => (
+                              <span key={x.id}>
+                                {x.title || 'Concept'} · {x.state.replaceAll('_', ' ')}
+                              </span>
+                            ))
+                          ) : (
+                            <span>No concept started</span>
+                          )}
+                        </div>
+                        <div className={styles.links}>
+                          <Link href={`/creator-portal/campaigns/${c.id}/brief`}>Open brief →</Link>
+                          <Link href={`/creator-portal/campaigns/${c.id}/brief?view=ideas`}>
+                            Work on concepts →
+                          </Link>
+                          {c.concepts.length > 0 && (
+                            <Link href={`/creator-portal/campaigns/${c.id}/brief?view=feedback`}>
+                              Discussion →
+                            </Link>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div className={styles.tags}>
+                        <span>Brief coming soon · Your agency will share the details here</span>
+                        <Link href="/creator-portal/campaigns">View campaign status →</Link>
+                      </div>
+                    )}
                   </article>
                 );
               })

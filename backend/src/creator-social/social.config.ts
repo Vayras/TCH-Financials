@@ -13,7 +13,6 @@ export function socialImportsEnabled(env: NodeJS.ProcessEnv = process.env) {
 }
 
 export const socialConfig = {
-  paused: !socialImportsEnabled(),
   enabled: socialImportsEnabled(),
   apiToken: process.env.TRIOSPHERE_API_TOKEN?.trim() ?? '',
   globalDailyLimit: positiveInt('SOCIAL_GLOBAL_DAILY_LIMIT', 100, 10000),

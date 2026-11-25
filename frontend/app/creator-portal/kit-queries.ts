@@ -33,15 +33,6 @@ export function useSocialAccounts() {
   }, [completed, creatorId, client]);
   return result;
 }
-export function useSocialImportStatus() {
-  const { creatorId } = useAuth();
-  return useQuery({
-    queryKey: ['creator-social-import-status', creatorId],
-    enabled: !!creatorId,
-    queryFn: () => api.get<{ paused: boolean }>('/creator-portal/social-accounts/import-status'),
-    retry: 1,
-  });
-}
 export function useKit() {
   const { creatorId } = useAuth();
   return useQuery({

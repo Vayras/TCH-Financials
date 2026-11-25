@@ -6,7 +6,6 @@ import { api } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import { activeImport, type SocialAccount } from '@/lib/creator-kit';
 import { toast } from 'sonner';
-import { useSocialImportStatus } from './kit-queries';
 
 type ImportInput = { action: 'create-kit' | 'refresh'; accountId?: string; username?: string };
 export function useCreatorImport() {
@@ -49,37 +48,6 @@ export function useCreatorImport() {
 export function CreateKitForm({ className }: { className?: string } = {}) {
   const [username, setUsername] = React.useState('');
   const request = useCreatorImport();
-  const status = useSocialImportStatus();
-  if (status.isLoading || status.isError || status.data?.paused)
-    return (
-      <section className={`creator-onboarding ${className || ''}`.trim()} role="status">
-        <div className="creator-onboarding-icon" aria-hidden="true">
-          ✳
-        </div>
-        <div>
-          <p className="cf-step">YOUR CONTENT</p>
-          <h2>
-            {status.isLoading
-              ? 'Checking import availability…'
-              : status.isError
-                ? 'Instagram imports are unavailable'
-                : 'Instagram imports are paused'}
-          </h2>
-          <p className="cf-muted">
-            {status.isLoading
-              ? ''
-              : status.isError
-                ? 'We couldn’t check import availability. Try again shortly.'
-                : 'We’re updating this integration. Your saved content and published kit are still available.'}
-          </p>
-          {status.isError && (
-            <Button variant="outline" onClick={() => void status.refetch()}>
-              Try again
-            </Button>
-          )}
-        </div>
-      </section>
-    );
   return (
     <form
       className={`creator-onboarding ${className || ''}`.trim()}
@@ -125,14 +93,6 @@ export function CreateKitForm({ className }: { className?: string } = {}) {
 }
 export function ImportProgress({ account }: { account: SocialAccount }) {
   const request = useCreatorImport();
-  const status = useSocialImportStatus();
-  if (status.data?.paused)
-    return (
-      <p className="cf-banner" role="status">
-        Instagram imports are paused while we update the integration. Your saved content is still
-        available.
-      </p>
-    );
   if (activeImport(account.latest_job_state))
     return (
       <div className="creator-progress" role="status">
@@ -172,33 +132,21 @@ export function ImportProgress({ account }: { account: SocialAccount }) {
 }
 export function InsightActions({ account }: { account: SocialAccount }) {
   const request = useCreatorImport();
-  const status = useSocialImportStatus();
   const busy =
     request.isPending ||
     activeImport(account.latest_job_state) ||
     account.latest_job_state === 'needs_review';
-  const paused = status.data?.paused === true;
   return (
     <div>
       <div className="cf-actions">
         <Button
           variant="primary"
-          disabled={busy || status.isLoading || paused}
+          disabled={busy}
           onClick={() => request.mutate({ action: 'refresh', accountId: account.id })}
         >
-          {busy ? 'Refreshing…' : paused ? 'Updates paused' : 'Update insights ↗'}
+          {busy ? 'Refreshing…' : 'Update insights ↗'}
         </Button>
       </div>
-      {paused && (
-        <p className="cf-muted" role="status" style={{ marginTop: 8 }}>
-          New Instagram updates are paused; saved insights remain available.
-        </p>
-      )}
-      {status.isError && (
-        <p className="cf-muted" role="status" style={{ marginTop: 8 }}>
-          Update availability couldn’t be checked. You can still try again.
-        </p>
-      )}
       {request.error && (
         <p role="alert" className="cf-error" style={{ marginTop: 10 }}>
           {request.error.message}

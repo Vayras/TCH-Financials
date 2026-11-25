@@ -25,7 +25,9 @@ test(
     }).initialize();
     try {
       await db.query('CREATE TABLE tch_campaign(id bigint PRIMARY KEY,name text,brand text)');
-      await db.query("INSERT INTO tch_campaign VALUES(1,'Coffee','Daybreak'),(2,'Other','Other')");
+      await db.query(
+        "INSERT INTO tch_campaign VALUES(1,'Coffee','Daybreak'),(2,'Other','Other'),(3,'Shared deal','Partner')",
+      );
       await db.query('CREATE TABLE tch_creator(id bigint PRIMARY KEY,name text)');
       await db.query("INSERT INTO tch_creator VALUES(1,'Creator'),(2,'Other')");
       await db.query(
@@ -47,6 +49,12 @@ test(
           actor.role,
           'creatorId' in actor ? actor.creatorId : null,
         ]);
+      await db.query(
+        'CREATE TABLE tch_commercialdeal(id bigint PRIMARY KEY,creator_id bigint,campaign_id bigint)',
+      );
+      await db.query('CREATE TABLE tch_dealcreatorshare(deal_id bigint,creator_id bigint)');
+      await db.query('INSERT INTO tch_commercialdeal VALUES(1,1,2),(2,NULL,3)');
+      await db.query('INSERT INTO tch_dealcreatorshare VALUES(2,1)');
       const runner = db.createQueryRunner();
       await runner.connect();
       const migration = new AddCampaignBriefs1753400000000();
@@ -79,7 +87,9 @@ test(
       };
       const saved = await service.saveDraft(member, '1', { version: 0, content });
       await assert.rejects(service.share(member, '1', { version: saved.version }), { status: 403 });
-      await assert.rejects(service.getCreatorBrief(creator, '1'), { status: 404 });
+      const assignedPendingBrief = await service.getCreatorBrief(creator, '1');
+      assert.equal(assignedPendingBrief.brief_shared, false);
+      assert.equal(assignedPendingBrief.content, null);
       const published = await Promise.all([
         service.share(admin, '1', { version: saved.version }),
         service.share(admin, '1', { version: saved.version }),
@@ -101,11 +111,40 @@ test(
       assert.ok(!('draft' in visible));
       await assert.rejects(service.getCreatorBrief(other, '1'), { status: 404 });
       await assert.rejects(service.getVersion(admin, '2', published[0].id), { status: 404 });
-      assert.equal((await service.listCreatorBriefs(creator, 1, 20)).items.length, 1);
+      const creatorCampaigns = await service.listCreatorBriefs(creator, 1, 20);
+      assert.deepEqual(
+        creatorCampaigns.items.map((item: { id: string; brief_shared: boolean }) => [
+          item.id,
+          item.brief_shared,
+        ]),
+        [
+          ['1', true],
+          ['2', false],
+          ['3', false],
+        ],
+      );
+      assert.equal('content' in creatorCampaigns.items[1], false);
+      assert.equal((await service.listCreatorBriefs(other, 1, 20)).items.length, 0);
+      const pendingBrief = await service.getCreatorBrief(creator, '2');
+      assert.equal(pendingBrief.brief_shared, false);
+      assert.equal(pendingBrief.content, null);
+      await assert.rejects(service.getCreatorBrief(other, '2'), { status: 404 });
       const conceptMigration = new AddContentConcepts1753500000000();
       await conceptMigration.up(runner);
       await conceptMigration.down(runner);
       await conceptMigration.up(runner);
+      const homeCampaigns = await service.creatorHome(creator);
+      assert.deepEqual(
+        homeCampaigns.items.map((item: { id: string; brief_shared: boolean }) => [
+          item.id,
+          item.brief_shared,
+        ]),
+        [
+          ['1', true],
+          ['2', false],
+          ['3', false],
+        ],
+      );
       const concepts = new ContentConceptService(db);
       const draft = {
         title: 'Morning routine',

@@ -7,12 +7,8 @@ import { socialConfig } from './creator-social/social.config';
 import { structuredLog } from './common/observability';
 
 async function main() {
-  if (socialConfig.paused) {
-    structuredLog('info', 'social_worker_paused');
-    return;
-  }
   if (!socialConfig.enabled || !socialConfig.apiToken) {
-    throw new Error('Social imports must be enabled and configured before starting the worker.');
+    throw new Error('TRIOSPHERE_API_TOKEN must be configured before starting the social worker.');
   }
   await AppDataSource.initialize();
   let stopped = false;

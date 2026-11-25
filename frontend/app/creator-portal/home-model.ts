@@ -2,7 +2,8 @@ export type HomeCampaign = {
   id: string;
   name: string;
   brand: string;
-  shared_at: string;
+  shared_at: string | null;
+  brief_shared: boolean;
   deliverables: { id: string; format: string; quantity: number; due_date: string }[];
   concepts: { id: string; state: string; title: string }[];
 };

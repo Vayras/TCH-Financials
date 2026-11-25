@@ -276,7 +276,22 @@ export class CampaignContentService {
   async listCreatorBriefs(actor: CampaignActor, page: number, pageSize: number) {
     const creator = await this.policy.requireCreator(this.db.manager, actor);
     const items = await this.db.query(
-      `SELECT c.id::text,c.name,c.brand,r.draft_version AS shared_version,r.shared_at FROM tch_campaign_brief_creator a JOIN tch_campaign c ON c.id=a.campaign_id JOIN tch_campaign_brief b ON b.campaign_id=c.id JOIN tch_campaign_brief_revision r ON r.id=b.shared_revision_id WHERE a.creator_id=$1 ORDER BY r.shared_at DESC,c.id LIMIT $2 OFFSET $3`,
+      `SELECT c.id::text,c.name,c.brand,
+      CASE WHEN a.creator_id IS NOT NULL THEN r.id END AS shared_revision_id,
+      CASE WHEN a.creator_id IS NOT NULL THEN r.draft_version END AS shared_version,
+      CASE WHEN a.creator_id IS NOT NULL THEN r.shared_at END AS shared_at,
+      (a.creator_id IS NOT NULL AND r.id IS NOT NULL) AS brief_shared
+      FROM tch_campaign c
+      LEFT JOIN tch_campaign_brief_creator a ON a.campaign_id=c.id AND a.creator_id=$1
+      LEFT JOIN tch_campaign_brief b ON b.campaign_id=c.id
+      LEFT JOIN tch_campaign_brief_revision r ON r.id=b.shared_revision_id
+      WHERE a.creator_id IS NOT NULL
+      OR EXISTS (
+        SELECT 1 FROM tch_commercialdeal d
+        LEFT JOIN tch_dealcreatorshare s ON s.deal_id=d.id
+        WHERE d.campaign_id=c.id AND (d.creator_id=$1 OR s.creator_id=$1)
+      )
+      ORDER BY CASE WHEN a.creator_id IS NOT NULL THEN r.shared_at END DESC NULLS LAST,c.id LIMIT $2 OFFSET $3`,
       [creator, pageSize + 1, (page - 1) * pageSize],
     );
     return { items: items.slice(0, pageSize), has_more: items.length > pageSize, page };
@@ -284,13 +299,25 @@ export class CampaignContentService {
   async creatorHome(actor: CampaignActor) {
     const creator = await this.policy.requireCreator(this.db.manager, actor);
     const items = await this.db.query(
-      `SELECT c.id::text,c.name,c.brand,r.shared_at,r.content->'deliverables' AS deliverables,
-      COALESCE((SELECT jsonb_agg(jsonb_build_object('id',x.id,'state',x.state,'title',cr.content->>'title'))
+      `SELECT c.id::text,c.name,c.brand,
+      CASE WHEN a.creator_id IS NOT NULL THEN r.shared_at END AS shared_at,
+      (a.creator_id IS NOT NULL AND r.id IS NOT NULL) AS brief_shared,
+      CASE WHEN a.creator_id IS NOT NULL THEN COALESCE(r.content->'deliverables','[]'::jsonb)
+        ELSE '[]'::jsonb END AS deliverables,
+      CASE WHEN a.creator_id IS NOT NULL THEN COALESCE((SELECT jsonb_agg(jsonb_build_object('id',x.id,'state',x.state,'title',cr.content->>'title'))
       FROM tch_content_concept x LEFT JOIN tch_content_concept_revision cr ON cr.id=x.current_revision
-      WHERE x.campaign_id=c.id AND x.creator_id=$1),'[]'::jsonb) AS concepts
-      FROM tch_campaign_brief_creator a JOIN tch_campaign c ON c.id=a.campaign_id
-      JOIN tch_campaign_brief b ON b.campaign_id=c.id JOIN tch_campaign_brief_revision r ON r.id=b.shared_revision_id
-      WHERE a.creator_id=$1 ORDER BY r.shared_at DESC,c.id LIMIT 51`,
+      WHERE x.campaign_id=c.id AND x.creator_id=$1),'[]'::jsonb) ELSE '[]'::jsonb END AS concepts
+      FROM tch_campaign c
+      LEFT JOIN tch_campaign_brief_creator a ON a.campaign_id=c.id AND a.creator_id=$1
+      LEFT JOIN tch_campaign_brief b ON b.campaign_id=c.id
+      LEFT JOIN tch_campaign_brief_revision r ON r.id=b.shared_revision_id
+      WHERE a.creator_id IS NOT NULL
+      OR EXISTS (
+        SELECT 1 FROM tch_commercialdeal d
+        LEFT JOIN tch_dealcreatorshare s ON s.deal_id=d.id
+        WHERE d.campaign_id=c.id AND (d.creator_id=$1 OR s.creator_id=$1)
+      )
+      ORDER BY CASE WHEN a.creator_id IS NOT NULL THEN r.shared_at END DESC NULLS LAST,c.id LIMIT 51`,
       [creator],
     );
     return { items: items.slice(0, 50), has_more: items.length > 50 };
@@ -419,7 +446,23 @@ export class CampaignContentService {
     campaignId(id);
     const creator = await this.policy.requireCreator(this.db.manager, actor);
     const [row] = await this.db.query(
-      `SELECT c.id::text,c.name,c.brand,r.id AS shared_revision_id,r.draft_version AS shared_version,r.shared_at,r.content FROM tch_campaign_brief_creator a JOIN tch_campaign c ON c.id=a.campaign_id JOIN tch_campaign_brief b ON b.campaign_id=c.id JOIN tch_campaign_brief_revision r ON r.id=b.shared_revision_id WHERE a.creator_id=$1 AND c.id=$2`,
+      `SELECT c.id::text,c.name,c.brand,
+      CASE WHEN a.creator_id IS NOT NULL AND r.id IS NOT NULL THEN r.id END AS shared_revision_id,
+      CASE WHEN a.creator_id IS NOT NULL AND r.id IS NOT NULL THEN r.draft_version END AS shared_version,
+      CASE WHEN a.creator_id IS NOT NULL AND r.id IS NOT NULL THEN r.shared_at END AS shared_at,
+      (a.creator_id IS NOT NULL AND r.id IS NOT NULL) AS brief_shared,
+      CASE WHEN a.creator_id IS NOT NULL AND r.id IS NOT NULL THEN r.content END AS content
+      FROM tch_campaign c
+      LEFT JOIN tch_campaign_brief_creator a ON a.campaign_id=c.id AND a.creator_id=$1
+      LEFT JOIN tch_campaign_brief b ON b.campaign_id=c.id
+      LEFT JOIN tch_campaign_brief_revision r ON r.id=b.shared_revision_id
+      WHERE c.id=$2 AND (
+        a.creator_id IS NOT NULL OR EXISTS (
+          SELECT 1 FROM tch_commercialdeal d
+          LEFT JOIN tch_dealcreatorshare s ON s.deal_id=d.id
+          WHERE d.campaign_id=c.id AND (d.creator_id=$1 OR s.creator_id=$1)
+        )
+      )`,
       [creator, id],
     );
     if (!row) throw new NotFoundException();

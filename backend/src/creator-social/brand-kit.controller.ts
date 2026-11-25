@@ -10,7 +10,9 @@ import { BrandKitService } from './brand-kit.service';
 @Controller('creator-portal/brand-kit')
 export class BrandKitController {
   constructor(private readonly service: BrandKitService) {}
-  @Get() get(@Req() req: { user: SocialActor }) {
+  @Get()
+  @Header('Cache-Control', 'private, no-store')
+  get(@Req() req: { user: SocialActor }) {
     return this.service.get(req.user);
   }
   @Put() save(

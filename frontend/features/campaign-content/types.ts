@@ -40,6 +40,27 @@ export type SharedBrief = {
   shared_at: string;
   content: BriefContent;
 };
+export type CreatorBriefView =
+  | (SharedBrief & { brief_shared: true })
+  | {
+      id: string;
+      name: string;
+      brand: string;
+      brief_shared: false;
+      shared_revision_id: null;
+      shared_version: null;
+      shared_at: null;
+      content: null;
+    };
+export type CreatorCampaignSummary = {
+  id: string;
+  name: string;
+  brand: string;
+  shared_revision_id: string | null;
+  shared_version: number | null;
+  shared_at: string | null;
+  brief_shared: boolean;
+};
 export type Assignments = {
   version: number;
   members: { user_id: string; can_publish: boolean; email: string; display_name: string }[];

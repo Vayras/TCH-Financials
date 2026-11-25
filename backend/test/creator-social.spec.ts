@@ -28,9 +28,9 @@ test('TrioSphere imports require only a token', () => {
   );
 });
 
-test('paused social imports reject refresh before creating database work', async () => {
-  const paused = socialConfig.paused;
-  socialConfig.paused = true;
+test('missing TrioSphere configuration rejects imports before database work', async () => {
+  const { enabled, apiToken } = socialConfig;
+  Object.assign(socialConfig, { enabled: false, apiToken: '' });
   let transactions = 0;
   try {
     const db = {
@@ -40,10 +40,9 @@ test('paused social imports reject refresh before creating database work', async
       },
     } as never;
     const service = new CreatorSocialService(db);
-    assert.deepEqual(service.importStatus(), { paused: true });
     await assert.rejects(
       service.connect({ id: 'creator-user', role: 'creator', creatorId: '7' }, 'creator_test'),
-      /temporarily paused/,
+      /not configured/,
     );
     await assert.rejects(
       service.refresh(
@@ -51,18 +50,17 @@ test('paused social imports reject refresh before creating database work', async
         '00000000-0000-4000-8000-000000000001',
         '00000000-0000-4000-8000-000000000002',
       ),
-      /temporarily paused/,
+      /not configured/,
     );
     assert.equal(transactions, 0);
   } finally {
-    socialConfig.paused = paused;
+    Object.assign(socialConfig, { enabled, apiToken });
   }
 });
 
 test('create-kit performs account creation and import admission in the same transaction', async () => {
   const saved = { ...socialConfig };
   Object.assign(socialConfig, {
-    paused: false,
     enabled: true,
     apiToken: 'test',
     globalDailyLimit: 100,
@@ -105,7 +103,6 @@ test('create-kit performs account creation and import admission in the same tran
 test('global hourly import cap rejects admission before queue insertion', async () => {
   const saved = { ...socialConfig };
   Object.assign(socialConfig, {
-    paused: false,
     enabled: true,
     apiToken: 'test',
     globalHourlyLimit: 20,
@@ -140,7 +137,6 @@ test('global hourly import cap rejects admission before queue insertion', async 
 test('manual refresh is allowed within an hour and active imports still prevent duplicates', async () => {
   const saved = { ...socialConfig };
   Object.assign(socialConfig, {
-    paused: false,
     enabled: true,
     apiToken: 'test',
     globalDailyLimit: 100,

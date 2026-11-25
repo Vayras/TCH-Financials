@@ -26,6 +26,7 @@ const navigation = [
     paths: [`${base}/portfolio`],
   },
   { label: 'Brand kit', href: `${base}/media-kit`, icon: 'star', paths: [`${base}/media-kit`] },
+  { label: 'AI Studio', href: `${base}/studio`, icon: 'sparkles', paths: [`${base}/studio`] },
   {
     label: 'Work',
     href: `${base}/deals`,
