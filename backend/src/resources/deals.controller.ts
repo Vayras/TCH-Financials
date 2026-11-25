@@ -5,6 +5,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  Header,
   HttpCode,
   NotFoundException,
   Param,
@@ -635,6 +636,7 @@ export class DealsController {
 
   @Roles('creator')
   @Get('creator-portal/summary')
+  @Header('Cache-Control', 'private, no-store')
   async creatorPortalSummary(@Req() req: any) {
     const creatorId = req.user?.creatorId;
     if (!creatorId)
@@ -662,6 +664,7 @@ export class DealsController {
 
   @Roles('creator')
   @Get('creator-portal')
+  @Header('Cache-Control', 'private, no-store')
   async creatorPortalDeals(
     @Req() req: any,
     @Query('page') page?: string,

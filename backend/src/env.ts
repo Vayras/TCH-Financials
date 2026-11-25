@@ -22,11 +22,13 @@ if (injectedOpenAiModel) process.env.OPENAI_MODEL = injectedOpenAiModel;
 if (injectedOpenAiSearchModel) process.env.OPENAI_SEARCH_MODEL = injectedOpenAiSearchModel;
 if (injectedTrioSphereToken !== undefined) process.env.TRIOSPHERE_API_TOKEN = injectedTrioSphereToken;
 
+const appEnv = process.env.APP_ENV ?? 'production';
+
 export const env = {
-  appEnv: process.env.APP_ENV ?? 'development',
+  appEnv,
   swaggerEnabled:
     process.env.SWAGGER_ENABLED === undefined
-      ? (process.env.APP_ENV ?? 'development') === 'development'
+      ? appEnv === 'development'
       : process.env.SWAGGER_ENABLED === 'true',
   databaseUrl: process.env.DATABASE_URL ?? '',
   databaseSslCa: (process.env.DATABASE_SSL_CA ?? '').replace(/\\n/g, '\n'),

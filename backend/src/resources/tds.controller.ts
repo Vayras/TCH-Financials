@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Header,
   Post,
   Patch,
   Body,
@@ -22,6 +23,7 @@ export class TdsController {
 
   @Roles('creator')
   @Get('creator-portal')
+  @Header('Cache-Control', 'private, no-store')
   async creatorPortalList(
     @Req() req: any,
     @Query('page') page?: string,
@@ -56,7 +58,6 @@ export class TdsController {
         remittanceDate: row.remittanceDate,
         challanNumber: row.challanNumber,
         status: row.status,
-        notes: row.notes,
         createdAt: row.createdAt,
       })),
       page: pagination.page,

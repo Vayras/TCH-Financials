@@ -42,10 +42,8 @@ export default function SignupPage() {
         return;
       }
 
-      // 2. Create local profile matching user ID and selection
+      // 2. Create a local profile using the authenticated Supabase identity.
       await api.post('/auth/signup-profile', {
-        userId: user.id,
-        email: email,
         displayName: name,
         role: role,
       });

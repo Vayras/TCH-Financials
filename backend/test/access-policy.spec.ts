@@ -107,6 +107,7 @@ test('creator social API exposes supported imports and omits unsupported load-mo
 
   assert.ok(routes.includes('create-kit'));
   assert.ok(routes.includes(':id/refresh'));
+  assert.ok(!routes.includes('import-status'));
   assert.ok(!routes.includes(':id/load-more'));
   assert.ok(!routes.includes(':id/update-insights'));
 });
