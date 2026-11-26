@@ -23,6 +23,7 @@ import {
   useInviteUserMutation,
   useRemoveInviteMutation,
   type AppRole,
+  type Profile,
   ROLE_LABELS,
 } from './queries';
 
@@ -106,9 +107,18 @@ export default function UsersPage() {
     [invitations],
   );
 
-  async function handleRoleChange(id: string, newRole: AppRole) {
+  async function handleRoleChange(profile: Profile, newRole: AppRole) {
+    if (
+      newRole === 'super_admin' &&
+      profile.role !== 'super_admin' &&
+      !window.confirm(
+        `Give ${profile.email} full super admin access? This grants access to all workspace data and settings.`,
+      )
+    ) {
+      return;
+    }
     try {
-      await updateRoleMutation.mutateAsync({ id, role: newRole });
+      await updateRoleMutation.mutateAsync({ id: profile.id, role: newRole });
       toast.success(`Role updated to ${ROLE_LABELS[newRole]}.`);
     } catch (err: unknown) {
       toast.error(errorMessage(err) || 'Failed to update role.');
@@ -170,6 +180,14 @@ export default function UsersPage() {
     e.preventDefault();
     if (!inviteEmail.trim()) {
       toast.error('Email is required.');
+      return;
+    }
+    if (
+      inviteRole === 'super_admin' &&
+      !window.confirm(
+        `Invite ${inviteEmail.trim()} as a super admin? This grants full workspace access.`,
+      )
+    ) {
       return;
     }
     try {
@@ -307,7 +325,7 @@ export default function UsersPage() {
                               value={p.role}
                               aria-label={`Role for ${p.email}`}
                               disabled={updateRoleMutation.isPending}
-                              onChange={(e) => handleRoleChange(p.id, e.target.value as AppRole)}
+                              onChange={(e) => handleRoleChange(p, e.target.value as AppRole)}
                               className="h-7 rounded px-2 text-[12px] font-medium bg-[var(--n-bg-soft)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] cursor-pointer transition-colors"
                             >
                               <option value="super_admin">Super Admin</option>
@@ -491,6 +509,17 @@ export default function UsersPage() {
                               dateStyle: 'short',
                             })}
                           </span>
+                        ) : new Date(inv.expiresAt).getTime() <= Date.now() ? (
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                            style={{
+                              background: '#fee2e2',
+                              color: '#b91c1c',
+                              border: '1px solid #fecaca',
+                            }}
+                          >
+                            Expired
+                          </span>
                         ) : (
                           <span
                             className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
@@ -500,7 +529,10 @@ export default function UsersPage() {
                               border: '1px solid #fde68a',
                             }}
                           >
-                            ⏳ Pending
+                            ⏳ Pending · expires{' '}
+                            {new Date(inv.expiresAt).toLocaleDateString(undefined, {
+                              dateStyle: 'short',
+                            })}
                           </span>
                         )}
                       </td>

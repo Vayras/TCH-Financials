@@ -26,6 +26,7 @@ export interface Invitation {
   role: AppRole;
   createdAt: string;
   acceptedAt: string | null;
+  expiresAt: string;
 }
 
 export interface AdminUsersResponse {

@@ -128,37 +128,13 @@ export class AuthController {
     if (!userId) return { success: false };
 
     const profileRepo = this.dataSource.getRepository(Profile);
-    const invitationRepo = this.dataSource.getRepository(Invitation);
-
-    let profile = await profileRepo.findOneBy({ id: userId });
-
-    // Look up invitation if email is present
-    let invitedRole: AppRole = 'tch_member';
-    if (email) {
-      const invitation = await invitationRepo.findOneBy({ email: email.toLowerCase().trim() });
-      if (invitation) {
-        invitedRole = invitation.role;
-        invitation.acceptedAt = new Date();
-        await invitationRepo.save(invitation);
-      }
+    const profile = await this.dataSource.getRepository(Profile).findOneBy({ id: userId });
+    if (!profile || profile.status !== 'approved' || profile.email !== email?.toLowerCase().trim()) {
+      throw new UnauthorizedException('An approved profile is required to complete password setup.');
     }
 
-    if (profile) {
-      profile.passwordSet = true;
-      if (profile.status !== 'approved') {
-        profile.status = 'approved';
-      }
-      await profileRepo.save(profile);
-    } else if (email) {
-      profile = profileRepo.create({
-        id: userId,
-        email: email.toLowerCase().trim(),
-        role: invitedRole,
-        status: 'approved',
-        passwordSet: false,
-      });
-      await profileRepo.save(profile);
-    }
+    profile.passwordSet = true;
+    await profileRepo.save(profile);
 
     return { success: true };
   }

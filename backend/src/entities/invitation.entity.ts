@@ -17,4 +17,7 @@ export class Invitation {
 
   @Column({ name: 'accepted_at', type: 'timestamptz', nullable: true })
   acceptedAt: Date | null;
+
+  @Column({ name: 'expires_at', type: 'timestamptz' })
+  expiresAt: Date;
 }
