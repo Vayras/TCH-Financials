@@ -4,6 +4,7 @@ export type HomeCampaign = {
   brand: string;
   shared_at: string | null;
   brief_shared: boolean;
+  brief_assigned: boolean;
   deliverables: { id: string; format: string; quantity: number; due_date: string }[];
   concepts: { id: string; state: string; title: string }[];
 };
