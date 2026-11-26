@@ -4,10 +4,12 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
+import { useRefreshAuth } from '@/components/AuthGuard';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export default function PendingPage() {
   const router = useRouter();
+  const refreshAuth = useRefreshAuth();
   const [email, setEmail] = React.useState<string>('');
   const [status, setStatus] = React.useState<string>('pending');
 
@@ -32,6 +34,7 @@ export default function PendingPage() {
         const info = await api.get<{ status: string }>('/auth/me');
         setStatus(info.status);
         if (info.status === 'approved') {
+          await refreshAuth();
           router.replace('/');
           return;
         }
@@ -53,7 +56,9 @@ export default function PendingPage() {
             if (active) {
               setStatus(payload.new.status);
               if (payload.new.status === 'approved') {
-                router.replace('/');
+                // The guard still thinks this user is pending; refresh it first or
+                // it bounces them straight back to /pending.
+                void refreshAuth().then(() => router.replace('/'));
               }
             }
           },
@@ -69,7 +74,7 @@ export default function PendingPage() {
         supabase.removeChannel(channel);
       }
     };
-  }, [router]);
+  }, [router, refreshAuth]);
 
   async function handleSignOut() {
     await getSupabase().auth.signOut();
