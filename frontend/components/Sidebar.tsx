@@ -246,6 +246,7 @@ const NAV = [
   { href: '/commercial', label: 'Campaigns', icon: 'briefcase' },
   { href: '/payments', label: 'Payments', icon: 'credit-card' },
   { href: '/creators', label: 'Creators', icon: 'users' },
+  { href: '/ai-studio', label: 'AI Studio', icon: 'sparkles' },
   { href: '/alerts', label: 'Alerts', icon: 'bell' },
   { href: '/employees', label: 'Team reports', icon: 'user-cog' },
   { href: '/entity-summary', label: 'Entity Summary', icon: 'layers' },

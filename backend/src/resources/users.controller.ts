@@ -16,12 +16,11 @@ import { Profile, type AppRole } from '../entities/profile.entity';
 import { Invitation } from '../entities/invitation.entity';
 import { Roles } from '../auth/roles.decorator';
 import { structuredLog } from '../common/observability';
+import { Throttle } from '@nestjs/throttler';
 
-// Roles that can self-select at sign-up — admins cannot be self-assigned
-const SELF_SELECTABLE_ROLES: AppRole[] = ['creator', 'tch_member'];
 const ALL_ROLES: AppRole[] = ['super_admin', 'accounts', 'tch_member', 'creator'];
 
-@Roles('super_admin', 'accounts')
+@Roles('super_admin')
 @Controller('admin/users')
 export class UsersController {
   private supabaseAdmin: SupabaseClient | null = null;
@@ -83,26 +82,41 @@ export class UsersController {
       throw new BadRequestException(`Role must be one of: ${ALL_ROLES.join(', ')}.`);
     }
 
-    const profileRepo = this.dataSource.getRepository(Profile);
-    const profile = await profileRepo.findOneBy({ id });
-    if (!profile) throw new BadRequestException('User profile not found.');
+    return this.dataSource.transaction(async (manager) => {
+      await manager.query('SELECT pg_advisory_xact_lock($1)', [1792200000]);
+      const profileRepo = manager.getRepository(Profile);
+      const profile = await profileRepo.findOneBy({ id });
+      if (!profile) throw new BadRequestException('User profile not found.');
 
-    if (profile.id === req.user?.id) {
-      throw new BadRequestException('You cannot change your own role.');
-    }
+      if (profile.id === req.user?.id) {
+        throw new BadRequestException('You cannot change your own role.');
+      }
+      if (profile.role === 'super_admin' && role !== 'super_admin') {
+        const activeAdmins = await profileRepo.count({ where: { role: 'super_admin', status: 'approved' } });
+        if (activeAdmins <= 1) {
+          throw new BadRequestException('The last active super admin cannot be demoted.');
+        }
+      }
 
-    profile.role = role;
+      const previousRole = profile.role;
+      profile.role = role;
 
-    // When assigning creator role, optionally link to tch_creator record
-    if (role === 'creator' && creatorId) {
-      profile.creatorId = String(creatorId);
-    } else if (role !== 'creator') {
-      // Clear creator link if role changes away from creator
-      profile.creatorId = null;
-    }
+      // When assigning creator role, optionally link to tch_creator record
+      if (role === 'creator' && creatorId) {
+        profile.creatorId = String(creatorId);
+      } else if (role !== 'creator') {
+        profile.creatorId = null;
+      }
 
-    await profileRepo.save(profile);
-    return { success: true, profile };
+      await profileRepo.save(profile);
+      structuredLog('info', 'user_role_changed', {
+        actor_id: req.user?.id,
+        target_id: profile.id,
+        previous_role: previousRole,
+        new_role: role,
+      });
+      return { success: true, profile };
+    });
   }
 
   @Post(':id/approve')
@@ -120,6 +134,9 @@ export class UsersController {
     const profileRepo = this.dataSource.getRepository(Profile);
     const profile = await profileRepo.findOneBy({ id });
     if (!profile) throw new BadRequestException('User profile not found.');
+    if (profile.role === 'super_admin') {
+      throw new BadRequestException('Super admin accounts cannot be rejected.');
+    }
     profile.status = 'rejected';
     await profileRepo.save(profile);
     return { success: true, profile };
@@ -193,16 +210,21 @@ export class UsersController {
   }
 
   // ─── Invite User ──────────────────────────────────────────────────────────────
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @Post('invite')
-  async inviteUser(@Body() body: { email: string; role: AppRole }) {
+  async inviteUser(@Body() body: { email: string; role: AppRole }, @Req() req: any) {
     const { email, role } = body;
-    if (!email || !role) throw new BadRequestException('Email and role are required.');
+    if (typeof email !== 'string' || !email.trim() || !role) {
+      throw new BadRequestException('Email and role are required.');
+    }
     if (!ALL_ROLES.includes(role)) {
       throw new BadRequestException(`Role must be one of: ${ALL_ROLES.join(', ')}.`);
     }
 
     const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail) throw new BadRequestException('Email is invalid.');
+    if (trimmedEmail.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      throw new BadRequestException('Email is invalid.');
+    }
 
     const profileRepo = this.dataSource.getRepository(Profile);
     const existingProfile = await profileRepo.findOneBy({ email: trimmedEmail });
@@ -215,9 +237,14 @@ export class UsersController {
 
     if (invitation && invitation.acceptedAt === null) {
       invitation.role = role;
+      invitation.expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       await invitationRepo.save(invitation);
     } else {
-      invitation = invitationRepo.create({ email: trimmedEmail, role });
+      invitation = invitationRepo.create({
+        email: trimmedEmail,
+        role,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      });
       await invitationRepo.save(invitation);
     }
 
@@ -244,6 +271,14 @@ export class UsersController {
     } else {
       structuredLog('info', 'development_invite_simulated', { role });
     }
+
+    structuredLog('info', 'user_invited', {
+      actor_id: req.user?.id,
+      target_email: trimmedEmail,
+      role,
+      invitation_id: invitation.id,
+      expires_at: invitation.expiresAt,
+    });
 
     return { success: true, invitation };
   }

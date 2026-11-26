@@ -3,10 +3,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { useBriefQuery } from '@/features/campaign-content/queries';
-import type { SharedBrief } from '@/features/campaign-content/types';
+import type { CreatorCampaignSummary } from '@/features/campaign-content/types';
 export default function CreatorCampaigns() {
   const [page, setPage] = useState(1);
-  const query = useBriefQuery<{ items: Omit<SharedBrief, 'content'>[]; has_more: boolean }>(
+  const query = useBriefQuery<{ items: CreatorCampaignSummary[]; has_more: boolean }>(
     `/creator-portal/campaign-briefs?page=${page}`,
   );
   return (
@@ -34,12 +34,22 @@ export default function CreatorCampaigns() {
               >
                 <p className="text-sm">{c.brand}</p>
                 <h2 className="mt-2 text-xl font-medium">{c.name}</h2>
-                <p className="my-3 text-xs">
-                  Brief version {c.shared_version} · Updated {c.shared_at.slice(0, 10)}
-                </p>
+                {c.brief_shared ? (
+                  <p className="my-3 text-xs">
+                    Brief version {c.shared_version} · Updated{' '}
+                    {c.shared_at ? c.shared_at.slice(0, 10) : 'recently'}
+                  </p>
+                ) : (
+                  <div className="mt-4 rounded-xl bg-[var(--n-accent-soft)] p-4 text-sm">
+                    <p className="font-medium">Brief coming soon</p>
+                    <p className="mt-1 text-[var(--n-fg-muted)]">
+                      This campaign is assigned to you. Your agency will share the brief here.
+                    </p>
+                  </div>
+                )}
                 <Link
                   href={`/creator-portal/campaigns/${c.id}/brief`}
-                  className="text-sm underline"
+                  className="mt-4 inline-block text-sm underline"
                 >
                   Open campaign →
                 </Link>
@@ -48,21 +58,24 @@ export default function CreatorCampaigns() {
           </div>
           {!query.data.items.length && (
             <p className="rounded-2xl border p-6">
-              No campaigns yet. Your agency will add one here when you are assigned a brief.
+              No campaigns assigned yet. Assigned campaign work will appear here, with its brief
+              when your agency shares it.
             </p>
           )}
-          <div className="flex gap-3">
-            <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
-              Previous
-            </Button>
-            <Button
-              variant="outline"
-              disabled={!query.data.has_more}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </Button>
-          </div>
+          {(page > 1 || query.data.has_more) && (
+            <div className="flex gap-3">
+              <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                disabled={!query.data.has_more}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </>
       )}
     </div>

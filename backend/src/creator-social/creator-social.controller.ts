@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Header,
+  Headers,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { ApiBody, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Roles } from '../auth/roles.decorator';
@@ -11,10 +22,8 @@ type CreatorRequest = Request & { user: SocialActor };
 @Controller('creator-portal/social-accounts')
 export class CreatorSocialController {
   constructor(private readonly service: CreatorSocialService) {}
-  @Get('import-status') importStatus() {
-    return this.service.importStatus();
-  }
   @Get()
+  @Header('Cache-Control', 'private, no-store')
   list(@Req() req: CreatorRequest) {
     return this.service.list(req.user);
   }
@@ -57,6 +66,7 @@ export class CreatorSocialController {
     return this.service.createKit(req.user, body?.username, key);
   }
   @Get(':id/snapshot')
+  @Header('Cache-Control', 'private, no-store')
   snapshot(
     @Req() req: CreatorRequest,
     @Param('id') id: string,
@@ -82,6 +92,7 @@ export class CreatorSocialController {
     return this.service.refresh(req.user, id, key);
   }
   @Get(':id/imports/:jobId')
+  @Header('Cache-Control', 'private, no-store')
   job(@Req() req: CreatorRequest, @Param('id') id: string, @Param('jobId') jobId: string) {
     return this.service.job(req.user, id, jobId);
   }

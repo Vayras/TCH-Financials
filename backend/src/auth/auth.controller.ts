@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Patch, Req, Body, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Req,
+  Body,
+  BadRequestException,
+  UnauthorizedException,
+  Header,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { DataSource } from 'typeorm';
 import { SkipAuth } from './skip-auth.decorator';
@@ -15,6 +25,7 @@ export class AuthController {
   @SkipAuth()
   @Throttle({ default: { ttl: 60000, limit: 60 } })
   @Get('me')
+  @Header('Cache-Control', 'private, no-store')
   async getMe(@Req() req: Request & { user?: any }) {
     const user = req.user;
     if (!user || user.status === 'unknown') {
@@ -43,21 +54,26 @@ export class AuthController {
 
   @SkipAuth()
   @Post('signup-profile')
+  @Header('Cache-Control', 'private, no-store')
   async signupProfile(
+    @Req() req: Request & { user?: any },
     @Body()
     body: {
-      userId: string;
-      email: string;
-      displayName: string;
-      role: 'creator' | 'tch_member';
+      displayName?: unknown;
+      role?: unknown;
     },
   ) {
-    const { userId, email, displayName, role } = body;
-    if (!userId || !email || !role) {
-      throw new BadRequestException('userId, email, and role are required.');
-    }
+    const userId = req.user?.id;
+    const email = req.user?.email;
+    const role = body?.role;
+    const displayName = body?.displayName ?? '';
+    if (!userId || typeof email !== 'string' || !email.trim())
+      throw new UnauthorizedException('A verified account is required.');
     if (role !== 'creator' && role !== 'tch_member') {
       throw new BadRequestException('Only creator or tch_member roles can register.');
+    }
+    if (typeof displayName !== 'string' || displayName.length > 100) {
+      throw new BadRequestException('Display name must be text of at most 100 characters.');
     }
 
     const profileRepo = this.dataSource.getRepository(Profile);
@@ -66,7 +82,15 @@ export class AuthController {
     // Verify profile doesn't already exist
     const existing = await profileRepo.findOneBy({ id: userId });
     if (existing) {
-      return { success: true, profile: existing };
+      return {
+        success: true,
+        profile: {
+          id: existing.id,
+          email: existing.email,
+          role: existing.role,
+          status: existing.status,
+        },
+      };
     }
 
     // Check if there is an existing creator by email to auto-link
@@ -104,43 +128,20 @@ export class AuthController {
     if (!userId) return { success: false };
 
     const profileRepo = this.dataSource.getRepository(Profile);
-    const invitationRepo = this.dataSource.getRepository(Invitation);
-
-    let profile = await profileRepo.findOneBy({ id: userId });
-
-    // Look up invitation if email is present
-    let invitedRole: AppRole = 'tch_member';
-    if (email) {
-      const invitation = await invitationRepo.findOneBy({ email: email.toLowerCase().trim() });
-      if (invitation) {
-        invitedRole = invitation.role;
-        invitation.acceptedAt = new Date();
-        await invitationRepo.save(invitation);
-      }
+    const profile = await this.dataSource.getRepository(Profile).findOneBy({ id: userId });
+    if (!profile || profile.status !== 'approved' || profile.email !== email?.toLowerCase().trim()) {
+      throw new UnauthorizedException('An approved profile is required to complete password setup.');
     }
 
-    if (profile) {
-      profile.passwordSet = true;
-      if (profile.status !== 'approved') {
-        profile.status = 'approved';
-      }
-      await profileRepo.save(profile);
-    } else if (email) {
-      profile = profileRepo.create({
-        id: userId,
-        email: email.toLowerCase().trim(),
-        role: invitedRole,
-        status: 'approved',
-        passwordSet: false,
-      });
-      await profileRepo.save(profile);
-    }
+    profile.passwordSet = true;
+    await profileRepo.save(profile);
 
     return { success: true };
   }
 
   @Patch('profile')
   @Roles('super_admin', 'accounts', 'tch_member', 'creator')
+  @Header('Cache-Control', 'private, no-store')
   async updateProfile(
     @Req() req: Request & { user?: any },
     @Body() body: { displayName?: string; avatarUrl?: string },

@@ -41,14 +41,10 @@ export const JOB_FIELDS = 'id, account_id, state, error_code, requested_at, fini
 export class CreatorSocialService {
   constructor(private readonly db: DataSource) {}
 
-  importStatus() {
-    return { paused: socialConfig.paused };
-  }
-
   assertImportsAvailable() {
-    if (socialConfig.paused) {
+    if (!socialConfig.enabled || !socialConfig.apiToken) {
       throw new ServiceUnavailableException(
-        'Instagram imports are temporarily paused while we update the integration. Your saved content and published kit are still available.',
+        'Instagram imports are unavailable because the TrioSphere API token is not configured on the server.',
       );
     }
   }
@@ -150,9 +146,6 @@ export class CreatorSocialService {
       if (previous.purpose !== purpose)
         throw new ConflictException('This request has already been used for another action.');
       return previous;
-    }
-    if (!socialConfig.enabled || !socialConfig.apiToken) {
-      throw new ServiceUnavailableException('Social imports are not enabled or configured.');
     }
     const [saved] = await manager.query(
       `SELECT * FROM tch_creator_social_snapshot WHERE account_id = $1 ORDER BY collected_at DESC, id DESC LIMIT 1`,

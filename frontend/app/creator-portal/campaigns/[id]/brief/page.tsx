@@ -5,21 +5,22 @@ import { useEffect, useState } from 'react';
 import { useBriefQuery } from '@/features/campaign-content/queries';
 import BriefView from '@/features/campaign-content/BriefView';
 import ConceptWorkspace from '@/features/campaign-content/ConceptWorkspace';
-import type { SharedBrief } from '@/features/campaign-content/types';
+import type { CreatorBriefView } from '@/features/campaign-content/types';
+import StudioWorkspace from '@/features/studio/StudioWorkspace';
 
 export default function CreatorBrief() {
   const { id } = useParams<{ id: string }>();
-  const [tab, setTab] = useState<'brief' | 'ideas' | 'feedback'>('brief');
-  const query = useBriefQuery<SharedBrief>(
+  const [tab, setTab] = useState<'brief' | 'ideas' | 'feedback' | 'studio'>('brief');
+  const query = useBriefQuery<CreatorBriefView>(
     `/creator-portal/campaign-briefs/${encodeURIComponent(id)}`,
   );
 
   useEffect(() => {
     const view = new URLSearchParams(window.location.search).get('view');
-    if (view === 'ideas' || view === 'feedback') setTab(view);
+    if (view === 'ideas' || view === 'feedback' || view === 'studio') setTab(view);
   }, []);
 
-  const selectTab = (next: 'brief' | 'ideas' | 'feedback') => {
+  const selectTab = (next: 'brief' | 'ideas' | 'feedback' | 'studio') => {
     setTab(next);
     const url = new URL(window.location.href);
     if (next === 'brief') url.searchParams.delete('view');
@@ -45,6 +46,21 @@ export default function CreatorBrief() {
         </div>
       ) : !query.data ? (
         <div className="py-12 text-center text-sm text-gray-500">Loading campaign brief…</div>
+      ) : !query.data.brief_shared ? (
+        <section className="rounded-2xl border border-[var(--n-border)] bg-[var(--n-bg)] p-8">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--n-accent)]">
+            {query.data.brand || 'Campaign'}
+          </p>
+          <h1 className="mt-2 text-2xl font-semibold">{query.data.name}</h1>
+          <h2 className="mt-6 text-lg font-medium">Your brief is coming soon</h2>
+          <p className="mt-2 max-w-2xl text-sm text-[var(--n-fg-muted)]">
+            This campaign is assigned to you. Your agency will share the brief before you can work
+            on concepts or feedback.
+          </p>
+          <Link href="/creator-portal/campaigns" className="mt-5 inline-block text-sm underline">
+            View all campaigns →
+          </Link>
+        </section>
       ) : (
         <>
           {/* Campaign Header Banner */}
@@ -69,6 +85,7 @@ export default function CreatorBrief() {
                 ['brief', 'Brief'],
                 ['ideas', 'Ideas'],
                 ['feedback', 'Feedback'],
+                ['studio', 'AI Studio'],
               ] as const
             ).map(([value, label]) => (
               <button
@@ -78,7 +95,6 @@ export default function CreatorBrief() {
                 role="tab"
                 aria-selected={tab === value}
                 aria-controls={`campaign-panel-${value}`}
-                tabIndex={tab === value ? 0 : -1}
                 onClick={() => selectTab(value)}
               >
                 {label}
@@ -89,6 +105,19 @@ export default function CreatorBrief() {
           {tab === 'brief' && (
             <div id="campaign-panel-brief" role="tabpanel" aria-labelledby="campaign-tab-brief">
               <BriefView content={query.data.content} />
+            </div>
+          )}
+
+          {tab === 'studio' && (
+            <div id="campaign-panel-studio" role="tabpanel" aria-labelledby="campaign-tab-studio">
+              <StudioWorkspace
+                campaign={{
+                  id,
+                  name: query.data.name,
+                  brand: query.data.brand,
+                  objective: query.data.content.objective,
+                }}
+              />
             </div>
           )}
 

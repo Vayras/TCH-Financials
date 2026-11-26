@@ -8,6 +8,7 @@ import type { AgencyBrief } from '@/features/campaign-content/types';
 import styles from './brief.module.css';
 import BriefEditor from '@/features/campaign-content/BriefEditor';
 import ConceptWorkspace from '@/features/campaign-content/ConceptWorkspace';
+import StudioWorkspace from '@/features/studio/StudioWorkspace';
 export default function CampaignBriefPage() {
   return (
     <Suspense fallback={<p>Loading brief…</p>}>
@@ -20,7 +21,7 @@ function BriefWorkspace() {
     { email } = useAuth();
   const source = useSearchParams().get('deal');
   const dealId = source && /^\d+$/.test(source) ? source : null;
-  const [tab, setTab] = useState<'brief' | 'concepts'>('brief');
+  const [tab, setTab] = useState<'brief' | 'concepts' | 'studio'>('brief');
   const query = useBriefQuery<AgencyBrief>(briefPath(id));
   return (
     <main className={styles.workspace}>
@@ -63,6 +64,16 @@ function BriefWorkspace() {
             >
               Creator concepts
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'studio'}
+              aria-controls="admin-panel-studio"
+              className={styles.tab}
+              onClick={() => setTab('studio')}
+            >
+              AI Studio
+            </button>
           </div>
           <div
             hidden={tab !== 'brief'}
@@ -75,6 +86,18 @@ function BriefWorkspace() {
           {tab === 'concepts' && (
             <div id="admin-panel-concepts" role="tabpanel" aria-label="Creator concepts">
               <ConceptWorkspace campaignId={id} onGoToBrief={() => setTab('brief')} />
+            </div>
+          )}
+          {tab === 'studio' && (
+            <div id="admin-panel-studio" role="tabpanel" aria-label="Campaign AI Studio preview">
+              <StudioWorkspace
+                campaign={{
+                  id,
+                  name: query.data.campaign.name,
+                  brand: query.data.campaign.brand,
+                  objective: query.data.draft.objective,
+                }}
+              />
             </div>
           )}
         </>

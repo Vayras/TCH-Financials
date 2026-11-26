@@ -6,6 +6,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   NotFoundException,
   Param,
@@ -87,6 +88,7 @@ export class DocumentsController {
   }
 
   @Get(':id/download')
+  @Header('Cache-Control', 'private, no-store')
   async download(@Param('id') id: string) {
     const row = await this.repo().findOneBy({ id });
     if (!row) throw new NotFoundException({ detail: 'Not found.' });

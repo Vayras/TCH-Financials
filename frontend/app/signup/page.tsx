@@ -15,6 +15,7 @@ export default function SignupPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [success, setSuccess] = React.useState(false);
+  const [needsEmailConfirmation, setNeedsEmailConfirmation] = React.useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,6 +28,12 @@ export default function SignupPage() {
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            role,
+            display_name: name.trim(),
+          },
+        },
       });
 
       if (signUpError) {
@@ -42,13 +49,16 @@ export default function SignupPage() {
         return;
       }
 
-      // 2. Create local profile matching user ID and selection
-      await api.post('/auth/signup-profile', {
-        userId: user.id,
-        email: email,
-        displayName: name,
-        role: role,
-      });
+      // The database trigger creates the profile after email verification.
+      // When confirmation is disabled, also call the idempotent profile endpoint.
+      if (data.session) {
+        await api.post('/auth/signup-profile', {
+          displayName: name.trim(),
+          role,
+        });
+      } else {
+        setNeedsEmailConfirmation(true);
+      }
 
       setSuccess(true);
     } catch (e: unknown) {
@@ -89,8 +99,9 @@ export default function SignupPage() {
           </div>
           <h3 className="text-[16px] font-semibold mb-2">Request Submitted</h3>
           <p className="text-[12px] leading-relaxed mb-6" style={{ color: 'var(--n-fg-subtle)' }}>
-            Your account registration request for **{role === 'creator' ? 'Creator' : 'TCH Member'}
-            ** access is pending admin approval. You will be able to log in once approved.
+            {needsEmailConfirmation
+              ? `Check your email and confirm your address. Your ${role === 'creator' ? 'Creator' : 'TCH Member'} access request will then be reviewed by an admin.`
+              : `Your ${role === 'creator' ? 'Creator' : 'TCH Member'} access request is pending admin approval. You will be able to log in once approved.`}
           </p>
           <Link
             href="/login"

@@ -9,18 +9,16 @@ import {
   importedDate,
   type KitRecord,
   type SocialAccount,
-  type SocialSnapshot,
   type KitContent,
 } from '@/lib/creator-kit';
-import { useKit, useKitActions, useSavedSnapshots, useSocialAccounts } from '../kit-queries';
+import { useKit, useKitActions, useSocialAccounts } from '../kit-queries';
 import Skeleton from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 
 export default function CreatorMediaKitPage() {
   const kit = useKit(),
     accounts = useSocialAccounts();
-  const snapshots = useSavedSnapshots(accounts.data ?? []);
-  if (kit.isLoading || accounts.isLoading || snapshots.some((s) => s.isLoading))
+  if (kit.isLoading || accounts.isLoading)
     return (
       <div className="creator-flow">
         <Skeleton className="h-10 w-56" />
@@ -31,7 +29,7 @@ export default function CreatorMediaKitPage() {
         </div>
       </div>
     );
-  const error = kit.error || accounts.error || snapshots.find((s) => s.error)?.error;
+  const error = kit.error || accounts.error;
   if (error)
     return (
       <div className="creator-flow">
@@ -43,7 +41,6 @@ export default function CreatorMediaKitPage() {
               onClick={() => {
                 kit.refetch();
                 accounts.refetch();
-                snapshots.forEach((s) => s.refetch());
               }}
             >
               Try again
@@ -61,32 +58,14 @@ export default function CreatorMediaKitPage() {
         />
       </div>
     );
-  return (
-    <KitStudio
-      key={kit.data.version}
-      kit={kit.data}
-      accounts={accounts.data ?? []}
-      latest={snapshots.flatMap((s) => (s.data ? [s.data] : []))}
-    />
-  );
+  return <KitStudio key={kit.data.version} kit={kit.data} accounts={accounts.data ?? []} />;
 }
 
-function KitStudio({
-  kit,
-  accounts,
-  latest,
-}: {
-  kit: KitRecord;
-  accounts: SocialAccount[];
-  latest: SocialSnapshot[];
-}) {
+function KitStudio({ kit, accounts }: { kit: KitRecord; accounts: SocialAccount[] }) {
   const [draft, setDraft] = React.useState(() => starterDraft(kit, accounts));
   const [error, setError] = React.useState('');
   const actions = useKitActions();
-  const all = [
-    ...kit.saved_snapshots,
-    ...latest.filter((s) => !kit.saved_snapshots.some((old) => old.id === s.id)),
-  ];
+  const all = kit.saved_snapshots;
   const selected = all.filter((s) => draft.snapshot_ids.includes(s.id));
   const content: KitContent = {
     profile: draft.profile,
@@ -144,25 +123,20 @@ function KitStudio({
       toast.error('Could not copy. Open the published kit and copy its address.');
     }
   }
-  function applyLatest(account: SocialAccount) {
+  async function addProfile(account: SocialAccount) {
     if (!account.snapshot_id) return;
-    const oldIds = all.filter((s) => s.account_id === account.id).map((s) => s.id);
-    setDraft({
+    const next = {
       ...draft,
-      snapshot_ids: [
-        ...draft.snapshot_ids.filter((id) => !oldIds.includes(id)),
-        account.snapshot_id,
-      ],
-      featured_posts: draft.featured_posts.flatMap((p) =>
-        !oldIds.includes(p.snapshot_id)
-          ? [p]
-          : latest
-                .find((s) => s.id === account.snapshot_id)
-                ?.posts.some((post) => post.platform_post_id === p.post_id)
-            ? [{ ...p, snapshot_id: account.snapshot_id! }]
-            : [],
-      ),
-    });
+      snapshot_ids: [...draft.snapshot_ids, account.snapshot_id],
+    };
+    try {
+      setError('');
+      setDraft(next);
+      await actions.save.mutateAsync({ version: kit.version, draft: next });
+      toast.success('Profile added to your kit');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update your kit');
+    }
   }
   async function removeFeatured(snapshotId: string, postId: string) {
     const next = {
@@ -300,22 +274,19 @@ function KitStudio({
                     <p className="cf-muted">
                       {current ? `Updated ${importedDate(current.collected_at)}` : 'Not included'}
                     </p>
-                    {current?.id !== a.snapshot_id && (
+                    {!current && (
                       <button
                         className="cf-link"
                         style={{ textAlign: 'left', marginTop: 8 }}
-                        onClick={() => applyLatest(a)}
+                        onClick={() => void addProfile(a)}
+                        disabled={busy}
                       >
-                        {current ? 'Use latest insights' : 'Add this profile'}
+                        Add this profile
                       </button>
                     )}
                   </div>
                 );
               })}
-            <p className="cf-muted" style={{ marginTop: 14 }}>
-              Open your brand kit and choose <strong>Use latest insights</strong> to keep your
-              featured work up to date.
-            </p>
           </section>
         </aside>
         <div>

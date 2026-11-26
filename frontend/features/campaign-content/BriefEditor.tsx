@@ -30,7 +30,7 @@ export default function BriefEditor({ id, initial }: { id: string; initial: Agen
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [status, setStatus] = useState(''),
-    [preview, setPreview] = useState(false),
+    [preview, setPreview] = useState(true),
     [access, setAccess] = useState(false),
     [confirm, setConfirm] = useState(false),
     [history, setHistory] = useState(false),
@@ -164,9 +164,16 @@ export default function BriefEditor({ id, initial }: { id: string; initial: Agen
               : ''}
             {isDirty ? ' · Unsaved changes' : ''}
           </p>
-          <p className="mt-1 text-xs text-[var(--n-fg-muted)]">
-            {current.recipient_count} assigned creator{current.recipient_count === 1 ? '' : 's'}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--n-fg-muted)]">
+            <span>
+              {current.recipient_count} assigned creator{current.recipient_count === 1 ? '' : 's'}
+            </span>
+            {ready && (
+              <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
+                ✓ Ready to share ({requirements.length}/{requirements.length})
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => setPreview((v) => !v)}>
@@ -195,30 +202,32 @@ export default function BriefEditor({ id, initial }: { id: string; initial: Agen
           {status}
         </p>
       )}
-      <div className={styles.readiness}>
-        <div>
-          <strong>Sharing checklist</strong>
-          <span>
-            {requirements.filter((item) => item.complete).length} of {requirements.length} content
-            requirements complete
-          </span>
+      {!ready && (
+        <div className={styles.readiness}>
+          <div>
+            <strong>Sharing checklist</strong>
+            <span>
+              {requirements.filter((item) => item.complete).length} of {requirements.length}{' '}
+              content requirements complete
+            </span>
+          </div>
+          <div className={styles.requirements}>
+            {requirements.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => {
+                  setPreview(false);
+                  setBriefTab(item.section);
+                }}
+                aria-label={`${item.label}: ${item.complete ? 'complete' : 'required'}`}
+              >
+                {item.complete ? '✓' : '○'} {item.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className={styles.requirements}>
-          {requirements.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              onClick={() => {
-                setPreview(false);
-                setBriefTab(item.section);
-              }}
-              aria-label={`${item.label}: ${item.complete ? 'complete' : 'required'}`}
-            >
-              {item.complete ? '✓' : '○'} {item.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      )}
       {preview ? (
         <BriefView content={content} />
       ) : (
@@ -424,11 +433,6 @@ export default function BriefEditor({ id, initial }: { id: string; initial: Agen
           </small>
         </p>
         <div className="flex flex-wrap gap-2">
-          {current.capabilities.can_manage_assignments && (
-            <Button variant="outline" onClick={() => setAccess(true)}>
-              Recipients ({current.recipient_count}) · Assign creators
-            </Button>
-          )}
           <Button
             variant="primary"
             disabled={busy || !isDirty}

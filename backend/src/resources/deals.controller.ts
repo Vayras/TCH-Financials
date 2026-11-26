@@ -5,6 +5,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  Header,
   HttpCode,
   NotFoundException,
   Param,
@@ -540,7 +541,13 @@ export class DealsController {
             deal_count: 0,
             invoices_uploaded: true,
             deal: dealDto(row),
+            deals: [] as ReturnType<typeof dealDto>[],
           };
+          const dto = dealDto(row);
+          const groupDeals = current.deals as ReturnType<typeof dealDto>[];
+          if (!groupDeals.some((d) => d.id === dto.id)) {
+            groupDeals.push(dto);
+          }
           if (!row.completedAt) {
             current.invoices_uploaded = false;
           }
@@ -587,7 +594,13 @@ export class DealsController {
               deal_count: 0,
               invoices_uploaded: true,
               deal: dealDto(row),
+              deals: [] as ReturnType<typeof dealDto>[],
             };
+            const dto = dealDto(row);
+            const groupDeals = current.deals as ReturnType<typeof dealDto>[];
+            if (!groupDeals.some((d) => d.id === dto.id)) {
+              groupDeals.push(dto);
+            }
             if (!row.completedAt) {
               current.invoices_uploaded = false;
             }
@@ -635,6 +648,7 @@ export class DealsController {
 
   @Roles('creator')
   @Get('creator-portal/summary')
+  @Header('Cache-Control', 'private, no-store')
   async creatorPortalSummary(@Req() req: any) {
     const creatorId = req.user?.creatorId;
     if (!creatorId)
@@ -662,6 +676,7 @@ export class DealsController {
 
   @Roles('creator')
   @Get('creator-portal')
+  @Header('Cache-Control', 'private, no-store')
   async creatorPortalDeals(
     @Req() req: any,
     @Query('page') page?: string,

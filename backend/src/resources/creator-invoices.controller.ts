@@ -6,6 +6,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   NotFoundException,
   Param,
@@ -123,6 +124,7 @@ export class CreatorInvoicesController {
 
   @Roles('creator')
   @Get('creator-portal')
+  @Header('Cache-Control', 'private, no-store')
   async creatorPortalList(
     @Req() req: any,
     @Query('page') page?: string,
@@ -154,6 +156,7 @@ export class CreatorInvoicesController {
 
   @Roles('creator')
   @Get('creator-portal/eligible-deals')
+  @Header('Cache-Control', 'private, no-store')
   async eligibleCreatorDeals(
     @Req() req: any,
     @Query('page') page?: string,
@@ -235,6 +238,7 @@ export class CreatorInvoicesController {
 
   @Roles('super_admin', 'accounts', 'tch_member', 'creator')
   @Get(':id/download')
+  @Header('Cache-Control', 'private, no-store')
   async download(@Param('id') id: string, @Req() req: any) {
     const row = await this.repo().findOneBy({ id });
     if (!row) throw new NotFoundException({ detail: 'Creator invoice not found.' });

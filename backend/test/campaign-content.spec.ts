@@ -48,6 +48,90 @@ test('drafts may be incomplete but sharing requires actionable content', () => {
 
 import { CampaignContentService } from '../src/campaign-content/campaign-content.service';
 import { DataSource } from 'typeorm';
+
+test('deal-assigned creator can see campaign pending state but not an unshared brief', async () => {
+  const creator = {
+    id: '11111111-1111-4111-8111-111111111111',
+    role: 'creator',
+    creatorId: '2',
+  };
+  const query = async (sql: string) => {
+    if (sql.startsWith('SELECT id,role,status'))
+      return [{ role: 'creator', status: 'approved', creator_id: '2' }];
+    if (sql.includes('FROM tch_campaign c'))
+      return [
+        {
+          id: '3',
+          name: 'Assigned campaign',
+          brand: 'Brand A',
+          shared_revision_id: null,
+          shared_version: null,
+          shared_at: null,
+          brief_shared: false,
+          content: null,
+        },
+      ];
+    return [];
+  };
+  const service = new CampaignContentService({
+    manager: { query },
+    query,
+  } as unknown as DataSource);
+
+  const result = await service.getCreatorBrief(creator, '3');
+  assert.equal(result.brief_shared, false);
+  assert.equal(result.name, 'Assigned campaign');
+  assert.equal(result.content, null);
+});
+
+test('creator campaign list includes assigned deals while keeping unshared brief content private', async () => {
+  const creator = {
+    id: '11111111-1111-4111-8111-111111111111',
+    role: 'creator',
+    creatorId: '2',
+  };
+  const query = async (sql: string) => {
+    if (sql.startsWith('SELECT id,role,status'))
+      return [{ role: 'creator', status: 'approved', creator_id: '2' }];
+    if (sql.includes('FROM tch_campaign c'))
+      return [
+        {
+          id: '3',
+          name: 'Shared campaign',
+          brand: 'Brand A',
+          shared_revision_id: 'revision-1',
+          shared_version: 1,
+          shared_at: '2026-11-23T00:00:00Z',
+          brief_shared: true,
+        },
+        {
+          id: '4',
+          name: 'Deal campaign',
+          brand: 'Brand B',
+          shared_revision_id: null,
+          shared_version: null,
+          shared_at: null,
+          brief_shared: false,
+        },
+      ];
+    return [];
+  };
+  const service = new CampaignContentService({
+    manager: { query },
+    query,
+  } as unknown as DataSource);
+
+  const result = await service.listCreatorBriefs(creator, 1, 20);
+  assert.deepEqual(
+    result.items.map((item: { id: string; brief_shared: boolean }) => [item.id, item.brief_shared]),
+    [
+      ['3', true],
+      ['4', false],
+    ],
+  );
+  assert.equal('content' in result.items[1], false);
+});
+
 test('creator home binds summary to approved creator and shared briefs', async () => {
   const queries: { sql: string; params: unknown[] }[] = [];
   const query = async (sql: string, params: unknown[]) => {
@@ -70,6 +154,8 @@ test('creator home binds summary to approved creator and shared briefs', async (
   assert.match(summary.sql, /a.creator_id=\$1/);
   assert.match(summary.sql, /x.creator_id=\$1/);
   assert.match(summary.sql, /r.id=b.shared_revision_id/);
+  assert.match(summary.sql, /tch_commercialdeal/);
+  assert.match(summary.sql, /brief_shared/);
   assert.doesNotMatch(summary.sql, /feedback|agency_fee|internal/);
 });
 

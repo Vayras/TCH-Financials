@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import * as React from 'react';
 import { toast } from 'sonner';
 import { ConflictError, type CampaignCardGroup, type CreatorCardGroup, type Deal } from '@/lib/api';
@@ -45,6 +46,11 @@ export default function CommercialPage() {
   const saveDealMutation = useSaveDealMutation(fyStart);
 
   const [created, setCreated] = React.useState<Deal | null>(null);
+  const [selectedGroup, setSelectedGroup] = React.useState<{
+    title: string;
+    subtitle?: string;
+    deals: Deal[];
+  } | null>(null);
   const [open, setOpen] = React.useState(false);
   const [editing, setEditing] = React.useState<Deal | null>(null);
   const skipFirstPageReset = React.useRef(true);
@@ -290,7 +296,9 @@ export default function CommercialPage() {
           brand: group.brand,
           status: group.status,
           creatorNames: group.creator_names,
-          deals: [group.deal],
+          deals: (group as { deals?: Deal[] }).deals?.length
+            ? ((group as { deals?: Deal[] }).deals ?? [group.deal])
+            : [group.deal],
           total: group.total,
           invoices_uploaded: group.invoices_uploaded,
           costToClient: group.cost_to_client,
@@ -303,7 +311,9 @@ export default function CommercialPage() {
           key: group.key,
           name: group.name,
           relationship: group.relationship,
-          deals: [group.deal],
+          deals: (group as { deals?: Deal[] }).deals?.length
+            ? ((group as { deals?: Deal[] }).deals ?? [group.deal])
+            : [group.deal],
           dealCount: group.deal_count,
           total: group.total,
           invoices_uploaded: group.invoices_uploaded,
@@ -454,7 +464,18 @@ export default function CommercialPage() {
             <div className="anim-fade-up">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {pagedCampaignGroups.map((group) => (
-                  <CampaignGroupCard key={group.key} group={group} onView={startEdit} />
+                  <CampaignGroupCard
+                    key={group.key}
+                    group={group}
+                    onView={startEdit}
+                    onSelectGroup={() =>
+                      setSelectedGroup({
+                        title: group.name,
+                        subtitle: group.brand !== group.name ? group.brand : undefined,
+                        deals: group.deals,
+                      })
+                    }
+                  />
                 ))}
               </div>
               {resultTotal === 0 && renderEmptyState('campaigns')}
@@ -472,7 +493,18 @@ export default function CommercialPage() {
             <div className="anim-fade-up">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {pagedCreatorGroups.map((group) => (
-                  <CreatorGroupCard key={group.key} group={group} onView={startEdit} />
+                  <CreatorGroupCard
+                    key={group.key}
+                    group={group}
+                    onView={startEdit}
+                    onSelectGroup={() =>
+                      setSelectedGroup({
+                        title: group.name,
+                        subtitle: `${group.deals.length} deals`,
+                        deals: group.deals,
+                      })
+                    }
+                  />
                 ))}
               </div>
               {resultTotal === 0 && renderEmptyState('deals')}
@@ -531,6 +563,105 @@ export default function CommercialPage() {
         campaignNames={campaigns.map((c) => c.name)}
         onSubmit={submit}
       />
+
+      {selectedGroup && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/25 backdrop-blur-[1px] transition-opacity"
+          onClick={() => setSelectedGroup(null)}
+        >
+          <aside
+            className="flex h-full w-full max-w-md flex-col shadow-2xl animate-in slide-in-from-right duration-200"
+            style={{ background: 'var(--n-bg)', borderLeft: '1px solid var(--n-border)' }}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={selectedGroup.title}
+          >
+            <div
+              className="flex items-start justify-between px-5 py-4"
+              style={{ borderBottom: '1px solid var(--n-border)' }}
+            >
+              <div className="min-w-0">
+                <h2
+                  className="truncate text-[15px] font-semibold"
+                  style={{ color: 'var(--n-fg)' }}
+                >
+                  {selectedGroup.title}
+                </h2>
+                {selectedGroup.subtitle && (
+                  <p className="mt-0.5 truncate text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>
+                    {selectedGroup.subtitle}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedGroup(null)}
+                className="rounded-lg p-1.5 text-xs transition-colors hover:bg-slate-100"
+                style={{ color: 'var(--n-fg-muted)' }}
+                aria-label="Close drawer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 space-y-3 overflow-y-auto p-5">
+              {selectedGroup.deals.map((deal) => (
+                <div
+                  key={deal.id}
+                  className="rounded-xl p-4 transition-all duration-150 hover:shadow-sm"
+                  style={{ border: '1px solid var(--n-border)', background: 'var(--n-bg)' }}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p
+                        className="truncate text-[13.5px] font-semibold"
+                        style={{ color: 'var(--n-fg)' }}
+                      >
+                        {deal.campaign || `Deal #${deal.id}`}
+                      </p>
+                      <p className="mt-0.5 text-[12px]" style={{ color: 'var(--n-fg-muted)' }}>
+                        {deal.brand || '—'}
+                        {deal.confirmation_date ? ` · ${deal.confirmation_date}` : ''}
+                      </p>
+                    </div>
+                    <span
+                      className="shrink-0 text-[13.5px] font-bold tabular-nums"
+                      style={{ color: 'var(--n-fg)' }}
+                    >
+                      ₹{inr(deal.total_fee)}
+                    </span>
+                  </div>
+                  {deal.deliverables && (
+                    <p
+                      className="mt-2 line-clamp-2 text-[12px]"
+                      style={{ color: 'var(--n-fg-muted)' }}
+                    >
+                      {deal.deliverables}
+                    </p>
+                  )}
+                  <div className="mt-3 flex items-center justify-end gap-2">
+                    {deal.campaign_id != null && (
+                      <Link
+                        href={`/campaigns/${deal.campaign_id}/brief?deal=${deal.id}`}
+                        className="rounded-lg border border-[#e9e4f0] px-3 py-1.5 text-xs text-[#6554c0] transition-colors hover:bg-[#f7f5fb]"
+                      >
+                        Open brief
+                      </Link>
+                    )}
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        setSelectedGroup(null);
+                        startEdit(deal);
+                      }}
+                    >
+                      Details →
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
+      )}
     </>
   );
 }

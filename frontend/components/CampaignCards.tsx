@@ -12,12 +12,16 @@ import Icon from '@/components/ui/Icon';
 export function CampaignGroupCard({
   group,
   onView,
+  onSelectGroup,
 }: {
   group: CampaignGroup;
   onView: (d: Deal) => void;
+  onSelectGroup?: () => void;
 }) {
   const handleCardClick = () => {
-    if (group.deals.length > 0) {
+    if (group.deals.length > 1 && onSelectGroup) {
+      onSelectGroup();
+    } else if (group.deals.length > 0) {
       onView(group.deals[0]);
     }
   };
@@ -48,6 +52,11 @@ export function CampaignGroupCard({
             <Tag tone={getStatusDisplay(group.status, group.invoices_uploaded).tone}>
               {getStatusDisplay(group.status, group.invoices_uploaded).label}
             </Tag>
+          )}
+          {group.deals.length > 1 && (
+            <span className="text-[11px] font-medium text-[var(--n-fg-muted)]">
+              {group.deals.length} deals
+            </span>
           )}
         </div>
       </div>
@@ -105,14 +114,30 @@ export function CampaignGroupCard({
           </div>
         </div>
       </div>
-      {group.deals[0]?.campaign_id != null && (
+      {group.deals.length === 1 && group.deals[0]?.campaign_id != null && (
         <Link
           href={`/campaigns/${group.deals[0].campaign_id}/brief?deal=${group.deals[0].id}`}
           onClick={(event) => event.stopPropagation()}
           className="w-fit rounded-lg border border-[#e9e4f0] px-3 py-2 text-xs text-[#6554c0]"
+          style={{ fontSize: 12 }}
         >
           Open brief
         </Link>
+      )}
+      {group.deals.length > 1 && onSelectGroup && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelectGroup();
+          }}
+          style={{
+            fontSize: 12.5
+          }}
+          className="w-fit rounded-lg border border-[#e9e4f0] px-3 py-2 text-[#6554c0]"
+        >
+          View {group.deals.length} deals →
+        </button>
       )}
     </div>
   );
@@ -121,12 +146,16 @@ export function CampaignGroupCard({
 export function CreatorGroupCard({
   group,
   onView,
+  onSelectGroup,
 }: {
   group: CreatorGroup;
   onView: (d: Deal) => void;
+  onSelectGroup?: () => void;
 }) {
   const handleCardClick = () => {
-    if (group.deals.length > 0) {
+    if (group.deals.length > 1 && onSelectGroup) {
+      onSelectGroup();
+    } else if (group.deals.length > 0) {
       onView(group.deals[0]);
     }
   };

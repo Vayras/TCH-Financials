@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import Sidebar from '@/components/Sidebar';
 import type { Session } from '@supabase/supabase-js';
 import DevAccountSwitcher from '@/components/DevAccountSwitcher';
+import { useQueryClient } from '@tanstack/react-query';
 
 const INITIAL_HASH = typeof window !== 'undefined' ? window.location.hash : '';
 
@@ -54,6 +55,8 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
   const pathname = rawPathname.replace(/\/+$/, '') || '/';
   const router = useRouter();
   const configured = isSupabaseConfigured();
+  const queryClient = useQueryClient();
+  const authUserId = React.useRef<string | null>(null);
 
   const [status, setStatus] = React.useState<AuthStatus>('loading');
   const [profile, setProfile] = React.useState<AuthContextType>({
@@ -67,20 +70,32 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
   const [passwordSet, setPasswordSet] = React.useState<boolean>(true);
 
   const checkAuthStatus = React.useCallback(async (session: Session | null) => {
+    const nextUserId = session?.user.id ?? null;
+    if (authUserId.current !== nextUserId) {
+      authUserId.current = nextUserId;
+      queryClient.clear();
+      setStatus(nextUserId ? 'loading' : 'anon');
+    }
     if (!session) {
       setStatus('anon');
       return;
     }
 
     try {
-      const info = await api.get<{
-        role: AppRole;
-        status: string;
-        email: string;
-        passwordSet?: boolean;
-        displayName?: string;
-        creatorId?: string | null;
-      }>('/auth/me');
+      const info = await queryClient.fetchQuery({
+        queryKey: ['auth', 'me'],
+        queryFn: () =>
+          api.get<{
+            role: AppRole;
+            status: string;
+            email: string;
+            passwordSet?: boolean;
+            displayName?: string;
+            creatorId?: string | null;
+          }>('/auth/me'),
+        staleTime: 5 * 60 * 1000,
+      });
+      if (authUserId.current !== session.user.id) return;
       setProfile({
         role: info.role || 'tch_member',
         status: info.status || 'unknown',
@@ -91,22 +106,28 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
       setPasswordSet(info.passwordSet ?? true);
       setStatus(info.status as AuthStatus);
     } catch (err) {
+      if (authUserId.current !== session.user.id) return;
       console.error('AuthGuard status check failed', err);
       setStatus('anon');
     }
-  }, []);
+  }, [queryClient]);
 
   React.useEffect(() => {
     if (!configured) {
       let active = true;
-      api
-        .get<{
-          role: AppRole;
-          status: string;
-          email: string;
-          displayName?: string;
-          creatorId?: string | null;
-        }>('/auth/me')
+      queryClient
+        .fetchQuery({
+          queryKey: ['auth', 'me'],
+          queryFn: () =>
+            api.get<{
+              role: AppRole;
+              status: string;
+              email: string;
+              displayName?: string;
+              creatorId?: string | null;
+            }>('/auth/me'),
+          staleTime: 5 * 60 * 1000,
+        })
         .then((info) => {
           if (!active) return;
           setProfile({
@@ -160,7 +181,7 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
       if (session) {
         checkAuthStatus(session);
       } else {
-        setStatus('anon');
+        checkAuthStatus(null);
       }
     });
 
