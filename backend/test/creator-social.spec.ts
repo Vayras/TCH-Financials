@@ -40,6 +40,7 @@ test('missing TrioSphere configuration rejects imports before database work', as
       },
     } as never;
     const service = new CreatorSocialService(db);
+    assert.deepEqual(service.importAvailability(), { imports_available: false });
     await assert.rejects(
       service.connect({ id: 'creator-user', role: 'creator', creatorId: '7' }, 'creator_test'),
       /not configured/,
@@ -358,4 +359,16 @@ test('TrioSphere adapter bounds payloads and maps rate limits and credentials sa
       error.code === 'provider_network_error' &&
       error.retryable,
   );
+});
+
+test('imports are reported available once a TrioSphere token is configured', () => {
+  const { enabled, apiToken } = socialConfig;
+  Object.assign(socialConfig, { enabled: true, apiToken: 'token' });
+  try {
+    const service = new CreatorSocialService({} as never);
+    assert.deepEqual(service.importAvailability(), { imports_available: true });
+    assert.doesNotThrow(() => service.assertImportsAvailable());
+  } finally {
+    Object.assign(socialConfig, { enabled, apiToken });
+  }
 });

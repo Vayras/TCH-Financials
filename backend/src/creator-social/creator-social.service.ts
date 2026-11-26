@@ -41,8 +41,12 @@ export const JOB_FIELDS = 'id, account_id, state, error_code, requested_at, fini
 export class CreatorSocialService {
   constructor(private readonly db: DataSource) {}
 
+  importAvailability() {
+    return { imports_available: socialConfig.enabled && !!socialConfig.apiToken };
+  }
+
   assertImportsAvailable() {
-    if (!socialConfig.enabled || !socialConfig.apiToken) {
+    if (!this.importAvailability().imports_available) {
       throw new ServiceUnavailableException(
         'Instagram imports are unavailable because the TrioSphere API token is not configured on the server.',
       );
