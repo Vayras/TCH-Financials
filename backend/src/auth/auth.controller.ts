@@ -18,6 +18,16 @@ import { Invitation } from '../entities/invitation.entity';
 import { Creator } from '../entities/creator.entity';
 import { Roles } from './roles.decorator';
 
+// Older profiles stored the address exactly as typed, so compare without case.
+function sameEmail(a: unknown, b: unknown) {
+  return (
+    typeof a === 'string' &&
+    typeof b === 'string' &&
+    a.trim() !== '' &&
+    a.trim().toLowerCase() === b.trim().toLowerCase()
+  );
+}
+
 @Controller('auth')
 export class AuthController {
   constructor(private dataSource: DataSource) {}
@@ -129,8 +139,10 @@ export class AuthController {
 
     const profileRepo = this.dataSource.getRepository(Profile);
     const profile = await this.dataSource.getRepository(Profile).findOneBy({ id: userId });
-    if (!profile || profile.status !== 'approved' || profile.email !== email?.toLowerCase().trim()) {
-      throw new UnauthorizedException('An approved profile is required to complete password setup.');
+    if (!profile || profile.status !== 'approved' || !sameEmail(profile.email, email)) {
+      throw new UnauthorizedException(
+        'An approved profile is required to complete password setup.',
+      );
     }
 
     profile.passwordSet = true;
