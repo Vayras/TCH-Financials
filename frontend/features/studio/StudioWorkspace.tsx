@@ -73,7 +73,7 @@ function Workspace({ campaign }: { campaign?: CampaignContext }) {
   const [assets, setAssets] = useState<PreviewAsset[]>(() =>
     projects.flatMap((item) => samplePreviewAssets(item.id)),
   );
-  const [filter, setFilter] = useState<MediaKind | 'all'>('image');
+  const [filter, setFilter] = useState<MediaKind | 'all'>('all');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<PreviewAsset | null>(null);
   const [job, setJob] = useState<PreviewJob | null>(null);
@@ -227,13 +227,6 @@ function Workspace({ campaign }: { campaign?: CampaignContext }) {
             Video
           </button>
         </div>
-      </div>
-      <div className={styles.previewNote}>
-        <Sparkles size={14} aria-hidden="true" />
-        <span>
-          <strong>Preview mode</strong>
-          Sample media only. Prompts aren’t sent to an AI model, and this session resets when you leave.
-        </span>
       </div>
       {project.campaign && (
         <details className={styles.brief}>

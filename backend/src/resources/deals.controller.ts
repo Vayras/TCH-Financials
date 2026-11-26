@@ -541,7 +541,13 @@ export class DealsController {
             deal_count: 0,
             invoices_uploaded: true,
             deal: dealDto(row),
+            deals: [] as ReturnType<typeof dealDto>[],
           };
+          const dto = dealDto(row);
+          const groupDeals = current.deals as ReturnType<typeof dealDto>[];
+          if (!groupDeals.some((d) => d.id === dto.id)) {
+            groupDeals.push(dto);
+          }
           if (!row.completedAt) {
             current.invoices_uploaded = false;
           }
@@ -588,7 +594,13 @@ export class DealsController {
               deal_count: 0,
               invoices_uploaded: true,
               deal: dealDto(row),
+              deals: [] as ReturnType<typeof dealDto>[],
             };
+            const dto = dealDto(row);
+            const groupDeals = current.deals as ReturnType<typeof dealDto>[];
+            if (!groupDeals.some((d) => d.id === dto.id)) {
+              groupDeals.push(dto);
+            }
             if (!row.completedAt) {
               current.invoices_uploaded = false;
             }

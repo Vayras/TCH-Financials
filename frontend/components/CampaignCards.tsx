@@ -12,12 +12,16 @@ import Icon from '@/components/ui/Icon';
 export function CampaignGroupCard({
   group,
   onView,
+  onSelectGroup,
 }: {
   group: CampaignGroup;
   onView: (d: Deal) => void;
+  onSelectGroup?: () => void;
 }) {
   const handleCardClick = () => {
-    if (group.deals.length > 0) {
+    if (group.deals.length > 1 && onSelectGroup) {
+      onSelectGroup();
+    } else if (group.deals.length > 0) {
       onView(group.deals[0]);
     }
   };
@@ -48,6 +52,11 @@ export function CampaignGroupCard({
             <Tag tone={getStatusDisplay(group.status, group.invoices_uploaded).tone}>
               {getStatusDisplay(group.status, group.invoices_uploaded).label}
             </Tag>
+          )}
+          {group.deals.length > 1 && (
+            <span className="text-[11px] font-medium text-[var(--n-fg-muted)]">
+              {group.deals.length} deals
+            </span>
           )}
         </div>
       </div>
@@ -121,12 +130,16 @@ export function CampaignGroupCard({
 export function CreatorGroupCard({
   group,
   onView,
+  onSelectGroup,
 }: {
   group: CreatorGroup;
   onView: (d: Deal) => void;
+  onSelectGroup?: () => void;
 }) {
   const handleCardClick = () => {
-    if (group.deals.length > 0) {
+    if (group.deals.length > 1 && onSelectGroup) {
+      onSelectGroup();
+    } else if (group.deals.length > 0) {
       onView(group.deals[0]);
     }
   };
