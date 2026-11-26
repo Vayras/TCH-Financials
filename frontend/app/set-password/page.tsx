@@ -4,11 +4,13 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
+import { useRefreshAuth } from '@/components/AuthGuard';
 
 import Icon from '@/components/ui/Icon';
 
 export default function SetPasswordPage() {
   const router = useRouter();
+  const refreshAuth = useRefreshAuth();
   const [password, setPassword] = React.useState('');
   const [confirm, setConfirm] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
@@ -45,7 +47,10 @@ export default function SetPasswordPage() {
       setDone(true);
 
       // Directly navigate to dashboard so user doesn't have to re-enter login details
-      setTimeout(() => {
+      setTimeout(async () => {
+        // The guard still holds passwordSet=false from before; without a fresh
+        // check it would send the user straight back here.
+        await refreshAuth();
         router.replace('/');
       }, 1200);
     } finally {
