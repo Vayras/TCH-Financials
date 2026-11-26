@@ -46,7 +46,8 @@ export default function LoginPage() {
   return (
     <main className={styles.page}>
       <div className={`${styles.card} anim-fade-up`}>
-        <form onSubmit={submit} className={styles.form}>
+        {busy && <span className={styles.progress} aria-hidden="true" />}
+        <form onSubmit={submit} className={styles.form} aria-busy={busy}>
           <div className={styles.brandRow}>
             <span className={styles.logo} aria-hidden="true">
               T
@@ -65,6 +66,7 @@ export default function LoginPage() {
                 type="email"
                 required
                 autoFocus
+                disabled={busy}
                 autoComplete="email"
                 placeholder="you@company.com"
                 value={email}
@@ -81,6 +83,7 @@ export default function LoginPage() {
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
+                disabled={busy}
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -105,8 +108,12 @@ export default function LoginPage() {
           )}
 
           <button type="submit" disabled={busy} className={styles.submit}>
+            {busy && <span className={styles.spinner} aria-hidden="true" />}
             {busy ? 'Signing in…' : 'Sign in'}
           </button>
+          <p className="sr-only" role="status" aria-live="polite">
+            {busy ? 'Signing in' : ''}
+          </p>
 
           <p className={styles.footer}>
             New here? <Link href="/signup">Request access</Link>
