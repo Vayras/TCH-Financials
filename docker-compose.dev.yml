@@ -84,7 +84,8 @@ services:
       migrate:
         condition: service_completed_successfully
     command: ["npm", "run", "worker:social:dev"]
-    restart: unless-stopped
+    # Exits 0 when TRIOSPHERE_API_TOKEN is unset; only restart real failures.
+    restart: on-failure
 
   frontend:
     build:

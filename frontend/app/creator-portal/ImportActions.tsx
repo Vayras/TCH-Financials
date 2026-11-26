@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import { activeImport, type SocialAccount } from '@/lib/creator-kit';
 import { toast } from 'sonner';
+import { useImportsUnavailable } from './kit-queries';
 
 type ImportInput = { action: 'create-kit' | 'refresh'; accountId?: string; username?: string };
 export function useCreatorImport() {
@@ -48,6 +49,23 @@ export function useCreatorImport() {
 export function CreateKitForm({ className }: { className?: string } = {}) {
   const [username, setUsername] = React.useState('');
   const request = useCreatorImport();
+  const unavailable = useImportsUnavailable();
+  if (unavailable)
+    return (
+      <section className={`creator-onboarding ${className || ''}`.trim()} role="status">
+        <div className="creator-onboarding-icon" aria-hidden="true">
+          ✳
+        </div>
+        <div>
+          <p className="cf-step">YOUR NEXT CHAPTER</p>
+          <h2>Instagram imports aren’t available right now</h2>
+          <p className="cf-muted">
+            You can’t add an account at the moment. Your saved content and published kit are still
+            available.
+          </p>
+        </div>
+      </section>
+    );
   return (
     <form
       className={`creator-onboarding ${className || ''}`.trim()}
@@ -93,6 +111,7 @@ export function CreateKitForm({ className }: { className?: string } = {}) {
 }
 export function ImportProgress({ account }: { account: SocialAccount }) {
   const request = useCreatorImport();
+  const unavailable = useImportsUnavailable();
   if (activeImport(account.latest_job_state))
     return (
       <div className="creator-progress" role="status">
@@ -116,10 +135,10 @@ export function ImportProgress({ account }: { account: SocialAccount }) {
         ) : (
           <>
             {' '}
-            You can try again.
+            {unavailable ? 'Updates aren’t available right now.' : 'You can try again.'}
             <Button
               variant="outline"
-              disabled={request.isPending}
+              disabled={request.isPending || unavailable}
               onClick={() => request.mutate({ action: 'create-kit', username: account.username })}
             >
               {request.isPending ? 'Retrying…' : 'Try again'}
@@ -132,6 +151,7 @@ export function ImportProgress({ account }: { account: SocialAccount }) {
 }
 export function InsightActions({ account }: { account: SocialAccount }) {
   const request = useCreatorImport();
+  const unavailable = useImportsUnavailable();
   const busy =
     request.isPending ||
     activeImport(account.latest_job_state) ||
@@ -141,12 +161,17 @@ export function InsightActions({ account }: { account: SocialAccount }) {
       <div className="cf-actions">
         <Button
           variant="primary"
-          disabled={busy}
+          disabled={busy || unavailable}
           onClick={() => request.mutate({ action: 'refresh', accountId: account.id })}
         >
-          {busy ? 'Refreshing…' : 'Update insights ↗'}
+          {busy ? 'Refreshing…' : unavailable ? 'Updates unavailable' : 'Update insights ↗'}
         </Button>
       </div>
+      {unavailable && (
+        <p className="cf-muted" role="status" style={{ marginTop: 8 }}>
+          Instagram updates aren’t available right now. Your saved insights are still here.
+        </p>
+      )}
       {request.error && (
         <p role="alert" className="cf-error" style={{ marginTop: 10 }}>
           {request.error.message}

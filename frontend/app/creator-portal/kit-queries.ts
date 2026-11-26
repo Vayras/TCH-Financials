@@ -33,6 +33,20 @@ export function useSocialAccounts() {
   }, [completed, creatorId, client]);
   return result;
 }
+// False only when the server says imports can't run. While loading, or if
+// the check fails, controls stay enabled and the API is the final word.
+export function useImportsUnavailable() {
+  const { creatorId } = useAuth();
+  const query = useQuery({
+    queryKey: ['creator-social-availability', creatorId],
+    enabled: !!creatorId,
+    queryFn: () =>
+      api.get<{ imports_available: boolean }>('/creator-portal/social-accounts/availability'),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+  return query.data?.imports_available === false;
+}
 export function useKit() {
   const { creatorId } = useAuth();
   return useQuery({

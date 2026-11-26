@@ -27,6 +27,12 @@ export class CreatorSocialController {
   list(@Req() req: CreatorRequest) {
     return this.service.list(req.user);
   }
+  @Get('availability')
+  @ApiOperation({ summary: 'Whether Instagram imports can run on this server' })
+  @Header('Cache-Control', 'private, no-store')
+  availability() {
+    return this.service.importAvailability();
+  }
   @Post()
   @ApiOperation({ summary: 'Link an Instagram account without triggering a collection' })
   @ApiBody({

@@ -8,7 +8,10 @@ import { structuredLog } from './common/observability';
 
 async function main() {
   if (!socialConfig.enabled || !socialConfig.apiToken) {
-    throw new Error('TRIOSPHERE_API_TOKEN must be configured before starting the social worker.');
+    // Imports are optional. Without a token there is nothing to process, so
+    // stop cleanly instead of failing (and being restarted in a loop).
+    structuredLog('info', 'social_worker_disabled', { reason: 'TRIOSPHERE_API_TOKEN not set' });
+    return;
   }
   await AppDataSource.initialize();
   let stopped = false;
