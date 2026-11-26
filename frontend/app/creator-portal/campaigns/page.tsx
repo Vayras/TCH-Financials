@@ -41,9 +41,13 @@ export default function CreatorCampaigns() {
                   </p>
                 ) : (
                   <div className="mt-4 rounded-xl bg-[var(--n-accent-soft)] p-4 text-sm">
-                    <p className="font-medium">Brief coming soon</p>
+                    <p className="font-medium">
+                      {c.brief_assigned ? 'Brief coming soon' : 'Part of your deal'}
+                    </p>
                     <p className="mt-1 text-[var(--n-fg-muted)]">
-                      This campaign is assigned to you. Your agency will share the brief here.
+                      {c.brief_assigned
+                        ? 'This campaign is assigned to you. Your agency will share the brief here.'
+                        : 'You’re on this campaign through a deal. Its brief hasn’t been assigned to you; ask your agency if you need it.'}
                     </p>
                   </div>
                 )}
