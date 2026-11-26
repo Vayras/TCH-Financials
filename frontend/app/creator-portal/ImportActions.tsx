@@ -111,6 +111,7 @@ export function CreateKitForm({ className }: { className?: string } = {}) {
 }
 export function ImportProgress({ account }: { account: SocialAccount }) {
   const request = useCreatorImport();
+  const unavailable = useImportsUnavailable();
   if (activeImport(account.latest_job_state))
     return (
       <div className="creator-progress" role="status">
@@ -134,10 +135,10 @@ export function ImportProgress({ account }: { account: SocialAccount }) {
         ) : (
           <>
             {' '}
-            You can try again.
+            {unavailable ? 'Updates aren’t available right now.' : 'You can try again.'}
             <Button
               variant="outline"
-              disabled={request.isPending}
+              disabled={request.isPending || unavailable}
               onClick={() => request.mutate({ action: 'create-kit', username: account.username })}
             >
               {request.isPending ? 'Retrying…' : 'Try again'}
@@ -150,6 +151,7 @@ export function ImportProgress({ account }: { account: SocialAccount }) {
 }
 export function InsightActions({ account }: { account: SocialAccount }) {
   const request = useCreatorImport();
+  const unavailable = useImportsUnavailable();
   const busy =
     request.isPending ||
     activeImport(account.latest_job_state) ||
@@ -159,12 +161,17 @@ export function InsightActions({ account }: { account: SocialAccount }) {
       <div className="cf-actions">
         <Button
           variant="primary"
-          disabled={busy}
+          disabled={busy || unavailable}
           onClick={() => request.mutate({ action: 'refresh', accountId: account.id })}
         >
-          {busy ? 'Refreshing…' : 'Update insights ↗'}
+          {busy ? 'Refreshing…' : unavailable ? 'Updates unavailable' : 'Update insights ↗'}
         </Button>
       </div>
+      {unavailable && (
+        <p className="cf-muted" role="status" style={{ marginTop: 8 }}>
+          Instagram updates aren’t available right now. Your saved insights are still here.
+        </p>
+      )}
       {request.error && (
         <p role="alert" className="cf-error" style={{ marginTop: 10 }}>
           {request.error.message}
