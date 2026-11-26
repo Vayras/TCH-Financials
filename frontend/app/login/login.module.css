@@ -1,0 +1,233 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+  background:
+    radial-gradient(120% 80% at 100% 0%, var(--n-accent-soft) 0%, transparent 55%),
+    var(--n-bg-soft, var(--n-bg));
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 880px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  overflow: hidden;
+  border: 1px solid var(--n-border);
+  border-radius: 16px;
+  background: var(--n-bg);
+  box-shadow:
+    0 1px 2px rgba(15, 15, 15, 0.04),
+    0 24px 60px rgba(48, 42, 66, 0.1);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  padding: 44px 48px 40px;
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 36px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--n-fg);
+}
+
+.logo {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--n-accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.title {
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--n-fg);
+}
+
+.subtitle {
+  margin-top: 6px;
+  margin-bottom: 28px;
+  font-size: 14px;
+  color: var(--n-fg-muted);
+}
+
+.field {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--n-fg);
+}
+
+.inputWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 12px;
+  color: var(--n-fg-subtle);
+  pointer-events: none;
+}
+
+.input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px 0 38px;
+  border: 1px solid var(--n-border-strong);
+  border-radius: 10px;
+  background: var(--n-bg);
+  color: var(--n-fg);
+  font-size: 14px;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--n-accent);
+  box-shadow: 0 0 0 3px var(--n-accent-soft);
+}
+
+.input:disabled {
+  background: var(--n-bg-soft, var(--n-bg));
+  color: var(--n-fg-muted);
+}
+
+.submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 44px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--n-accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    transform 100ms ease;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--n-accent-hover, var(--n-accent));
+}
+
+.submit:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.submit:disabled {
+  cursor: default;
+}
+
+.submit:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--n-accent-soft);
+}
+
+.footer {
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--n-fg-muted);
+  text-align: center;
+}
+
+.footer a {
+  font-weight: 500;
+  color: var(--n-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.aside {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 44px 40px;
+  background:
+    radial-gradient(90% 60% at 100% 100%, rgba(255, 255, 255, 0.16) 0%, transparent 60%),
+    linear-gradient(155deg, var(--n-accent) 0%, #3f3389 100%);
+  color: #fff;
+}
+
+.asideEyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.asideTitle {
+  margin-top: 12px;
+  font-size: 22px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+
+.asideList {
+  display: grid;
+  gap: 14px;
+  font-size: 14px;
+}
+
+.asideList li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.asideList li span:first-child {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+@media (max-width: 760px) {
+  .card {
+    grid-template-columns: 1fr;
+    max-width: 420px;
+  }
+
+  .form {
+    padding: 32px 24px 28px;
+  }
+
+  .aside {
+    display: none;
+  }
+}

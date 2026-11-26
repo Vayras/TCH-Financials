@@ -1,9 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
-
 import Link from 'next/link';
+import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
+import Icon from '@/components/ui/Icon';
+import styles from './login.module.css';
 
 export default function LoginPage() {
   const [email, setEmail] = React.useState('');
@@ -42,90 +43,95 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: 'var(--n-bg)' }}
-    >
-      <form
-        onSubmit={submit}
-        className="filter-popover w-full max-w-[360px] rounded-xl p-8 shadow-lg anim-fade-up"
-      >
-        <div className="flex items-center gap-2.5 mb-6">
-          <div
-            className="h-8 w-8 rounded flex items-center justify-center text-[15px] font-semibold shadow-sm"
-            style={{
-              background: 'var(--n-fg)',
-              color: 'var(--n-bg)',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.12)',
-            }}
-          >
-            T
+    <main className={styles.page}>
+      <div className={`${styles.card} anim-fade-up`}>
+        <form onSubmit={submit} className={styles.form}>
+          <div className={styles.brandRow}>
+            <span className={styles.logo} aria-hidden="true">
+              T
+            </span>
+            TCH Financials
           </div>
-          <div>
-            <div className="text-[15px] font-semibold leading-tight">TCH Financials</div>
-            <div className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
-              Sign in to continue
-            </div>
-          </div>
-        </div>
 
-        <label className="block mb-3">
-          <span
-            className="block text-[12px] font-medium mb-1"
-            style={{ color: 'var(--n-fg-subtle)' }}
-          >
-            Email
-          </span>
-          <input
-            type="email"
-            required
-            autoFocus
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
-          />
-        </label>
+          <h1 className={styles.title}>Welcome back</h1>
+          <p className={styles.subtitle}>Sign in to your TCH workspace.</p>
 
-        <label className="block mb-5">
-          <span
-            className="block text-[12px] font-medium mb-1"
-            style={{ color: 'var(--n-fg-subtle)' }}
-          >
-            Password
-          </span>
-          <input
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
-          />
-        </label>
+          <label className={styles.field}>
+            <span className={styles.label}>Email</span>
+            <span className={styles.inputWrap}>
+              <Icon name="mail" size={16} className={styles.inputIcon} />
+              <input
+                type="email"
+                required
+                autoFocus
+                autoComplete="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={styles.input}
+              />
+            </span>
+          </label>
 
-        {error && (
-          <p className="mb-4 text-[12.5px]" style={{ color: 'var(--n-danger, #d1242f)' }}>
-            {error}
+          <label className={styles.field}>
+            <span className={styles.label}>Password</span>
+            <span className={styles.inputWrap}>
+              <Icon name="lock" size={16} className={styles.inputIcon} />
+              <input
+                type="password"
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={styles.input}
+              />
+            </span>
+          </label>
+
+          {error && (
+            <p className="mb-2 text-[13px]" style={{ color: 'var(--color-danger)' }}>
+              {error}
+            </p>
+          )}
+
+          <button type="submit" disabled={busy} className={styles.submit}>
+            {busy ? 'Signing in…' : 'Sign in'}
+          </button>
+
+          <p className={styles.footer}>
+            New here? <Link href="/signup">Request access</Link>
           </p>
-        )}
+        </form>
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full h-9 rounded text-[12px] font-medium transition-transform duration-100 active:scale-[0.985] disabled:opacity-60 cursor-pointer mb-4"
-          style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
-        >
-          {busy ? 'Signing in…' : 'Sign in'}
-        </button>
-
-        <div className="text-center text-[12px] mt-2">
-          <span style={{ color: 'var(--n-fg-subtle)' }}>New here? </span>
-          <Link href="/signup" className="font-medium underline hover:text-[var(--n-accent)]">
-            Request Access
-          </Link>
-        </div>
-      </form>
-    </div>
+        <aside className={styles.aside} aria-hidden="true">
+          <div>
+            <p className={styles.asideEyebrow}>The Creative Hook</p>
+            <p className={styles.asideTitle}>
+              Campaigns, deals and creator payouts, all in one place.
+            </p>
+          </div>
+          <ul className={styles.asideList}>
+            <li>
+              <span>
+                <Icon name="briefcase" size={15} />
+              </span>
+              <span>Track every brand deal and campaign</span>
+            </li>
+            <li>
+              <span>
+                <Icon name="pie" size={15} />
+              </span>
+              <span>See agency fees and payouts at a glance</span>
+            </li>
+            <li>
+              <span>
+                <Icon name="users" size={15} />
+              </span>
+              <span>Work alongside creators in their portal</span>
+            </li>
+          </ul>
+        </aside>
+      </div>
+    </main>
   );
 }
