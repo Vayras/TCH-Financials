@@ -1,13 +1,14 @@
 'use client';
 
 import SignInForm, { type SignInContent } from '@/components/auth/SignInForm';
-import { CREATOR_SIGN_UP } from '@/lib/auth-routes';
+import { CREATOR_SIGN_UP, TEAM_SIGN_IN } from '@/lib/auth-routes';
 
 const CREATOR: SignInContent = {
   tone: 'creator',
   brand: { name: 'CreatorLedger', logoSrc: '/creatorledger-mark.svg' },
   subtitle: 'Sign in to your creator portal.',
   signupHref: CREATOR_SIGN_UP,
+  altLink: { prompt: 'Part of the TCH team?', label: 'Use the team sign-in', href: TEAM_SIGN_IN },
   panel: {
     eyebrow: 'For creators',
     title: 'Your brand kit, campaigns and earnings in one place.',

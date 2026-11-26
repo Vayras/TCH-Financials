@@ -39,6 +39,8 @@ export interface SignInContent {
   subtitle: string;
   // Footer link for people without an account.
   signupHref: string;
+  // Points people who landed on the wrong portal to the other sign-in.
+  altLink?: { prompt: string; label: string; href: string };
   panel: {
     eyebrow: string;
     title: string;
@@ -207,6 +209,12 @@ export default function SignInForm({ content }: { content: SignInContent }) {
           <p className={styles.footer}>
             New here? <Link href={content.signupHref}>Request access</Link>
           </p>
+          {content.altLink && (
+            <p className={styles.altLink}>
+              {content.altLink.prompt}{' '}
+              <Link href={content.altLink.href}>{content.altLink.label}</Link>
+            </p>
+          )}
         </form>
 
         <aside className={styles.aside} aria-hidden="true">

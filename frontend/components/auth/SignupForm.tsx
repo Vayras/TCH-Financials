@@ -14,9 +14,16 @@ export interface SignupFormProps {
   brandName: string;
   tagline: string;
   signInHref: string;
+  altLink?: { prompt: string; label: string; href: string };
 }
 
-export default function SignupForm({ fixedRole, brandName, tagline, signInHref }: SignupFormProps) {
+export default function SignupForm({
+  fixedRole,
+  brandName,
+  tagline,
+  signInHref,
+  altLink,
+}: SignupFormProps) {
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -273,6 +280,14 @@ export default function SignupForm({ fixedRole, brandName, tagline, signInHref }
             Sign In
           </Link>
         </div>
+        {altLink && (
+          <div className="text-center text-[12px] mt-3" style={{ color: 'var(--n-fg-subtle)' }}>
+            {altLink.prompt}{' '}
+            <Link href={altLink.href} className="font-medium underline">
+              {altLink.label}
+            </Link>
+          </div>
+        )}
       </form>
     </div>
   );

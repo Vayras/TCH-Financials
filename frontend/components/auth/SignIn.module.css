@@ -226,6 +226,22 @@
   text-underline-offset: 2px;
 }
 
+.altLink {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--n-border);
+  font-size: 13px;
+  color: var(--n-fg-muted);
+  text-align: center;
+}
+
+.altLink a {
+  font-weight: 500;
+  color: var(--n-fg);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .aside {
   display: flex;
   flex-direction: column;
