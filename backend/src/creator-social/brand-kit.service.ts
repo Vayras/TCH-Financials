@@ -27,28 +27,11 @@ export class BrandKitService {
       WHERE k.creator_id = $1`,
       [owner],
     );
-    if (row) {
-      let draft = validateDraft(row.draft);
-      let savedSnapshots = await this.observations(this.db.manager, owner, draft);
-      const synced = await this.syncLatestSnapshots(owner, draft, savedSnapshots);
-      if (synced) {
-        const [updated] = await this.db.query(
-          `UPDATE tch_creator_brand_kit SET draft = $2::jsonb, version = version + 1, updated_at = now()
-          WHERE creator_id = $1 AND version = $3 RETURNING *`,
-          [owner, JSON.stringify(synced), row.version],
-        );
-        if (updated) {
-          row.draft = updated.draft;
-          row.version = updated.version;
-          draft = synced;
-          savedSnapshots = await this.observations(this.db.manager, owner, draft);
-        }
-      }
+    if (row)
       return {
         ...row,
-        saved_snapshots: savedSnapshots,
+        saved_snapshots: await this.observations(this.db.manager, owner, validateDraft(row.draft)),
       };
-    }
     return {
       version: 0,
       draft: blankDraft(),
@@ -57,47 +40,6 @@ export class BrandKitService {
       published_at: null,
       published_draft_version: null,
       saved_snapshots: [],
-    };
-  }
-
-  private async syncLatestSnapshots(
-    owner: string,
-    draft: KitDraft,
-    savedSnapshots: Array<{ id: string; account_id: string }>,
-  ): Promise<KitDraft | null> {
-    if (!savedSnapshots.length) return null;
-    const latestRows: Array<{
-      account_id: string;
-      id: string;
-      posts: Array<{ platform_post_id: string }>;
-    }> = await this.db.query(
-      `SELECT DISTINCT ON (s.account_id) s.account_id, s.id, s.posts
-      FROM tch_creator_social_snapshot s
-      JOIN tch_creator_social_account a ON a.id = s.account_id
-      WHERE a.creator_id = $1
-      ORDER BY s.account_id, s.collected_at DESC, s.id DESC`,
-      [owner],
-    );
-    const latestByAccount = new Map(latestRows.map((r) => [r.account_id, r]));
-    const replacements = new Map<string, { id: string; postIds: Set<string> }>();
-    for (const snap of savedSnapshots) {
-      const latest = latestByAccount.get(snap.account_id);
-      if (latest && latest.id !== snap.id) {
-        replacements.set(snap.id, {
-          id: latest.id,
-          postIds: new Set((latest.posts ?? []).map((p) => p.platform_post_id)),
-        });
-      }
-    }
-    if (!replacements.size) return null;
-    return {
-      ...draft,
-      snapshot_ids: draft.snapshot_ids.map((id) => replacements.get(id)?.id ?? id),
-      featured_posts: draft.featured_posts.flatMap((p) => {
-        const rep = replacements.get(p.snapshot_id);
-        if (!rep) return [p];
-        return rep.postIds.has(p.post_id) ? [{ ...p, snapshot_id: rep.id }] : [];
-      }),
     };
   }
 
