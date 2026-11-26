@@ -15,12 +15,25 @@ type Phase = 'idle' | 'signing-in' | 'signed-in';
 // profile; hand the form back rather than spinning forever.
 const OPEN_WORKSPACE_TIMEOUT_MS = 12_000;
 
+// Supabase's messages are terse and technical; say what to do next instead.
+function friendlyError(message: string) {
+  const m = message.toLowerCase();
+  if (m.includes('invalid login credentials'))
+    return 'That email and password don’t match. Check them and try again.';
+  if (m.includes('email not confirmed'))
+    return 'Confirm your email address first. Check your inbox for the link we sent.';
+  if (m.includes('rate limit') || m.includes('too many'))
+    return 'Too many attempts. Wait a minute, then try again.';
+  return message;
+}
+
 export default function LoginPage() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [phase, setPhase] = React.useState<Phase>('idle');
+  const passwordRef = React.useRef<HTMLInputElement>(null);
   const busy = phase !== 'idle';
 
   React.useEffect(() => {
@@ -40,8 +53,11 @@ export default function LoginPage() {
     try {
       const { error } = await getSupabase().auth.signInWithPassword({ email, password });
       if (error) {
-        setError(error.message);
+        setError(friendlyError(error.message));
         setPhase('idle');
+        // Roll back: keep the email, clear the password and put the cursor there.
+        setPassword('');
+        requestAnimationFrame(() => passwordRef.current?.focus());
         return;
       }
       // AuthGuard's onAuthStateChange handles routing based on profile status.
@@ -93,8 +109,13 @@ export default function LoginPage() {
                 autoComplete="email"
                 placeholder="you@company.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(null);
+                }}
                 className={styles.input}
+                aria-invalid={!!error}
+                aria-describedby={error ? 'login-error' : undefined}
               />
             </span>
           </label>
@@ -109,8 +130,14 @@ export default function LoginPage() {
                 disabled={busy}
                 autoComplete="current-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError(null);
+                }}
+                ref={passwordRef}
                 className={`${styles.input} ${styles.inputWithAction}`}
+                aria-invalid={!!error}
+                aria-describedby={error ? 'login-error' : undefined}
               />
               <button
                 type="button"
@@ -125,8 +152,9 @@ export default function LoginPage() {
           </label>
 
           {error && (
-            <p className="mb-2 text-[13px]" style={{ color: 'var(--color-danger)' }}>
-              {error}
+            <p id="login-error" role="alert" className={styles.error}>
+              <Icon name="info" size={15} />
+              <span>{error}</span>
             </p>
           )}
 
