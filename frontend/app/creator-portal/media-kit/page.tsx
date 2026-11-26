@@ -9,16 +9,18 @@ import {
   importedDate,
   type KitRecord,
   type SocialAccount,
+  type SocialSnapshot,
   type KitContent,
 } from '@/lib/creator-kit';
-import { useKit, useKitActions, useSocialAccounts } from '../kit-queries';
+import { useKit, useKitActions, useSavedSnapshots, useSocialAccounts } from '../kit-queries';
 import Skeleton from '@/components/ui/Skeleton';
 import EmptyState from '@/components/ui/EmptyState';
 
 export default function CreatorMediaKitPage() {
   const kit = useKit(),
     accounts = useSocialAccounts();
-  if (kit.isLoading || accounts.isLoading)
+  const snapshots = useSavedSnapshots(accounts.data ?? []);
+  if (kit.isLoading || accounts.isLoading || snapshots.some((s) => s.isLoading))
     return (
       <div className="creator-flow">
         <Skeleton className="h-10 w-56" />
@@ -29,7 +31,7 @@ export default function CreatorMediaKitPage() {
         </div>
       </div>
     );
-  const error = kit.error || accounts.error;
+  const error = kit.error || accounts.error || snapshots.find((s) => s.error)?.error;
   if (error)
     return (
       <div className="creator-flow">
@@ -41,6 +43,7 @@ export default function CreatorMediaKitPage() {
               onClick={() => {
                 kit.refetch();
                 accounts.refetch();
+                snapshots.forEach((s) => s.refetch());
               }}
             >
               Try again
@@ -58,14 +61,32 @@ export default function CreatorMediaKitPage() {
         />
       </div>
     );
-  return <KitStudio key={kit.data.version} kit={kit.data} accounts={accounts.data ?? []} />;
+  return (
+    <KitStudio
+      key={kit.data.version}
+      kit={kit.data}
+      accounts={accounts.data ?? []}
+      latest={snapshots.flatMap((s) => (s.data ? [s.data] : []))}
+    />
+  );
 }
 
-function KitStudio({ kit, accounts }: { kit: KitRecord; accounts: SocialAccount[] }) {
+function KitStudio({
+  kit,
+  accounts,
+  latest,
+}: {
+  kit: KitRecord;
+  accounts: SocialAccount[];
+  latest: SocialSnapshot[];
+}) {
   const [draft, setDraft] = React.useState(() => starterDraft(kit, accounts));
   const [error, setError] = React.useState('');
   const actions = useKitActions();
-  const all = kit.saved_snapshots;
+  const all = [
+    ...kit.saved_snapshots,
+    ...latest.filter((s) => !kit.saved_snapshots.some((old) => old.id === s.id)),
+  ];
   const selected = all.filter((s) => draft.snapshot_ids.includes(s.id));
   const content: KitContent = {
     profile: draft.profile,
