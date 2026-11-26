@@ -30,7 +30,7 @@ export default function BriefEditor({ id, initial }: { id: string; initial: Agen
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [status, setStatus] = useState(''),
-    [preview, setPreview] = useState(false),
+    [preview, setPreview] = useState(true),
     [access, setAccess] = useState(false),
     [confirm, setConfirm] = useState(false),
     [history, setHistory] = useState(false),
