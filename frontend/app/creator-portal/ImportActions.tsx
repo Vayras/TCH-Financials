@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import Button from '@/components/ui/Button';
 import { activeImport, type SocialAccount } from '@/lib/creator-kit';
 import { toast } from 'sonner';
+import { useImportsUnavailable } from './kit-queries';
 
 type ImportInput = { action: 'create-kit' | 'refresh'; accountId?: string; username?: string };
 export function useCreatorImport() {
@@ -48,6 +49,23 @@ export function useCreatorImport() {
 export function CreateKitForm({ className }: { className?: string } = {}) {
   const [username, setUsername] = React.useState('');
   const request = useCreatorImport();
+  const unavailable = useImportsUnavailable();
+  if (unavailable)
+    return (
+      <section className={`creator-onboarding ${className || ''}`.trim()} role="status">
+        <div className="creator-onboarding-icon" aria-hidden="true">
+          ✳
+        </div>
+        <div>
+          <p className="cf-step">YOUR NEXT CHAPTER</p>
+          <h2>Instagram imports aren’t available right now</h2>
+          <p className="cf-muted">
+            You can’t add an account at the moment. Your saved content and published kit are still
+            available.
+          </p>
+        </div>
+      </section>
+    );
   return (
     <form
       className={`creator-onboarding ${className || ''}`.trim()}
