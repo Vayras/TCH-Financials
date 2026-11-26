@@ -6,27 +6,50 @@ import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
 import Icon from '@/components/ui/Icon';
 import styles from './login.module.css';
 
+// 'signed-in' is optimistic: once the password is accepted we show success
+// straight away and stay in that state while AuthGuard loads the profile and
+// navigates, instead of flashing back to an idle form.
+type Phase = 'idle' | 'signing-in' | 'signed-in';
+
+// If the guard hasn't moved us on by then, something went wrong loading the
+// profile; hand the form back rather than spinning forever.
+const OPEN_WORKSPACE_TIMEOUT_MS = 12_000;
+
 export default function LoginPage() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [busy, setBusy] = React.useState(false);
+  const [phase, setPhase] = React.useState<Phase>('idle');
+  const busy = phase !== 'idle';
+
+  React.useEffect(() => {
+    if (phase !== 'signed-in') return;
+    const timer = window.setTimeout(() => {
+      setPhase('idle');
+      setError('You’re signed in, but we couldn’t open your workspace. Please try again.');
+    }, OPEN_WORKSPACE_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setError(null);
-    setBusy(true);
+    setPhase('signing-in');
     try {
       const { error } = await getSupabase().auth.signInWithPassword({ email, password });
       if (error) {
         setError(error.message);
+        setPhase('idle');
         return;
       }
       // AuthGuard's onAuthStateChange handles routing based on profile status.
       // We do NOT redirect here to avoid a flicker for pending/rejected users.
-    } finally {
-      setBusy(false);
+      setPhase('signed-in');
+    } catch {
+      setError('We couldn’t reach the sign-in service. Check your connection and try again.');
+      setPhase('idle');
     }
   }
 
@@ -107,12 +130,25 @@ export default function LoginPage() {
             </p>
           )}
 
-          <button type="submit" disabled={busy} className={styles.submit}>
-            {busy && <span className={styles.spinner} aria-hidden="true" />}
-            {busy ? 'Signing in…' : 'Sign in'}
+          <button
+            type="submit"
+            disabled={busy}
+            className={`${styles.submit} ${phase === 'signed-in' ? styles.submitDone : ''}`}
+          >
+            {phase === 'signing-in' && <span className={styles.spinner} aria-hidden="true" />}
+            {phase === 'signed-in' && <Icon name="check" size={16} />}
+            {phase === 'signing-in'
+              ? 'Signing in…'
+              : phase === 'signed-in'
+                ? 'Signed in · opening your workspace…'
+                : 'Sign in'}
           </button>
           <p className="sr-only" role="status" aria-live="polite">
-            {busy ? 'Signing in' : ''}
+            {phase === 'signing-in'
+              ? 'Signing in'
+              : phase === 'signed-in'
+                ? 'Signed in. Opening your workspace.'
+                : ''}
           </p>
 
           <p className={styles.footer}>

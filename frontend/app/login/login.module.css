@@ -177,6 +177,10 @@
   cursor: default;
 }
 
+.submitDone {
+  background: #2f7d57;
+}
+
 .submit:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--n-accent-soft);
