@@ -277,7 +277,11 @@ export default function CreatorOverviewPage() {
                       </>
                     ) : (
                       <div className={styles.tags}>
-                        <span>Brief coming soon · Your agency will share the details here</span>
+                        <span>
+                          {c.brief_assigned
+                            ? 'Brief coming soon · Your agency will share the details here'
+                            : 'Part of your deal · Ask your agency if you need the brief'}
+                        </span>
                         <Link href="/creator-portal/campaigns">View campaign status →</Link>
                       </div>
                     )}

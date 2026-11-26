@@ -52,10 +52,15 @@ export default function CreatorBrief() {
             {query.data.brand || 'Campaign'}
           </p>
           <h1 className="mt-2 text-2xl font-semibold">{query.data.name}</h1>
-          <h2 className="mt-6 text-lg font-medium">Your brief is coming soon</h2>
+          <h2 className="mt-6 text-lg font-medium">
+            {query.data.brief_assigned
+              ? 'Your brief is coming soon'
+              : 'You’re part of this campaign'}
+          </h2>
           <p className="mt-2 max-w-2xl text-sm text-[var(--n-fg-muted)]">
-            This campaign is assigned to you. Your agency will share the brief before you can work
-            on concepts or feedback.
+            {query.data.brief_assigned
+              ? 'This campaign is assigned to you. Your agency will share the brief before you can work on concepts or feedback.'
+              : 'You’re on this campaign through a deal, but its brief hasn’t been assigned to you. Ask your agency if you need the brief.'}
           </p>
           <Link href="/creator-portal/campaigns" className="mt-5 inline-block text-sm underline">
             View all campaigns →
