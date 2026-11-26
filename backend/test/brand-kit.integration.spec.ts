@@ -92,6 +92,20 @@ test(
       await service.unpublish(actor, current.version);
       await assert.rejects(service.published(saved.slug), { status: 404 });
       await service.publish(actor, current.version);
+      const newerJob = randomUUID();
+      await db.query(
+        "INSERT INTO tch_creator_social_import(id,account_id,requested_by,idempotency_key,dataset_id,state) VALUES($1,$2,$3,$4,'gd_test','succeeded')",
+        [newerJob, account, actor.id, randomUUID()],
+      );
+      await db.query(
+        `INSERT INTO tch_creator_social_snapshot(id,account_id,import_id,schema_version,profile,posts,coverage,collected_at)
+        VALUES($1,$2,$3,1,'{}','[]','{}',now() + interval '1 minute')`,
+        [randomUUID(), account, newerJob],
+      );
+      const afterRefresh = await service.get(actor);
+      assert.equal(afterRefresh.version, current.version);
+      assert.deepEqual(afterRefresh.draft.snapshot_ids, [snapshot]);
+      assert.deepEqual(afterRefresh.draft.featured_posts, draft.featured_posts);
       await db.query('DELETE FROM tch_creator WHERE id=1');
       await assert.rejects(service.published(saved.slug), { status: 404 });
     } finally {
