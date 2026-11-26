@@ -117,6 +117,34 @@
   color: var(--n-fg-muted);
 }
 
+.inputWithAction {
+  padding-right: 64px;
+}
+
+.reveal {
+  position: absolute;
+  right: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--n-fg-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.reveal:hover {
+  background: var(--n-bg-hover);
+  color: var(--n-fg);
+}
+
+.reveal:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--n-accent-soft);
+}
+
 .submit {
   display: inline-flex;
   align-items: center;
