@@ -8,6 +8,7 @@ import Sidebar from '@/components/Sidebar';
 import type { Session } from '@supabase/supabase-js';
 import DevAccountSwitcher from '@/components/DevAccountSwitcher';
 import { useQueryClient } from '@tanstack/react-query';
+import { isPublicAuthRoute, TEAM_SIGN_IN } from '@/lib/auth-routes';
 
 const INITIAL_HASH = typeof window !== 'undefined' ? window.location.hash : '';
 
@@ -213,16 +214,12 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
   }, [configured, checkAuthStatus, router, queryClient]);
 
   React.useEffect(() => {
-    const isPublicRoute =
-      pathname === '/login' ||
-      pathname === '/signup' ||
-      pathname === '/set-password' ||
-      pathname === '/auth/callback';
+    const isPublicRoute = isPublicAuthRoute(pathname);
     const isPendingRoute = pathname === '/pending';
     const isSetPasswordRoute = pathname === '/set-password';
 
     if (status === 'anon' && !isPublicRoute) {
-      router.replace('/login');
+      router.replace(TEAM_SIGN_IN);
     } else if ((status === 'pending' || status === 'rejected') && !isPendingRoute) {
       router.replace('/pending');
     } else if (status === 'approved' && !passwordSet && !isSetPasswordRoute) {
@@ -257,11 +254,7 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
     }
   }, [status, passwordSet, pathname, router, profile.role]);
 
-  const isPublicRoute =
-    pathname === '/login' ||
-    pathname === '/signup' ||
-    pathname === '/set-password' ||
-    pathname === '/auth/callback';
+  const isPublicRoute = isPublicAuthRoute(pathname);
   const isPendingRoute = pathname === '/pending';
 
   let content: React.ReactNode;
