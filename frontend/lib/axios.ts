@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { getSupabase, isSupabaseConfigured } from './supabase';
-import { isPublicAuthRoute, TEAM_SIGN_IN } from '@/lib/auth-routes';
+import { isPublicAuthRoute, signInPathFor } from '@/lib/auth-routes';
 
 export class ConflictError extends Error {
   current?: unknown;
@@ -61,7 +61,7 @@ httpClient.interceptors.response.use(
       if (status === 401 && isSupabaseConfigured() && typeof window !== 'undefined') {
         // Don't loop redirect if already on login or auth pages
         if (!isPublicAuthRoute(window.location.pathname)) {
-          window.location.assign(TEAM_SIGN_IN);
+          window.location.assign(signInPathFor(window.location.pathname));
         }
       }
       if (status === 409) {

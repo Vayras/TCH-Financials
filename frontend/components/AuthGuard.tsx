@@ -8,7 +8,7 @@ import Sidebar from '@/components/Sidebar';
 import type { Session } from '@supabase/supabase-js';
 import DevAccountSwitcher from '@/components/DevAccountSwitcher';
 import { useQueryClient } from '@tanstack/react-query';
-import { isPublicAuthRoute, TEAM_SIGN_IN } from '@/lib/auth-routes';
+import { isPublicAuthRoute, signInPathFor } from '@/lib/auth-routes';
 
 const INITIAL_HASH = typeof window !== 'undefined' ? window.location.hash : '';
 
@@ -219,7 +219,7 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
     const isSetPasswordRoute = pathname === '/set-password';
 
     if (status === 'anon' && !isPublicRoute) {
-      router.replace(TEAM_SIGN_IN);
+      router.replace(signInPathFor(pathname));
     } else if ((status === 'pending' || status === 'rejected') && !isPendingRoute) {
       router.replace('/pending');
     } else if (status === 'approved' && !passwordSet && !isSetPasswordRoute) {

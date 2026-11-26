@@ -22,3 +22,15 @@ export function normalizePath(path: string) {
 export function isPublicAuthRoute(path: string) {
   return PUBLIC_AUTH_ROUTES.has(normalizePath(path));
 }
+
+// Where to send someone who isn't signed in, based on what they were viewing.
+export function signInPathFor(path: string) {
+  const p = normalizePath(path);
+  return p.startsWith('/creator-portal') || p.startsWith('/creator/')
+    ? CREATOR_SIGN_IN
+    : TEAM_SIGN_IN;
+}
+
+export function signInPathForRole(role: string | null | undefined) {
+  return role === 'creator' ? CREATOR_SIGN_IN : TEAM_SIGN_IN;
+}

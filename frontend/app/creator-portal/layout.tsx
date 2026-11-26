@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ChangePasswordModal from '@/components/ChangePasswordModal';
 import Icon from '@/components/ui/Icon';
+import { CREATOR_SIGN_IN } from '@/lib/auth-routes';
 
 const base = '/creator-portal';
 const navigation = [
@@ -236,7 +237,7 @@ export default function CreatorPortalLayout({ children }: { children: React.Reac
   async function signOut() {
     if (isSupabaseConfigured()) await getSupabase().auth.signOut();
     else window.localStorage.removeItem('tch-dev-user');
-    window.location.assign('/login');
+    window.location.assign(CREATOR_SIGN_IN);
   }
   const closeMobile = () => setMobileOpen(false);
   React.useEffect(() => {
