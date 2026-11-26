@@ -1,30 +1,75 @@
 'use client';
 
 import * as React from 'react';
-import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
-
 import Link from 'next/link';
+import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
+import Icon from '@/components/ui/Icon';
+import styles from './login.module.css';
+
+// 'signed-in' is optimistic: once the password is accepted we show success
+// straight away and stay in that state while AuthGuard loads the profile and
+// navigates, instead of flashing back to an idle form.
+type Phase = 'idle' | 'signing-in' | 'signed-in';
+
+// If the guard hasn't moved us on by then, something went wrong loading the
+// profile; hand the form back rather than spinning forever.
+const OPEN_WORKSPACE_TIMEOUT_MS = 12_000;
+
+const NETWORK_ERROR = 'We couldn’t reach the sign-in service. Check your connection and try again.';
+
+// Supabase's messages are terse and technical; say what to do next instead.
+function friendlyError(message: string) {
+  const m = message.toLowerCase();
+  // supabase-js reports network failures as an error result, not a throw.
+  if (m.includes('failed to fetch') || m.includes('network')) return NETWORK_ERROR;
+  if (m.includes('invalid login credentials'))
+    return 'That email and password don’t match. Check them and try again.';
+  if (m.includes('email not confirmed'))
+    return 'Confirm your email address first. Check your inbox for the link we sent.';
+  if (m.includes('rate limit') || m.includes('too many'))
+    return 'Too many attempts. Wait a minute, then try again.';
+  return message;
+}
 
 export default function LoginPage() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [busy, setBusy] = React.useState(false);
+  const [phase, setPhase] = React.useState<Phase>('idle');
+  const passwordRef = React.useRef<HTMLInputElement>(null);
+  const busy = phase !== 'idle';
+
+  React.useEffect(() => {
+    if (phase !== 'signed-in') return;
+    const timer = window.setTimeout(() => {
+      setPhase('idle');
+      setError('You’re signed in, but we couldn’t open your workspace. Please try again.');
+    }, OPEN_WORKSPACE_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
     setError(null);
-    setBusy(true);
+    setPhase('signing-in');
     try {
       const { error } = await getSupabase().auth.signInWithPassword({ email, password });
       if (error) {
-        setError(error.message);
+        setError(friendlyError(error.message));
+        setPhase('idle');
+        // Roll back: keep the email, clear the password and put the cursor there.
+        setPassword('');
+        requestAnimationFrame(() => passwordRef.current?.focus());
         return;
       }
       // AuthGuard's onAuthStateChange handles routing based on profile status.
       // We do NOT redirect here to avoid a flicker for pending/rejected users.
-    } finally {
-      setBusy(false);
+      setPhase('signed-in');
+    } catch {
+      setError(NETWORK_ERROR);
+      setPhase('idle');
     }
   }
 
@@ -42,90 +87,136 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: 'var(--n-bg)' }}
-    >
-      <form
-        onSubmit={submit}
-        className="filter-popover w-full max-w-[360px] rounded-xl p-8 shadow-lg anim-fade-up"
-      >
-        <div className="flex items-center gap-2.5 mb-6">
-          <div
-            className="h-8 w-8 rounded flex items-center justify-center text-[15px] font-semibold shadow-sm"
-            style={{
-              background: 'var(--n-fg)',
-              color: 'var(--n-bg)',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.12)',
-            }}
-          >
-            T
+    <main className={styles.page}>
+      <div className={`${styles.card} anim-fade-up`}>
+        {busy && <span className={styles.progress} aria-hidden="true" />}
+        <form onSubmit={submit} className={styles.form} aria-busy={busy}>
+          <div className={styles.brandRow}>
+            <span className={styles.logo} aria-hidden="true">
+              T
+            </span>
+            TCH Financials
           </div>
-          <div>
-            <div className="text-[15px] font-semibold leading-tight">TCH Financials</div>
-            <div className="text-[12px]" style={{ color: 'var(--n-fg-subtle)' }}>
-              Sign in to continue
-            </div>
-          </div>
-        </div>
 
-        <label className="block mb-3">
-          <span
-            className="block text-[12px] font-medium mb-1"
-            style={{ color: 'var(--n-fg-subtle)' }}
+          <h1 className={styles.title}>Welcome back</h1>
+          <p className={styles.subtitle}>Sign in to your TCH workspace.</p>
+
+          <label className={styles.field}>
+            <span className={styles.label}>Email</span>
+            <span className={styles.inputWrap}>
+              <Icon name="mail" size={16} className={styles.inputIcon} />
+              <input
+                type="email"
+                required
+                autoFocus
+                disabled={busy}
+                autoComplete="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setError(null);
+                }}
+                className={styles.input}
+                aria-invalid={!!error}
+                aria-describedby={error ? 'login-error' : undefined}
+              />
+            </span>
+          </label>
+
+          <label className={styles.field}>
+            <span className={styles.label}>Password</span>
+            <span className={styles.inputWrap}>
+              <Icon name="lock" size={16} className={styles.inputIcon} />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                disabled={busy}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setError(null);
+                }}
+                ref={passwordRef}
+                className={`${styles.input} ${styles.inputWithAction}`}
+                aria-invalid={!!error}
+                aria-describedby={error ? 'login-error' : undefined}
+              />
+              <button
+                type="button"
+                className={styles.reveal}
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </span>
+          </label>
+
+          {error && (
+            <p id="login-error" role="alert" className={styles.error}>
+              <Icon name="info" size={15} />
+              <span>{error}</span>
+            </p>
+          )}
+
+          <button
+            type="submit"
+            disabled={busy}
+            className={`${styles.submit} ${phase === 'signed-in' ? styles.submitDone : ''}`}
           >
-            Email
-          </span>
-          <input
-            type="email"
-            required
-            autoFocus
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
-          />
-        </label>
-
-        <label className="block mb-5">
-          <span
-            className="block text-[12px] font-medium mb-1"
-            style={{ color: 'var(--n-fg-subtle)' }}
-          >
-            Password
-          </span>
-          <input
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full h-9 rounded px-3 text-[12px] bg-[var(--n-bg)] text-[var(--n-fg)] border border-[var(--n-border)] focus:outline-none focus:border-[var(--n-accent)] transition-colors"
-          />
-        </label>
-
-        {error && (
-          <p className="mb-4 text-[12.5px]" style={{ color: 'var(--n-danger, #d1242f)' }}>
-            {error}
+            {phase === 'signing-in' && <span className={styles.spinner} aria-hidden="true" />}
+            {phase === 'signed-in' && <Icon name="check" size={16} />}
+            {phase === 'signing-in'
+              ? 'Signing in…'
+              : phase === 'signed-in'
+                ? 'Signed in · opening your workspace…'
+                : 'Sign in'}
+          </button>
+          <p className="sr-only" role="status" aria-live="polite">
+            {phase === 'signing-in'
+              ? 'Signing in'
+              : phase === 'signed-in'
+                ? 'Signed in. Opening your workspace.'
+                : ''}
           </p>
-        )}
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full h-9 rounded text-[12px] font-medium transition-transform duration-100 active:scale-[0.985] disabled:opacity-60 cursor-pointer mb-4"
-          style={{ background: 'var(--n-fg)', color: 'var(--n-bg)' }}
-        >
-          {busy ? 'Signing in…' : 'Sign in'}
-        </button>
+          <p className={styles.footer}>
+            New here? <Link href="/signup">Request access</Link>
+          </p>
+        </form>
 
-        <div className="text-center text-[12px] mt-2">
-          <span style={{ color: 'var(--n-fg-subtle)' }}>New here? </span>
-          <Link href="/signup" className="font-medium underline hover:text-[var(--n-accent)]">
-            Request Access
-          </Link>
-        </div>
-      </form>
-    </div>
+        <aside className={styles.aside} aria-hidden="true">
+          <div>
+            <p className={styles.asideEyebrow}>The Creative Hook</p>
+            <p className={styles.asideTitle}>
+              Campaigns, deals and creator payouts, all in one place.
+            </p>
+          </div>
+          <ul className={styles.asideList}>
+            <li>
+              <span>
+                <Icon name="briefcase" size={15} />
+              </span>
+              <span>Track every brand deal and campaign</span>
+            </li>
+            <li>
+              <span>
+                <Icon name="pie" size={15} />
+              </span>
+              <span>See agency fees and payouts at a glance</span>
+            </li>
+            <li>
+              <span>
+                <Icon name="users" size={15} />
+              </span>
+              <span>Work alongside creators in their portal</span>
+            </li>
+          </ul>
+        </aside>
+      </div>
+    </main>
   );
 }
