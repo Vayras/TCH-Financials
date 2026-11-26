@@ -97,6 +97,17 @@ export class FixExpiredInviteProvisioning1792300000000 implements MigrationInter
     await queryRunner.query(`
       REVOKE ALL ON FUNCTION public.tch_sync_user_profile() FROM PUBLIC
     `);
+
+    // 1792200000000 backfilled expires_at = created_at + 7 days, so every
+    // outstanding invitation older than a week expired as soon as it ran.
+    // Give those a fresh week. Invitations written by the API take their
+    // expiry from the application clock and never match this exact value.
+    await queryRunner.query(`
+      UPDATE public.tch_invitation
+      SET expires_at = now() + interval '7 days'
+      WHERE accepted_at IS NULL
+        AND expires_at = created_at + interval '7 days'
+    `);
   }
 
   public async down(): Promise<void> {
