@@ -194,6 +194,11 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
         }
       }
 
+      if (event === 'USER_UPDATED') {
+        // The user's own record changed; never answer from the cached profile.
+        queryClient.removeQueries({ queryKey: ['auth', 'me'] });
+      }
+
       if (session) {
         checkAuthStatus(session);
       } else {
@@ -205,7 +210,7 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
       active = false;
       sub.subscription.unsubscribe();
     };
-  }, [configured, checkAuthStatus, router]);
+  }, [configured, checkAuthStatus, router, queryClient]);
 
   React.useEffect(() => {
     const isPublicRoute =
