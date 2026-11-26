@@ -41,12 +41,14 @@ export type SharedBrief = {
   content: BriefContent;
 };
 export type CreatorBriefView =
-  | (SharedBrief & { brief_shared: true })
+  | (SharedBrief & { brief_shared: true; brief_assigned: true })
   | {
       id: string;
       name: string;
       brand: string;
       brief_shared: false;
+      // false when the creator only reaches this campaign through a deal
+      brief_assigned: boolean;
       shared_revision_id: null;
       shared_version: null;
       shared_at: null;
@@ -60,6 +62,7 @@ export type CreatorCampaignSummary = {
   shared_version: number | null;
   shared_at: string | null;
   brief_shared: boolean;
+  brief_assigned: boolean;
 };
 export type Assignments = {
   version: number;

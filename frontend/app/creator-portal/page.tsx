@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useKit, useSocialAccounts } from './kit-queries';
+import { useKit, useSocialAccounts, useSavedSnapshots } from './kit-queries';
 import { starterDraft, metric, importedDate } from '@/lib/creator-kit';
 import { CreatorImage } from '@/components/CreatorKitView';
 import { CreateKitForm, ImportProgress } from './ImportActions';
@@ -11,7 +11,8 @@ import { inr } from '@/lib/utils';
 import styles from './home.module.css';
 export default function CreatorOverviewPage() {
   const accounts = useSocialAccounts(),
-    kit = useKit();
+    kit = useKit(),
+    snapshots = useSavedSnapshots(accounts.data ?? []);
   const campaigns = useBriefQuery<{ items: HomeCampaign[]; has_more: boolean }>(
     '/creator-portal/campaign-briefs/home',
   );
@@ -41,8 +42,10 @@ export default function CreatorOverviewPage() {
       : null);
   const paid = Number(finance.data?.paid ?? 0),
     pending = Number(finance.data?.pending ?? 0);
-  const posts = (kit.data?.saved_snapshots ?? [])
-    .flatMap((s) => s.posts ?? [])
+  // Every connected account's latest import, not just the snapshots already
+  // chosen for the brand kit.
+  const posts = snapshots
+    .flatMap((s) => s.data?.posts ?? [])
     .sort((a, b) => (b.published_at ?? '').localeCompare(a.published_at ?? ''));
   const steps = [
     {
@@ -131,7 +134,7 @@ export default function CreatorOverviewPage() {
         </div>
         <Link href="/creator-portal/portfolio">Content library →</Link>
       </div>
-      {kit.isError && <p role="alert">Some content couldn’t be loaded.</p>}
+      {snapshots.some((s) => s.isError) && <p role="alert">Some content couldn’t be loaded.</p>}
       <div className={styles.posts}>
         {posts.slice(0, 3).map((post) => (
           <article key={post.platform_post_id}>
@@ -274,7 +277,11 @@ export default function CreatorOverviewPage() {
                       </>
                     ) : (
                       <div className={styles.tags}>
-                        <span>Brief coming soon · Your agency will share the details here</span>
+                        <span>
+                          {c.brief_assigned
+                            ? 'Brief coming soon · Your agency will share the details here'
+                            : 'Part of your deal · Ask your agency if you need the brief'}
+                        </span>
                         <Link href="/creator-portal/campaigns">View campaign status →</Link>
                       </div>
                     )}

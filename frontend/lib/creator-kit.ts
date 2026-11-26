@@ -99,6 +99,8 @@ export type PublishedKit = {
   published_at: string;
   content: KitContent;
 };
+// Mirrors validateDraft in backend/src/creator-social/brand-kit.model.ts.
+export const MAX_KIT_ACCOUNTS = 3;
 export const activeImport = (state?: string | null) =>
   ['queued', 'triggering', 'collecting'].includes(state ?? '');
 export function metric(value: number | null | undefined) {

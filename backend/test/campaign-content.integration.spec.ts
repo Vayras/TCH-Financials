@@ -89,6 +89,7 @@ test(
       await assert.rejects(service.share(member, '1', { version: saved.version }), { status: 403 });
       const assignedPendingBrief = await service.getCreatorBrief(creator, '1');
       assert.equal(assignedPendingBrief.brief_shared, false);
+      assert.equal(assignedPendingBrief.brief_assigned, true);
       assert.equal(assignedPendingBrief.content, null);
       const published = await Promise.all([
         service.share(admin, '1', { version: saved.version }),
@@ -113,20 +114,24 @@ test(
       await assert.rejects(service.getVersion(admin, '2', published[0].id), { status: 404 });
       const creatorCampaigns = await service.listCreatorBriefs(creator, 1, 20);
       assert.deepEqual(
-        creatorCampaigns.items.map((item: { id: string; brief_shared: boolean }) => [
-          item.id,
-          item.brief_shared,
-        ]),
+        creatorCampaigns.items.map(
+          (item: { id: string; brief_shared: boolean; brief_assigned: boolean }) => [
+            item.id,
+            item.brief_shared,
+            item.brief_assigned,
+          ],
+        ),
         [
-          ['1', true],
-          ['2', false],
-          ['3', false],
+          ['1', true, true],
+          ['2', false, false],
+          ['3', false, false],
         ],
       );
       assert.equal('content' in creatorCampaigns.items[1], false);
       assert.equal((await service.listCreatorBriefs(other, 1, 20)).items.length, 0);
       const pendingBrief = await service.getCreatorBrief(creator, '2');
       assert.equal(pendingBrief.brief_shared, false);
+      assert.equal(pendingBrief.brief_assigned, false);
       assert.equal(pendingBrief.content, null);
       await assert.rejects(service.getCreatorBrief(other, '2'), { status: 404 });
       const conceptMigration = new AddContentConcepts1753500000000();
@@ -135,14 +140,17 @@ test(
       await conceptMigration.up(runner);
       const homeCampaigns = await service.creatorHome(creator);
       assert.deepEqual(
-        homeCampaigns.items.map((item: { id: string; brief_shared: boolean }) => [
-          item.id,
-          item.brief_shared,
-        ]),
+        homeCampaigns.items.map(
+          (item: { id: string; brief_shared: boolean; brief_assigned: boolean }) => [
+            item.id,
+            item.brief_shared,
+            item.brief_assigned,
+          ],
+        ),
         [
-          ['1', true],
-          ['2', false],
-          ['3', false],
+          ['1', true, true],
+          ['2', false, false],
+          ['3', false, false],
         ],
       );
       const concepts = new ContentConceptService(db);
