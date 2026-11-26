@@ -125,13 +125,13 @@ function KitStudio({ kit, accounts }: { kit: KitRecord; accounts: SocialAccount[
   }
   async function addProfile(account: SocialAccount) {
     if (!account.snapshot_id) return;
-    const next = {
-      ...draft,
-      snapshot_ids: [...draft.snapshot_ids, account.snapshot_id],
-    };
+    // Build on the last saved draft, not the on-screen one, so unrelated unsaved
+    // edits aren't stored behind the creator's back. The screen only changes
+    // once the server accepts the save.
+    const saved = starterDraft(kit, accounts);
+    const next = { ...saved, snapshot_ids: [...saved.snapshot_ids, account.snapshot_id] };
     try {
       setError('');
-      setDraft(next);
       await actions.save.mutateAsync({ version: kit.version, draft: next });
       toast.success('Profile added to your kit');
     } catch (e) {
