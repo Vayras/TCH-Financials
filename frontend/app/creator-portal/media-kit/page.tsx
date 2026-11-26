@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button';
 import CreatorKitView, { CreatorImage } from '@/components/CreatorKitView';
 import {
   starterDraft,
+  MAX_KIT_ACCOUNTS,
   importedDate,
   type KitRecord,
   type SocialAccount,
@@ -123,6 +124,7 @@ function KitStudio({
   };
   const busy = actions.save.isPending || actions.publish.isPending || actions.unpublish.isPending;
   const dirty = JSON.stringify(draft) !== JSON.stringify(kit.draft);
+  const atAccountLimit = draft.snapshot_ids.length >= MAX_KIT_ACCOUNTS;
   async function saveOrPublish(publish: boolean) {
     try {
       setError('');
@@ -172,13 +174,13 @@ function KitStudio({
   }
   async function addProfile(account: SocialAccount) {
     if (!account.snapshot_id) return;
-    const next = {
-      ...draft,
-      snapshot_ids: [...draft.snapshot_ids, account.snapshot_id],
-    };
+    // Build on the last saved draft, not the on-screen one, so unrelated unsaved
+    // edits aren't stored behind the creator's back. The screen only changes
+    // once the server accepts the save.
+    const saved = starterDraft(kit, accounts);
+    const next = { ...saved, snapshot_ids: [...saved.snapshot_ids, account.snapshot_id] };
     try {
       setError('');
-      setDraft(next);
       await actions.save.mutateAsync({ version: kit.version, draft: next });
       toast.success('Profile added to your kit');
     } catch (e) {
@@ -311,6 +313,14 @@ function KitStudio({
           </section>
           <section className="cf-panel">
             <h2>Included accounts</h2>
+            {atAccountLimit &&
+              accounts.some(
+                (a) => a.snapshot_id && !selected.some((s) => s.account_id === a.id),
+              ) && (
+                <p className="cf-muted" style={{ marginTop: 10 }}>
+                  Your kit can include up to {MAX_KIT_ACCOUNTS} accounts.
+                </p>
+              )}
             {accounts
               .filter((a) => a.snapshot_id)
               .map((a) => {
@@ -336,7 +346,12 @@ function KitStudio({
                         className="cf-link"
                         style={{ textAlign: 'left', marginTop: 8 }}
                         onClick={() => void addProfile(a)}
-                        disabled={busy}
+                        disabled={busy || atAccountLimit}
+                        title={
+                          atAccountLimit
+                            ? `Your kit can include up to ${MAX_KIT_ACCOUNTS} accounts.`
+                            : undefined
+                        }
                       >
                         Add this profile
                       </button>
