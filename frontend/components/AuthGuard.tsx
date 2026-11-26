@@ -44,6 +44,15 @@ export function useAuth() {
   return React.useContext(AuthContext);
 }
 
+// Re-reads /auth/me, bypassing the cache. Pages that change the user's
+// profile (password setup, approval) call this so the guard doesn't act on
+// a stale copy. Provided on every route, including public ones.
+const RefreshAuthContext = React.createContext<() => Promise<void>>(async () => {});
+
+export function useRefreshAuth() {
+  return React.useContext(RefreshAuthContext);
+}
+
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '/';
   if (pathname.startsWith('/k/')) return <>{children}</>;
@@ -111,6 +120,13 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
       setStatus('anon');
     }
   }, [queryClient]);
+
+  const refreshAuth = React.useCallback(async () => {
+    queryClient.removeQueries({ queryKey: ['auth', 'me'] });
+    if (!configured) return;
+    const { data } = await getSupabase().auth.getSession();
+    await checkAuthStatus(data.session);
+  }, [configured, queryClient, checkAuthStatus]);
 
   React.useEffect(() => {
     if (!configured) {
@@ -243,16 +259,11 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
     pathname === '/auth/callback';
   const isPendingRoute = pathname === '/pending';
 
-  if (isPublicRoute) {
-    return <>{children}</>;
-  }
-
-  if (isPendingRoute) {
-    return <>{children}</>;
-  }
-
-  if (status === 'loading') {
-    return (
+  let content: React.ReactNode;
+  if (isPublicRoute || isPendingRoute) {
+    content = children;
+  } else if (status === 'loading') {
+    content = (
       <div
         className="min-h-screen flex items-center justify-center"
         style={{ background: 'var(--n-bg)' }}
@@ -262,10 +273,8 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
         </span>
       </div>
     );
-  }
-
-  if (status !== 'approved') {
-    return (
+  } else if (status !== 'approved') {
+    content = (
       <div
         className="min-h-screen flex items-center justify-center"
         style={{ background: 'var(--n-bg)' }}
@@ -275,12 +284,14 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
         </span>
       </div>
     );
+  } else {
+    content = (
+      <AuthContext.Provider value={profile}>
+        {pathname.startsWith('/creator-portal') ? children : <Sidebar>{children}</Sidebar>}
+        {!configured && <DevAccountSwitcher currentEmail={profile.email} />}
+      </AuthContext.Provider>
+    );
   }
 
-  return (
-    <AuthContext.Provider value={profile}>
-      {pathname.startsWith('/creator-portal') ? children : <Sidebar>{children}</Sidebar>}
-      {!configured && <DevAccountSwitcher currentEmail={profile.email} />}
-    </AuthContext.Provider>
-  );
+  return <RefreshAuthContext.Provider value={refreshAuth}>{content}</RefreshAuthContext.Provider>;
 }
