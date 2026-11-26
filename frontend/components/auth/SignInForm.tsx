@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { getSupabase, isSupabaseConfigured } from '@/lib/supabase';
 import Icon from '@/components/ui/Icon';
 import styles from './SignIn.module.css';
@@ -32,6 +33,9 @@ function friendlyError(message: string) {
 }
 
 export interface SignInContent {
+  // Which portal this is. 'creator' uses the CreatorLedger palette.
+  tone?: 'team' | 'creator';
+  brand: { name: string; logoSrc?: string };
   subtitle: string;
   // Footer link for people without an account.
   signupHref: string;
@@ -100,15 +104,19 @@ export default function SignInForm({ content }: { content: SignInContent }) {
   }
 
   return (
-    <main className={styles.page}>
+    <main className={`${styles.page} ${content.tone === 'creator' ? styles.creator : ''}`}>
       <div className={`${styles.card} anim-fade-up`}>
         {busy && <span className={styles.progress} aria-hidden="true" />}
         <form onSubmit={submit} className={styles.form} aria-busy={busy}>
           <div className={styles.brandRow}>
-            <span className={styles.logo} aria-hidden="true">
-              T
-            </span>
-            TCH Financials
+            {content.brand.logoSrc ? (
+              <Image src={content.brand.logoSrc} alt="" aria-hidden="true" width={32} height={32} />
+            ) : (
+              <span className={styles.logo} aria-hidden="true">
+                {content.brand.name.charAt(0)}
+              </span>
+            )}
+            {content.brand.name}
           </div>
 
           <h1 className={styles.title}>Welcome back</h1>

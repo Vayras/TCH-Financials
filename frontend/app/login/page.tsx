@@ -3,6 +3,7 @@
 import SignInForm, { type SignInContent } from '@/components/auth/SignInForm';
 
 const TEAM: SignInContent = {
+  brand: { name: 'TCH Financials' },
   subtitle: 'Sign in to your TCH workspace.',
   signupHref: '/signup',
   panel: {
