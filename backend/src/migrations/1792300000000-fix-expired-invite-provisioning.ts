@@ -108,6 +108,22 @@ export class FixExpiredInviteProvisioning1792300000000 implements MigrationInter
       WHERE accepted_at IS NULL
         AND expires_at = created_at + interval '7 days'
     `);
+
+    // Repair profiles the old trigger already created this way: invited
+    // users who still have no password in Supabase Auth.
+    await queryRunner.query(`
+      DO $$ BEGIN
+        IF pg_catalog.to_regclass('auth.users') IS NOT NULL THEN
+          UPDATE public.tch_profile p
+          SET password_set = false
+          FROM auth.users u
+          WHERE u.id = p.id
+            AND p.password_set
+            AND u.invited_at IS NOT NULL
+            AND COALESCE(u.encrypted_password, '') = '';
+        END IF;
+      END $$;
+    `);
   }
 
   public async down(): Promise<void> {
