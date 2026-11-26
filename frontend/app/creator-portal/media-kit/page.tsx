@@ -6,6 +6,7 @@ import Button from '@/components/ui/Button';
 import CreatorKitView, { CreatorImage } from '@/components/CreatorKitView';
 import {
   starterDraft,
+  MAX_KIT_ACCOUNTS,
   importedDate,
   type KitRecord,
   type SocialAccount,
@@ -102,6 +103,7 @@ function KitStudio({ kit, accounts }: { kit: KitRecord; accounts: SocialAccount[
   };
   const busy = actions.save.isPending || actions.publish.isPending || actions.unpublish.isPending;
   const dirty = JSON.stringify(draft) !== JSON.stringify(kit.draft);
+  const atAccountLimit = draft.snapshot_ids.length >= MAX_KIT_ACCOUNTS;
   async function saveOrPublish(publish: boolean) {
     try {
       setError('');
@@ -264,6 +266,14 @@ function KitStudio({ kit, accounts }: { kit: KitRecord; accounts: SocialAccount[
           </section>
           <section className="cf-panel">
             <h2>Included accounts</h2>
+            {atAccountLimit &&
+              accounts.some(
+                (a) => a.snapshot_id && !selected.some((s) => s.account_id === a.id),
+              ) && (
+                <p className="cf-muted" style={{ marginTop: 10 }}>
+                  Your kit can include up to {MAX_KIT_ACCOUNTS} accounts.
+                </p>
+              )}
             {accounts
               .filter((a) => a.snapshot_id)
               .map((a) => {
@@ -279,7 +289,12 @@ function KitStudio({ kit, accounts }: { kit: KitRecord; accounts: SocialAccount[
                         className="cf-link"
                         style={{ textAlign: 'left', marginTop: 8 }}
                         onClick={() => void addProfile(a)}
-                        disabled={busy}
+                        disabled={busy || atAccountLimit}
+                        title={
+                          atAccountLimit
+                            ? `Your kit can include up to ${MAX_KIT_ACCOUNTS} accounts.`
+                            : undefined
+                        }
                       >
                         Add this profile
                       </button>
