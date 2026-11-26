@@ -30,6 +30,12 @@ if (typeof window !== 'undefined' && isSupabaseConfigured()) {
 
 // Request Interceptor: Automatically inject Bearer auth token if configured
 httpClient.interceptors.request.use(async (config) => {
+  if (config.url) {
+    const [pathname, search] = config.url.split('?');
+    if (pathname && !pathname.endsWith('/')) {
+      config.url = `${pathname}/${search !== undefined ? `?${search}` : ''}`;
+    }
+  }
   if (isSupabaseConfigured()) {
     if (!cachedToken) {
       const { data } = await getSupabase().auth.getSession();

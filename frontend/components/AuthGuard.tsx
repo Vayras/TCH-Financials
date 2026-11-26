@@ -82,14 +82,19 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const info = await api.get<{
-        role: AppRole;
-        status: string;
-        email: string;
-        passwordSet?: boolean;
-        displayName?: string;
-        creatorId?: string | null;
-      }>('/auth/me');
+      const info = await queryClient.fetchQuery({
+        queryKey: ['auth', 'me'],
+        queryFn: () =>
+          api.get<{
+            role: AppRole;
+            status: string;
+            email: string;
+            passwordSet?: boolean;
+            displayName?: string;
+            creatorId?: string | null;
+          }>('/auth/me'),
+        staleTime: 5 * 60 * 1000,
+      });
       if (authUserId.current !== session.user.id) return;
       setProfile({
         role: info.role || 'tch_member',
@@ -110,14 +115,19 @@ function AuthenticatedGuard({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (!configured) {
       let active = true;
-      api
-        .get<{
-          role: AppRole;
-          status: string;
-          email: string;
-          displayName?: string;
-          creatorId?: string | null;
-        }>('/auth/me')
+      queryClient
+        .fetchQuery({
+          queryKey: ['auth', 'me'],
+          queryFn: () =>
+            api.get<{
+              role: AppRole;
+              status: string;
+              email: string;
+              displayName?: string;
+              creatorId?: string | null;
+            }>('/auth/me'),
+          staleTime: 5 * 60 * 1000,
+        })
         .then((info) => {
           if (!active) return;
           setProfile({

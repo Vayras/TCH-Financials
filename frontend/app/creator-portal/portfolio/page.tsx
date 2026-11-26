@@ -12,17 +12,16 @@ import {
   starterDraft,
   type KitDraft,
 } from '@/lib/creator-kit';
-import { useKit, useKitActions, useSavedSnapshots, useSocialAccounts } from '../kit-queries';
+import { useKit, useKitActions, useSocialAccounts } from '../kit-queries';
 
 export default function ContentLibraryPage() {
   const accounts = useSocialAccounts(),
     kit = useKit(),
     actions = useKitActions();
-  const snapshots = useSavedSnapshots(accounts.data ?? []);
   const [sort, setSort] = React.useState('newest');
   const [accountId, setAccountId] = React.useState('all');
-  const rows = snapshots
-    .flatMap((q) => (q.data ? q.data.posts.map((post) => ({ post, snapshot: q.data! })) : []))
+  const rows = (kit.data?.saved_snapshots ?? [])
+    .flatMap((s) => s.posts.map((post) => ({ post, snapshot: s })))
     .filter((row) => accountId === 'all' || row.snapshot.account_id === accountId);
   const insights = sampleInsights(rows.map((r) => r.post));
   const ordered = [...rows].sort((a, b) =>
@@ -73,8 +72,8 @@ export default function ContentLibraryPage() {
       toast.error(e instanceof Error ? e.message : 'Could not save selection');
     }
   }
-  const error = accounts.error || kit.error || snapshots.find((q) => q.error)?.error;
-  const loading = accounts.isLoading || kit.isLoading || snapshots.some((q) => q.isLoading);
+  const error = accounts.error || kit.error;
+  const loading = accounts.isLoading || kit.isLoading;
 
   const selectedAccount = accounts.data?.find((a) => a.id === accountId) ?? accounts.data?.[0];
   const values = [
