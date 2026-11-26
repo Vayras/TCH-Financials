@@ -144,6 +144,32 @@ function KitStudio({
       toast.error('Could not copy. Open the published kit and copy its address.');
     }
   }
+  function applyLatest(account: SocialAccount) {
+    const latestId = account.snapshot_id;
+    if (!latestId) return;
+    const latestPosts = new Set(
+      latest.find((s) => s.id === latestId)?.posts.map((p) => p.platform_post_id) ?? [],
+    );
+    const oldIds = all.filter((s) => s.account_id === account.id).map((s) => s.id);
+    const featured = draft.featured_posts.flatMap((p) =>
+      !oldIds.includes(p.snapshot_id)
+        ? [p]
+        : latestPosts.has(p.post_id)
+          ? [{ ...p, snapshot_id: latestId }]
+          : [],
+    );
+    setDraft({
+      ...draft,
+      snapshot_ids: [...draft.snapshot_ids.filter((id) => !oldIds.includes(id)), latestId],
+      featured_posts: featured,
+    });
+    const dropped = draft.featured_posts.length - featured.length;
+    toast.message(
+      dropped
+        ? `Latest insights applied. ${dropped} featured post${dropped === 1 ? ' is' : 's are'} no longer in this import and ${dropped === 1 ? 'was' : 'were'} removed. Save to keep these changes.`
+        : 'Latest insights applied. Save to keep these changes.',
+    );
+  }
   async function addProfile(account: SocialAccount) {
     if (!account.snapshot_id) return;
     const next = {
@@ -295,6 +321,16 @@ function KitStudio({
                     <p className="cf-muted">
                       {current ? `Updated ${importedDate(current.collected_at)}` : 'Not included'}
                     </p>
+                    {current && current.id !== a.snapshot_id && (
+                      <button
+                        className="cf-link"
+                        style={{ textAlign: 'left', marginTop: 8 }}
+                        onClick={() => applyLatest(a)}
+                        disabled={busy}
+                      >
+                        Use latest insights
+                      </button>
+                    )}
                     {!current && (
                       <button
                         className="cf-link"
@@ -308,6 +344,10 @@ function KitStudio({
                   </div>
                 );
               })}
+            <p className="cf-muted" style={{ marginTop: 14 }}>
+              When an account has newer insights, choose <strong>Use latest insights</strong> and
+              save to keep your featured work up to date.
+            </p>
           </section>
         </aside>
         <div>
