@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getSupabase, isSupabaseConfigured } from './supabase';
+import { isPublicAuthRoute, signInPathFor } from '@/lib/auth-routes';
 
 export class ConflictError extends Error {
   current?: unknown;
@@ -59,9 +60,8 @@ httpClient.interceptors.response.use(
       const status = error.response.status;
       if (status === 401 && isSupabaseConfigured() && typeof window !== 'undefined') {
         // Don't loop redirect if already on login or auth pages
-        const path = window.location.pathname;
-        if (!['/login', '/signup', '/set-password', '/auth/callback'].includes(path)) {
-          window.location.assign('/login');
+        if (!isPublicAuthRoute(window.location.pathname)) {
+          window.location.assign(signInPathFor(window.location.pathname));
         }
       }
       if (status === 409) {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getSupabase } from '@/lib/supabase';
 import { api } from '@/lib/api';
 import { useRefreshAuth } from '@/components/AuthGuard';
+import { signInPathForRole, TEAM_SIGN_IN } from '@/lib/auth-routes';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export default function PendingPage() {
@@ -12,6 +13,7 @@ export default function PendingPage() {
   const refreshAuth = useRefreshAuth();
   const [email, setEmail] = React.useState<string>('');
   const [status, setStatus] = React.useState<string>('pending');
+  const [role, setRole] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const supabase = getSupabase();
@@ -23,7 +25,7 @@ export default function PendingPage() {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session) {
-        router.replace('/login');
+        router.replace(TEAM_SIGN_IN);
         return;
       }
 
@@ -31,8 +33,9 @@ export default function PendingPage() {
       setEmail(session.user.email ?? '');
 
       try {
-        const info = await api.get<{ status: string }>('/auth/me');
+        const info = await api.get<{ status: string; role?: string }>('/auth/me');
         setStatus(info.status);
+        setRole(info.role ?? null);
         if (info.status === 'approved') {
           await refreshAuth();
           router.replace('/');
@@ -78,7 +81,8 @@ export default function PendingPage() {
 
   async function handleSignOut() {
     await getSupabase().auth.signOut();
-    router.replace('/login');
+    // Creators awaiting approval go back to the creator sign-in.
+    router.replace(signInPathForRole(role));
   }
 
   return (

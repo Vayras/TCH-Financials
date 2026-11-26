@@ -226,6 +226,22 @@
   text-underline-offset: 2px;
 }
 
+.altLink {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--n-border);
+  font-size: 13px;
+  color: var(--n-fg-muted);
+  text-align: center;
+}
+
+.altLink a {
+  font-weight: 500;
+  color: var(--n-fg);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .aside {
   display: flex;
   flex-direction: column;
@@ -342,4 +358,22 @@
   .spinner {
     animation-duration: 1.6s;
   }
+}
+
+/* Creator sign-in: CreatorLedger palette (see public/creatorledger-mark.svg). */
+.creator {
+  --n-accent: #172a3a;
+  --n-accent-hover: #233d52;
+  --n-accent-soft: #fff3cc;
+}
+
+.creator .aside {
+  background:
+    radial-gradient(80% 55% at 100% 0%, rgba(255, 207, 74, 0.28) 0%, transparent 60%),
+    linear-gradient(160deg, #1d3448 0%, #10202d 100%);
+}
+
+.creator .asideList li span:first-child {
+  background: rgba(255, 207, 74, 0.16);
+  color: #ffcf4a;
 }
