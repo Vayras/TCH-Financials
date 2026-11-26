@@ -976,6 +976,7 @@ function ConceptDetail({
                 </label>
                 <div className={styles.actions}>
                   <Button
+                    variant="outline"
                     disabled={busy || !reviewNote.trim()}
                     onClick={() => void perform('changes_requested')}
                   >
@@ -983,6 +984,7 @@ function ConceptDetail({
                   </Button>
                   {canApprove && (
                     <Button
+                      variant="primary"
                       disabled={busy || item.stale_brief}
                       onClick={() => void perform('approved')}
                     >

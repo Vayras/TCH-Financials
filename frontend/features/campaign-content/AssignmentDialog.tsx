@@ -69,126 +69,222 @@ function AssignmentForm({
       setBusy(false);
     }
   }
+  const availableMembers =
+    options.data?.members.filter((m) => !members.some((x) => x.user_id === m.user_id)) ?? [];
+  const availableCreators =
+    options.data?.creators.filter((c) => !creators.some((x) => x.creator_id === c.creator_id)) ??
+    [];
+
   return (
     <div className="space-y-5">
-      <section>
-        <h3 className="font-medium">
-          Assigned members <span>({members.length})</span>
-        </h3>
-        {!members.length && <p className={styles.hint}>No team members assigned.</p>}
-        {members.map((m) => (
-          <div key={m.user_id} className="mt-2 flex flex-wrap items-center gap-3 text-sm">
-            <span className="break-all">{m.display_name || m.email}</span>
-            <label className="flex gap-2">
-              <input
-                type="checkbox"
-                checked={m.can_publish}
-                onChange={(e) =>
-                  setMembers((v) =>
-                    v.map((x) =>
-                      x.user_id === m.user_id ? { ...x, can_publish: e.target.checked } : x,
-                    ),
-                  )
-                }
-              />
-              Can share
-            </label>
-            <button
-              type="button"
-              className="underline"
-              onClick={() => setMembers((v) => v.filter((x) => x.user_id !== m.user_id))}
-            >
-              Remove
-            </button>
+      <div className="space-y-4">
+        <section>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Team members ({members.length})
+            </h3>
           </div>
-        ))}
-      </section>
-      <section>
-        <h3 className="font-medium">
-          Assigned creators <span>({creators.length})</span>
-        </h3>
-        {!creators.length && (
-          <p className={styles.hint}>
-            No creators assigned. Add a creator below to share the brief.
+          {!members.length ? (
+            <p className="mt-2 rounded-lg border border-dashed border-slate-200 px-3 py-2.5 text-xs text-slate-500">
+              No team members assigned yet.
+            </p>
+          ) : (
+            <div className="mt-2 space-y-1.5">
+              {members.map((m) => {
+                const label = m.display_name || m.email;
+                return (
+                  <div
+                    key={m.user_id}
+                    className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm"
+                  >
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
+                        {label.slice(0, 2).toUpperCase()}
+                      </span>
+                      <span className="truncate font-medium text-slate-800">{label}</span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-600">
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300 text-indigo-600"
+                          checked={m.can_publish}
+                          onChange={(e) =>
+                            setMembers((v) =>
+                              v.map((x) =>
+                                x.user_id === m.user_id
+                                  ? { ...x, can_publish: e.target.checked }
+                                  : x,
+                              ),
+                            )
+                          }
+                        />
+                        Can share
+                      </label>
+                      <button
+                        type="button"
+                        className="text-xs font-medium text-slate-500 hover:text-red-600"
+                        onClick={() => setMembers((v) => v.filter((x) => x.user_id !== m.user_id))}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Creators ({creators.length})
+            </h3>
+          </div>
+          {!creators.length ? (
+            <p className="mt-2 rounded-lg border border-dashed border-slate-200 px-3 py-2.5 text-xs text-slate-500">
+              No creators assigned. Add a creator below to share the brief.
+            </p>
+          ) : (
+            <div className="mt-2 space-y-1.5">
+              {creators.map((c) => (
+                <div
+                  key={c.creator_id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2 text-sm"
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-semibold text-violet-700">
+                      {c.name.slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="truncate font-medium text-slate-800">{c.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 text-xs font-medium text-slate-500 hover:text-red-600"
+                    onClick={() =>
+                      setCreators((v) => v.filter((x) => x.creator_id !== c.creator_id))
+                    }
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+
+      <div className="border-t border-slate-200 pt-4">
+        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500">
+          Add people
+          <div className="mt-2">
+            <Input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Search by name or email…"
+            />
+          </div>
+        </label>
+
+        {options.isError ? (
+          <p role="alert" className="mt-2 text-xs text-red-600">
+            Search is unavailable.
           </p>
-        )}
-        {creators.map((c) => (
-          <div key={c.creator_id} className="mt-2 flex gap-3 text-sm">
-            <span>{c.name}</span>
-            <button
-              type="button"
-              className="underline"
-              onClick={() => setCreators((v) => v.filter((x) => x.creator_id !== c.creator_id))}
-            >
-              Remove
-            </button>
-          </div>
-        ))}
-      </section>
-      <label className="block text-sm">
-        Find a member or creator
-        <Input
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Name or email"
-        />
-      </label>
-      {options.isError ? (
-        <p role="alert">Search is unavailable.</p>
-      ) : options.isFetching ? (
-        <p className="text-sm">Searching…</p>
-      ) : (
-        <div className="space-y-2">
-          {options.data?.members
-            .filter((m) => !members.some((x) => x.user_id === m.user_id))
-            .map((m) => (
-              <button
-                type="button"
-                key={m.user_id}
-                className={styles.option}
-                onClick={() => setMembers((v) => [...v, { ...m, can_publish: false }])}
-              >
-                Add member: {m.display_name || m.email}
-              </button>
-            ))}
-          {options.data?.creators
-            .filter((c) => !creators.some((x) => x.creator_id === c.creator_id))
-            .map((c) => (
-              <button
-                type="button"
+        ) : options.isFetching ? (
+          <p className="mt-2 text-xs text-slate-500">Searching…</p>
+        ) : availableMembers.length === 0 && availableCreators.length === 0 ? (
+          <p className="mt-2 text-xs text-slate-500">No matching members or creators found.</p>
+        ) : (
+          <div className="mt-2.5 max-h-52 space-y-1.5 overflow-y-auto pr-1">
+            {availableMembers.map((m) => {
+              const label = m.display_name || m.email;
+              return (
+                <div
+                  key={m.user_id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 transition-colors hover:bg-slate-50"
+                >
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-xs font-semibold text-indigo-600">
+                      {label.slice(0, 2).toUpperCase()}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-800">{label}</p>
+                      {m.display_name && (
+                        <p className="truncate text-xs text-slate-500">{m.email}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700">
+                      Team
+                    </span>
+                    <Button
+                      variant="outline"
+                      onClick={() => setMembers((v) => [...v, { ...m, can_publish: false }])}
+                    >
+                      + Add
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+            {availableCreators.map((c) => (
+              <div
                 key={c.creator_id}
-                className={styles.option}
-                onClick={() => setCreators((v) => [...v, c])}
+                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 transition-colors hover:bg-slate-50"
               >
-                Add creator: {c.name}
-                <span className="block text-xs">{c.profiles.map((p) => p.email).join(', ')}</span>
-              </button>
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-50 text-xs font-semibold text-violet-600">
+                    {c.name.slice(0, 2).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-slate-800">{c.name}</p>
+                    {c.profiles.length > 0 && (
+                      <p className="truncate text-xs text-slate-500">
+                        {c.profiles.map((p) => p.email).join(', ')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">
+                    Creator
+                  </span>
+                  <Button variant="outline" onClick={() => setCreators((v) => [...v, c])}>
+                    + Add
+                  </Button>
+                </div>
+              </div>
             ))}
-        </div>
-      )}
-      {(page > 1 || options.data?.has_more) && (
-        <div className="flex gap-3">
-          <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            disabled={!options.data?.has_more}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next
-          </Button>
-        </div>
-      )}
+          </div>
+        )}
+
+        {(page > 1 || options.data?.has_more) && (
+          <div className="mt-3 flex justify-end gap-2">
+            <Button variant="outline" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              disabled={!options.data?.has_more}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        )}
+      </div>
+
       {error && (
         <p role="alert" className="text-sm text-red-700">
           {error} Close and reopen to reload if assignments changed.
         </p>
       )}
-      <div className={styles.dialogActions}>
+      <div className={`${styles.dialogActions} border-t border-slate-200 pt-4`}>
         <Button variant="outline" disabled={busy} onClick={onClose}>
           Cancel
         </Button>
