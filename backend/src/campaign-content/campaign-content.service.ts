@@ -280,7 +280,8 @@ export class CampaignContentService {
       CASE WHEN a.creator_id IS NOT NULL THEN r.id END AS shared_revision_id,
       CASE WHEN a.creator_id IS NOT NULL THEN r.draft_version END AS shared_version,
       CASE WHEN a.creator_id IS NOT NULL THEN r.shared_at END AS shared_at,
-      (a.creator_id IS NOT NULL AND r.id IS NOT NULL) AS brief_shared
+      (a.creator_id IS NOT NULL AND r.id IS NOT NULL) AS brief_shared,
+      (a.creator_id IS NOT NULL) AS brief_assigned
       FROM tch_campaign c
       LEFT JOIN tch_campaign_brief_creator a ON a.campaign_id=c.id AND a.creator_id=$1
       LEFT JOIN tch_campaign_brief b ON b.campaign_id=c.id
@@ -302,6 +303,7 @@ export class CampaignContentService {
       `SELECT c.id::text,c.name,c.brand,
       CASE WHEN a.creator_id IS NOT NULL THEN r.shared_at END AS shared_at,
       (a.creator_id IS NOT NULL AND r.id IS NOT NULL) AS brief_shared,
+      (a.creator_id IS NOT NULL) AS brief_assigned,
       CASE WHEN a.creator_id IS NOT NULL THEN COALESCE(r.content->'deliverables','[]'::jsonb)
         ELSE '[]'::jsonb END AS deliverables,
       CASE WHEN a.creator_id IS NOT NULL THEN COALESCE((SELECT jsonb_agg(jsonb_build_object('id',x.id,'state',x.state,'title',cr.content->>'title'))
@@ -451,6 +453,7 @@ export class CampaignContentService {
       CASE WHEN a.creator_id IS NOT NULL AND r.id IS NOT NULL THEN r.draft_version END AS shared_version,
       CASE WHEN a.creator_id IS NOT NULL AND r.id IS NOT NULL THEN r.shared_at END AS shared_at,
       (a.creator_id IS NOT NULL AND r.id IS NOT NULL) AS brief_shared,
+      (a.creator_id IS NOT NULL) AS brief_assigned,
       CASE WHEN a.creator_id IS NOT NULL AND r.id IS NOT NULL THEN r.content END AS content
       FROM tch_campaign c
       LEFT JOIN tch_campaign_brief_creator a ON a.campaign_id=c.id AND a.creator_id=$1
