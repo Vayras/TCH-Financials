@@ -15,9 +15,13 @@ type Phase = 'idle' | 'signing-in' | 'signed-in';
 // profile; hand the form back rather than spinning forever.
 const OPEN_WORKSPACE_TIMEOUT_MS = 12_000;
 
+const NETWORK_ERROR = 'We couldn’t reach the sign-in service. Check your connection and try again.';
+
 // Supabase's messages are terse and technical; say what to do next instead.
 function friendlyError(message: string) {
   const m = message.toLowerCase();
+  // supabase-js reports network failures as an error result, not a throw.
+  if (m.includes('failed to fetch') || m.includes('network')) return NETWORK_ERROR;
   if (m.includes('invalid login credentials'))
     return 'That email and password don’t match. Check them and try again.';
   if (m.includes('email not confirmed'))
@@ -64,7 +68,7 @@ export default function LoginPage() {
       // We do NOT redirect here to avoid a flicker for pending/rejected users.
       setPhase('signed-in');
     } catch {
-      setError('We couldn’t reach the sign-in service. Check your connection and try again.');
+      setError(NETWORK_ERROR);
       setPhase('idle');
     }
   }
